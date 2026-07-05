@@ -61,6 +61,7 @@
           <button class="tab" type="button" role="tab" aria-selected="false" data-tab="training">Träning</button>
           <button class="tab" type="button" role="tab" aria-selected="false" data-tab="log">Logg</button>
           <button class="tab" type="button" role="tab" aria-selected="false" data-tab="member">Medlem</button>
+          <button id="adminTabButton" class="tab" type="button" role="tab" aria-selected="false" data-tab="admin" hidden>Admin</button>
           <button class="tab" type="button" role="tab" aria-selected="false" data-tab="sources">Källor</button>
         </nav>
 
@@ -598,6 +599,78 @@
                 <span class="status-badge low">Helhet</span>
               </div>
               <div id="retentionGrid" class="retention-grid"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="admin" class="view" role="tabpanel">
+          <section class="module admin-hero-module" aria-labelledby="admin-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">Databasadmin</p>
+                <h2 id="admin-title">Användare, admins och super admin</h2>
+              </div>
+              <span id="adminStatus" class="status-badge medium">Ej laddad</span>
+            </div>
+            <div class="admin-summary-grid">
+              <article>
+                <span>Aktiv roll</span>
+                <strong id="adminRoleLabel">Ingen</strong>
+              </article>
+              <article>
+                <span>Super admin</span>
+                <strong>micke@ccorebro.se</strong>
+              </article>
+              <article>
+                <span>Databas</span>
+                <strong>PostgreSQL</strong>
+              </article>
+            </div>
+          </section>
+
+          <div class="two-column admin-grid">
+            <section class="module" aria-labelledby="admin-create-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Skapa</p>
+                  <h2 id="admin-create-title">Lägg till användare</h2>
+                </div>
+              </div>
+              <form id="adminCreateUserForm" class="admin-user-form">
+                <label>
+                  <span>E-post</span>
+                  <input id="adminUserEmail" type="email" autocomplete="off" placeholder="namn@domän.se">
+                </label>
+                <label>
+                  <span>Namn</span>
+                  <input id="adminUserName" type="text" autocomplete="off" placeholder="Förnamn Efternamn">
+                </label>
+                <label>
+                  <span>Roll</span>
+                  <select id="adminUserRole">
+                    <option value="user">Användare</option>
+                    <option value="admin">Admin</option>
+                    <option value="super_admin">Super admin</option>
+                  </select>
+                </label>
+                <label>
+                  <span>PIN/lösenord</span>
+                  <input id="adminUserPin" type="text" inputmode="numeric" autocomplete="off" placeholder="Lämna tomt för auto-PIN">
+                </label>
+                <button class="primary-button" type="submit">Skapa / uppdatera</button>
+                <p id="adminCreateResult" class="admin-result">Super admin kan skapa admins. Admin kan skapa vanliga användare.</p>
+              </form>
+            </section>
+
+            <section class="module" aria-labelledby="admin-list-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Register</p>
+                  <h2 id="admin-list-title">Databasanvändare</h2>
+                </div>
+                <button id="refreshAdminUsers" class="ghost-button" type="button">Uppdatera</button>
+              </div>
+              <div id="adminUserList" class="admin-user-list"></div>
             </section>
           </div>
         </section>

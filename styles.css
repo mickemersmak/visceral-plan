@@ -2416,6 +2416,145 @@ textarea:focus {
   line-height: 1.45;
 }
 
+.admin-hero-module {
+  border-color: rgba(195, 154, 76, 0.24);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 247, 243, 0.86) 58%, rgba(255, 243, 207, 0.54));
+}
+
+.admin-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-summary-grid article {
+  border: 1px solid rgba(18, 63, 53, 0.11);
+  border-radius: 10px;
+  padding: 14px;
+  background: rgba(255, 254, 250, 0.86);
+  box-shadow: 0 10px 28px rgba(13, 20, 17, 0.055);
+}
+
+.admin-summary-grid span,
+.admin-summary-grid strong {
+  display: block;
+}
+
+.admin-summary-grid span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.admin-summary-grid strong {
+  margin-top: 8px;
+  color: var(--green);
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-grid {
+  margin-top: 20px;
+}
+
+.admin-user-form {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-user-form label,
+.admin-user-form span,
+.admin-result {
+  display: block;
+}
+
+.admin-user-form label span {
+  margin-bottom: 6px;
+  color: var(--green);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.admin-user-form input,
+.admin-user-form select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(18, 63, 53, 0.16);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #fffefa;
+  color: var(--ink);
+}
+
+.admin-result {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.admin-user-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-user-list article,
+.admin-empty {
+  border: 1px solid rgba(18, 63, 53, 0.11);
+  border-radius: 10px;
+  padding: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(239, 247, 243, 0.72));
+}
+
+.admin-user-list article {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-user-list strong,
+.admin-user-list span,
+.admin-user-list small,
+.admin-empty strong,
+.admin-empty span {
+  display: block;
+}
+
+.admin-user-list span,
+.admin-user-list small,
+.admin-empty span {
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+.admin-user-list span {
+  margin-top: 4px;
+}
+
+.admin-user-list small {
+  margin-top: 5px;
+}
+
+.admin-user-list b {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 0.74rem;
+  color: var(--green);
+  background: #edf7f1;
+  border: 1px solid rgba(31, 111, 92, 0.2);
+}
+
+.admin-user-list b.paused {
+  color: var(--amber);
+  background: #fff8e8;
+  border-color: rgba(183, 128, 31, 0.25);
+}
+
 .status-badge.low {
   color: var(--green);
   border-color: rgba(31, 111, 92, 0.28);
@@ -2450,7 +2589,7 @@ textarea:focus {
   }
 
   .tabs {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(8, minmax(0, 1fr));
   }
 
   .video-card {
@@ -2482,7 +2621,8 @@ textarea:focus {
 
   .score-breakdown,
   .coach-brief,
-  .member-value-grid {
+  .member-value-grid,
+  .admin-summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -2582,7 +2722,7 @@ textarea:focus {
     right: 10px;
     bottom: calc(10px + env(safe-area-inset-bottom));
     z-index: 40;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-template-columns: repeat(8, minmax(0, 1fr));
     gap: 4px;
     padding: 8px;
     border: 1px solid rgba(241, 209, 138, 0.24);
@@ -2698,7 +2838,8 @@ textarea:focus {
   .score-breakdown,
   .coach-brief,
   .member-value-grid,
-  .health-data-grid {
+  .health-data-grid,
+  .admin-summary-grid {
     grid-template-columns: 1fr;
   }
 
@@ -2774,6 +2915,7 @@ textarea:focus {
   .meal-template-module,
   .smart-food-module,
   .fridge-module,
+  .admin-grid,
   .sprint-module + .module,
   .member-grid {
     margin-top: 12px;
@@ -2793,6 +2935,10 @@ textarea:focus {
 
   .food-guide {
     grid-template-columns: 1fr;
+  }
+
+  .admin-user-list article {
+    align-items: flex-start;
   }
 
   .competitor-matrix {

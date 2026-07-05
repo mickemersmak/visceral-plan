@@ -13,6 +13,8 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Källflik med verifierade hälso- och videounderlag.
 - PWA-stöd med manifest, ikoner, offline-cache, installationsknapp och mobil bottennavigering.
 - Lokal profilinloggning med PIN för flera användare på samma enhet.
+- Databaslogin med PostgreSQL, sessions, roller och adminpanel när `DATABASE_URL` är satt.
+- Rollstyrning för `user`, `admin` och `super_admin`, med bootstrap för `micke@ccorebro.se`.
 - Könsspecifika vägar för män, kvinnor och neutral profil med fokus som bukmått, cykel, perimenopaus, återstart, styrka, stress och kondition.
 - Rankad livsmedelsguide med metriska portionsförslag för livsmedel, frukt och grönsaker.
 - Kylskåpsbyggare som räknar ut en komplett måltid från valda råvaror hemma.
@@ -47,3 +49,22 @@ PWA-funktioner som service worker och installation testas bäst via den deployad
 ## AI-vision
 
 Kylskåpsscannen fungerar som lokal demo utan nyckel. För riktig bildanalys i produktion: lägg till `OPENAI_API_KEY` i Vercel. Valfritt kan `OPENAI_FRIDGE_MODEL` sättas för att byta visionmodell.
+
+## Databas och admin
+
+Appen har server-API för PostgreSQL via `DATABASE_URL`. Sätt dessa miljövariabler i Vercel:
+
+- `DATABASE_URL`: Postgres/Neon/Vercel Postgres connection string.
+- `ADMIN_BOOTSTRAP_SECRET`: hemlighet som krävs för första super admin.
+- `SUPER_ADMIN_EMAIL`: valfri, annars används `micke@ccorebro.se`.
+
+Skapa databastabeller och super admin genom att posta till:
+
+```bash
+curl -X POST https://visceral-plan.vercel.app/api/admin/bootstrap \
+  -H "Content-Type: application/json" \
+  -H "x-bootstrap-secret: DIN_HEMLIGHET" \
+  -d '{"email":"micke@ccorebro.se","name":"Micke","pin":"VALFRI_PIN_MINST_6_TECKEN"}'
+```
+
+Efter bootstrap kan super admin logga in med e-post + PIN i appen. Adminfliken visas då automatiskt och kan skapa användare eller admins.

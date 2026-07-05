@@ -1,6 +1,8 @@
 const STORAGE_KEY = "visceral-plan-state-v1";
 const USERS_KEY = "visceral-plan-users-v1";
 const SESSION_KEY = "visceral-plan-session-v1";
+const SERVER_SESSION_KEY = "visceral-plan-server-session-v1";
+const ADMIN_ROLES = ["admin", "super_admin"];
 const GUEST_USER = { id: "guest", name: "Gästläge", guest: true };
 
 const sources = [
@@ -613,6 +615,10 @@ let fridgeScan = {
   message: "Kamera redo",
   note: ""
 };
+let adminUsers = [];
+let adminLoading = false;
+let adminLoaded = false;
+let adminMessage = "Logga in som admin för databasläge.";
 let deferredInstallPrompt = null;
 
 const $ = (selector) => document.querySelector(selector);
@@ -631,6 +637,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindSwapLab();
   bindFridgeBuilder();
   bindMemberMessages();
+  bindAdmin();
   renderAll();
   activateInitialTab();
 });
@@ -691,9 +698,30 @@ function saveUsers(users) {
 }
 
 function loadActiveUser() {
+  const serverSession = loadServerSession();
+  if (serverSession && serverSession.user && serverSession.token) {
+    return {
+      ...serverSession.user,
+      token: serverSession.token,
+      server: true,
+      name: serverSession.user.name || serverSession.user.email
+    };
+  }
   const sessionId = localStorage.getItem(SESSION_KEY);
   const user = loadUsers().find((item) => item.id === sessionId);
   return user || GUEST_USER;
+}
+
+function loadServerSession() {
+  try {
+    return JSON.parse(localStorage.getItem(SERVER_SESSION_KEY));
+  } catch {
+    return null;
+  }
+}
+
+function saveServerSession(payload) {
+  localStorage.setItem(SERVER_SESSION_KEY, JSON.stringify(payload));
 }
 
 function stateStorageKey(userId = activeUser.id) {
@@ -712,12 +740,17 @@ function hashPin(pin) {
 
 function bindAuth() {
   renderAuth();
-  $("#authForm").addEventListener("submit", (event) => {
+  $("#authForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const rawName = $("#authName").value.trim();
     const pin = $("#authPin").value.trim();
     if (!rawName || pin.length < 4) {
       setAuthMessage("Ange namn/e-post och minst 4 siffror.");
+      return;
+    }
+
+    if (rawName.includes("@")) {
+      await loginWithDatabase(rawName, pin);
       return;
     }
 
@@ -752,21 +785,59 @@ function bindAuth() {
 
 function renderAuth() {
   $("#activeUserLabel").textContent = activeUser.name;
-  $("#authName").value = activeUser.guest ? "" : activeUser.name;
+  $("#authName").value = activeUser.guest ? "" : (activeUser.email || activeUser.name);
+  const message = activeUser.server
+    ? `Databasroll: ${roleLabel(activeUser.role)}. Sessionen sparas på denna enhet.`
+    : "Lokal profil på denna enhet. Ingen serverinloggning.";
+  $("#authMessage").textContent = message;
 }
 
-function setAuthMessage(message) {
-  $("#authMessage").textContent = `${message} Data sparas endast på denna enhet.`;
+function setAuthMessage(message, suffix = "Data sparas på denna enhet.") {
+  $("#authMessage").textContent = `${message} ${suffix}`;
 }
 
 function switchUser(user) {
   activeUser = user;
-  if (user.guest) localStorage.removeItem(SESSION_KEY);
-  else localStorage.setItem(SESSION_KEY, user.id);
+  adminUsers = [];
+  adminLoaded = false;
+  adminMessage = "Logga in som admin för databasläge.";
+  if (user.guest) {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SERVER_SESSION_KEY);
+  } else if (user.server) {
+    localStorage.removeItem(SESSION_KEY);
+    saveServerSession({ token: user.token, user: { id: user.id, email: user.email, name: user.name, role: user.role, status: user.status } });
+  } else {
+    localStorage.removeItem(SERVER_SESSION_KEY);
+    localStorage.setItem(SESSION_KEY, user.id);
+  }
   state = loadState();
   syncProfileFields();
   renderAuth();
   renderAll();
+}
+
+async function loginWithDatabase(email, pin) {
+  setAuthMessage("Loggar in mot databasen...", "Vänta.");
+  try {
+    const response = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, pin })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "Databasinloggning misslyckades.");
+    switchUser({
+      ...data.user,
+      token: data.token,
+      server: true,
+      name: data.user.name || data.user.email
+    });
+    $("#authPin").value = "";
+    setAuthMessage("Inloggad via databas.", `Roll: ${roleLabel(data.user.role)}.`);
+  } catch (error) {
+    setAuthMessage(error.message || "Databasen kunde inte nås.", "Kontrollera att DATABASE_URL är satt och att profilen finns.");
+  }
 }
 
 function loadState() {
@@ -1001,6 +1072,37 @@ function bindMemberMessages() {
   });
 }
 
+function bindAdmin() {
+  const form = $("#adminCreateUserForm");
+  const refreshButton = $("#refreshAdminUsers");
+  if (refreshButton) refreshButton.addEventListener("click", fetchAdminUsers);
+  if (!form) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!canAccessAdmin()) return;
+    const payload = {
+      email: $("#adminUserEmail").value.trim(),
+      name: $("#adminUserName").value.trim(),
+      role: $("#adminUserRole").value,
+      pin: $("#adminUserPin").value.trim()
+    };
+    $("#adminCreateResult").textContent = "Sparar användare i databasen...";
+    try {
+      const data = await apiRequest("/api/admin/users", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      $("#adminCreateResult").textContent = `${data.message} PIN: ${data.temporaryPin}`;
+      $("#adminUserEmail").value = "";
+      $("#adminUserName").value = "";
+      $("#adminUserPin").value = "";
+      await fetchAdminUsers();
+    } catch (error) {
+      $("#adminCreateResult").textContent = error.message || "Kunde inte skapa användare.";
+    }
+  });
+}
+
 function startTimer() {
   if (timer.running) return;
   timer.running = true;
@@ -1064,6 +1166,7 @@ function renderAll() {
   renderTraining();
   renderWeeklySummary();
   renderMemberHub();
+  renderAdminHub();
   renderSources();
   renderCompetitors();
   loadLogForDate();
@@ -2549,8 +2652,106 @@ function renderRetentionGrid() {
   `).join("");
 }
 
+function canAccessAdmin() {
+  return Boolean(activeUser.server && ADMIN_ROLES.includes(activeUser.role));
+}
+
+function renderAdminHub() {
+  const adminTab = $("#adminTabButton");
+  const adminView = $("#admin");
+  if (!adminTab || !adminView) return;
+  const allowed = canAccessAdmin();
+  adminTab.hidden = !allowed;
+  if (!allowed && adminView.classList.contains("is-active")) activateTab("dashboard");
+
+  $("#adminRoleLabel").textContent = activeUser.server ? roleLabel(activeUser.role) : "Gäst";
+  $("#adminStatus").textContent = allowed ? adminMessage : "Låst";
+  $("#adminStatus").className = `status-badge ${allowed ? "low" : "medium"}`;
+  const roleSelect = $("#adminUserRole");
+  if (roleSelect) {
+    roleSelect.disabled = activeUser.role !== "super_admin";
+    if (activeUser.role !== "super_admin") roleSelect.value = "user";
+  }
+  renderAdminUserList();
+  if (allowed && !adminLoaded && !adminLoading) fetchAdminUsers();
+}
+
+function renderAdminUserList() {
+  const target = $("#adminUserList");
+  if (!target) return;
+  if (!canAccessAdmin()) {
+    target.innerHTML = `
+      <div class="admin-empty">
+        <strong>Admin kräver databaslogin</strong>
+        <span>Logga in med en användare som har rollen admin eller super admin.</span>
+      </div>
+    `;
+    return;
+  }
+  if (adminLoading) {
+    target.innerHTML = `<div class="admin-empty"><strong>Laddar databasanvändare...</strong></div>`;
+    return;
+  }
+  if (!adminUsers.length) {
+    target.innerHTML = `<div class="admin-empty"><strong>Inga användare laddade</strong><span>Tryck på Uppdatera.</span></div>`;
+    return;
+  }
+  target.innerHTML = adminUsers.map((user) => `
+    <article>
+      <div>
+        <strong>${escapeHTML(user.name || user.email)}</strong>
+        <span>${escapeHTML(user.email)} · ${roleLabel(user.role)}</span>
+        <small>${user.lastLoginAt ? `Senast inloggad: ${formatMessageDate(user.lastLoginAt)}` : "Ingen inloggning ännu"}</small>
+      </div>
+      <b class="${user.status === "active" ? "active" : "paused"}">${user.status === "active" ? "Aktiv" : "Pausad"}</b>
+    </article>
+  `).join("");
+}
+
+async function fetchAdminUsers() {
+  if (!canAccessAdmin()) return;
+  adminLoading = true;
+  adminMessage = "Laddar";
+  renderAdminUserList();
+  try {
+    const data = await apiRequest("/api/admin/users");
+    adminUsers = Array.isArray(data.users) ? data.users : [];
+    adminLoaded = true;
+    adminMessage = `${adminUsers.length} användare`;
+  } catch (error) {
+    adminMessage = "Fel";
+    adminLoaded = true;
+    $("#adminCreateResult").textContent = error.message || "Kunde inte ladda användare.";
+  } finally {
+    adminLoading = false;
+    renderAdminHub();
+  }
+}
+
+async function apiRequest(url, options = {}) {
+  if (!activeUser.token) throw new Error("Du är inte inloggad via databasen.");
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${activeUser.token}`,
+      ...(options.headers || {})
+    }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "API-anropet misslyckades.");
+  return data;
+}
+
+function roleLabel(role) {
+  if (role === "super_admin") return "Super admin";
+  if (role === "admin") return "Admin";
+  if (role === "user") return "Användare";
+  return "Gäst";
+}
+
 function renderSources() {
-  $("#videoNote").textContent = "Jag kunde verifiera videons titel, kanal, beskrivning, kapitel och auto-caption-spår. Själva caption-endpointen returnerade tom respons här, så appens sakpåståenden bygger på videons verifierbara metadata och etablerade medicinska källor. Inloggningen är en lokal PWA-profil på denna enhet, inte en serverbaserad journal.";
+  $("#videoNote").textContent = "Jag kunde verifiera videons titel, kanal, beskrivning, kapitel och auto-caption-spår. Själva caption-endpointen returnerade tom respons här, så appens sakpåståenden bygger på videons verifierbara metadata och etablerade medicinska källor. Appen kan köras med lokal PWA-profil eller serverbaserad databaslogin när DATABASE_URL är satt.";
   $("#sourceList").innerHTML = sources.map((source) => `
     <article class="source-item">
       <strong>${source.title}</strong>

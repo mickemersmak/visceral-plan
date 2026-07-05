@@ -1,0 +1,10 @@
+{
+  "name": "visceral-plan",
+  "private": true,
+  "scripts": {
+    "check": "node --check app.js && node --check sw.js && node --check api/_db.js && node --check api/auth/login.js && node --check api/auth/me.js && node --check api/admin/bootstrap.js && node --check api/admin/users.js && node --check api/fridge-scan.js"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0"
+  }
+}
