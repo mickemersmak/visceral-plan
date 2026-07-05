@@ -367,7 +367,9 @@ function numberOrNull(value) {
 }
 
 function normalizeApiKey(value) {
-  const key = String(value || "").trim().replace(/^["']|["']$/g, "");
+  let key = String(value || "").trim().replace(/^export\s+/i, "");
+  if (/^OPENAI_API_KEY\s*=/.test(key)) key = key.slice(key.indexOf("=") + 1).trim();
+  key = key.replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "").trim();
   return key.startsWith("sk-") ? key : "";
 }
 
