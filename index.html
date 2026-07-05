@@ -2,10 +2,18 @@
 <html lang="sv">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#1f6f5c">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f1916">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="En svensk PWA för kost, träning och mätbar planering mot bukfett och visceralt fett.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Visceral Plan">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Visceral Plan</title>
     <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -17,6 +25,11 @@
             <strong>Visceral Plan</strong>
             <span>Metabolt premiumprogram</span>
           </div>
+        </div>
+
+        <div class="app-actions" aria-label="Appstatus">
+          <button id="installApp" class="install-button" type="button" hidden>Installera</button>
+          <span id="connectionStatus" class="connection-pill">Online</span>
         </div>
 
         <nav class="tabs" role="tablist" aria-label="Huvudvyer">

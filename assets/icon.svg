@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Visceral Plan">
+  <rect width="512" height="512" rx="112" fill="#0f1916"/>
+  <path d="M108 110h296v292H108z" fill="#17483c"/>
+  <path d="M108 110h296v292H108z" fill="url(#a)" opacity=".75"/>
+  <path d="M154 166c28-28 68-43 106-39 60 7 109 54 118 114 9 65-29 126-91 148-33 12-72 8-102-9l-12-7 35-61 12 6c26 13 59 8 80-13 30-30 30-78 0-108-29-30-78-30-108 0-20 21-26 52-15 78l5 12-62 34-6-13c-23-48-13-106 40-142z" fill="#f1d18a"/>
+  <path d="M246 179l-30 126h50l-16 84 72-138h-55l27-72z" fill="#fffefa"/>
+  <path d="M404 110v292h-64c36-48 49-115 23-174-22-50-66-87-119-101l-11-17z" fill="#2d866e" opacity=".42"/>
+  <defs>
+    <linearGradient id="a" x1="108" x2="404" y1="110" y2="402" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2d866e"/>
+      <stop offset=".48" stop-color="#17483c"/>
+      <stop offset="1" stop-color="#c39a4c"/>
+    </linearGradient>
+  </defs>
+</svg>

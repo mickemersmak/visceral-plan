@@ -218,18 +218,65 @@ let timer = {
   running: false,
   intervalId: null
 };
+let deferredInstallPrompt = null;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 document.addEventListener("DOMContentLoaded", () => {
+  registerServiceWorker();
+  bindInstallPrompt();
+  syncConnectionState();
   setToday();
   bindTabs();
   bindProfile();
   bindLog();
   bindTimer();
   renderAll();
+  activateInitialTab();
 });
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
+
+function bindInstallPrompt() {
+  const button = $("#installApp");
+  if (!button) return;
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    button.hidden = false;
+  });
+
+  button.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice.catch(() => null);
+    deferredInstallPrompt = null;
+    button.hidden = true;
+  });
+
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    button.hidden = true;
+  });
+}
+
+function syncConnectionState() {
+  const status = $("#connectionStatus");
+  if (!status) return;
+  const update = () => {
+    const offline = navigator.onLine === false;
+    status.textContent = offline ? "Offline redo" : "Online";
+    status.classList.toggle("is-offline", offline);
+  };
+  update();
+  window.addEventListener("online", update);
+  window.addEventListener("offline", update);
+}
 
 function loadState() {
   try {
@@ -268,14 +315,27 @@ function dateKey(date) {
 function bindTabs() {
   $$(".tab").forEach((button) => {
     button.addEventListener("click", () => {
-      const tab = button.dataset.tab;
-      $$(".tab").forEach((item) => {
-        item.classList.toggle("is-active", item === button);
-        item.setAttribute("aria-selected", item === button ? "true" : "false");
-      });
-      $$(".view").forEach((view) => view.classList.toggle("is-active", view.id === tab));
+      activateTab(button.dataset.tab);
+      if (window.matchMedia("(max-width: 760px)").matches) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     });
   });
+}
+
+function activateInitialTab() {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get("tab");
+  if (tab && $("#" + tab)) activateTab(tab);
+}
+
+function activateTab(tab) {
+  $$(".tab").forEach((item) => {
+    const selected = item.dataset.tab === tab;
+    item.classList.toggle("is-active", selected);
+    item.setAttribute("aria-selected", selected ? "true" : "false");
+  });
+  $$(".view").forEach((view) => view.classList.toggle("is-active", view.id === tab));
 }
 
 function bindProfile() {

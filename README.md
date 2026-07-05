@@ -11,7 +11,10 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Träningsbank och intervalltimer.
 - Daglig logg med vanor, rörelse, vikt och midjemått.
 - Källflik med verifierade hälso- och videounderlag.
+- PWA-stöd med manifest, ikoner, offline-cache, installationsknapp och mobil bottom navigation.
 
 ## Kör lokalt
 
 Öppna `index.html` direkt i webbläsaren.
+
+PWA-funktioner som service worker och installation testas bäst via den deployade HTTPS-versionen.
