@@ -60,11 +60,102 @@ const defaultState = {
     waist: 108,
     targetWaist: 88,
     level: "beginner",
-    foodMode: "med"
+    foodMode: "med",
+    sexFocus: "male-visceral"
   },
   habits: {},
   logs: {}
 };
+
+const sexFocusOptions = {
+  male: [
+    ["male-visceral", "Minska bukmått och leverbelastning"],
+    ["male-strength", "Bygga styrka utan att gå upp i midja"],
+    ["male-stress", "Stress, sömn och alkohol som bromsar fettminskning"],
+    ["male-cardio", "Kondition och blodtryck i fokus"]
+  ],
+  female: [
+    ["female-visceral", "Minska bukmått med stabil energi"],
+    ["female-cycle", "Träna runt menscykel och energisvängningar"],
+    ["female-peri", "Perimenopaus/klimakterie: styrka, sömn och midja"],
+    ["female-postpartum", "Efter graviditet: varsam återstart"]
+  ],
+  unspecified: [
+    ["neutral-visceral", "Minska bukmått och bygga hållbar rutin"],
+    ["neutral-strength", "Styrka och kondition i balans"],
+    ["neutral-recovery", "Sömn, stress och vanor först"]
+  ]
+};
+
+const sexProtocols = {
+  male: {
+    badge: "Man",
+    lead: "Män har ofta högre risk vid större bukmått och kan svara starkt på kombinationen styrka, kondition, alkoholfri vecka och sömn.",
+    options: {
+      "male-visceral": ["Prioritera midja/längd under 0,50", "4 alkoholfria dagar/vecka", "2 styrkepass + 150-210 min kondition", "Protein 1,6 g/kg/dag som riktmärke"],
+      "male-strength": ["Progressiv styrka 2-3 dagar/vecka", "Midjemätning varje söndag", "Lägg kolhydrater runt pass", "Undvik bulk som driver midjemått"],
+      "male-stress": ["10 min nedvarvning dagligen", "Sätt sömnfönster före extra träning", "Byt kvällsalkohol mot alkoholfritt", "Promenad efter middag"],
+      "male-cardio": ["Zon 2 två gånger/vecka", "Intervaller högst 1 gång/vecka i startfas", "Följ vilopuls/känsla om möjligt", "Styrka för ben/rygg/bål"]
+    }
+  },
+  female: {
+    badge: "Kvinna",
+    lead: "Kvinnor kan behöva mer styrning runt energitillgänglighet, cykel, järn/återhämtning och muskelbevarande träning, särskilt vid perimenopaus.",
+    options: {
+      "female-visceral": ["Undvik för lågt energiintag", "Styrka 2-3 dagar/vecka", "Fiber + protein i frukost", "Midja/längd och sömn följs veckovis"],
+      "female-cycle": ["Planera hårdare pass när energin är högre", "Välj lägre intensitet vid tydliga symtom", "Säkra protein och järnrika råvaror", "Följ hunger, sömn och midja utan att överreagera dag för dag"],
+      "female-peri": ["Tung men kontrollerad styrka", "Extra fokus på sömn och stress", "Protein 1,6 g/kg/dag som riktmärke", "Mät midja, inte bara vikt"],
+      "female-postpartum": ["Starta varsamt och stäm av med vården vid behov", "Bål och bäckenbotten före maxintervaller", "Promenader och lågintensiv volym", "Prioritera sömn och regelbundna måltider"]
+    }
+  },
+  unspecified: {
+    badge: "Profil",
+    lead: "Utan könsspecifik väg använder appen midja/längd, träningsnivå och vanor som huvudsignal.",
+    options: {
+      "neutral-visceral": ["Midja/längd under 0,50", "150-210 min rörelse/vecka", "2 styrkepass", "Protein, fiber och sömn först"],
+      "neutral-strength": ["2-3 styrkepass", "Zon 2 som bas", "Mät midja veckovis", "Justera kolhydrater efter pass"],
+      "neutral-recovery": ["Sömnfönster", "10 min stresspaus", "Promenad efter måltid", "Alkoholfri basvecka"]
+    }
+  }
+};
+
+const competitorInsights = [
+  {
+    name: "MyFitnessPal",
+    sources: [["Källa", "https://www.myfitnesspal.com/"]],
+    strength: "Stor matdatabas, streckkod/röst, kalorier, makronäring och integrationer.",
+    gap: "Saknar tydlig visceral-fett-logik och lokal privat PWA utan konto.",
+    edge: "Vi styr på bukmått, midja/längd och nästa åtgärd."
+  },
+  {
+    name: "Lifesum",
+    sources: [["Källa", "https://lifesum.com/"]],
+    strength: "AI, foto/röst/streckkod, måltidsplaner och vanepoäng.",
+    gap: "Mer bred nutrition än fokuserad bukfettscoach.",
+    edge: "Vi gör gram-baserad tallrik och visceralt beslutsrum."
+  },
+  {
+    name: "Cronometer",
+    sources: [["Källa", "https://cronometer.com/"]],
+    strength: "Djup mikro- och makronäringsdata, rapporter och biometrik.",
+    gap: "Kraftfullt men kan bli tungt för användare som vill ha beslut.",
+    edge: "Vi förenklar till metabolt index + konkret byte."
+  },
+  {
+    name: "Noom",
+    sources: [["Källa", "https://www.noom.com/"]],
+    strength: "Beteendestöd, coaching och viktresa.",
+    gap: "Mindre tydligt kring lokalt dataskydd och bukfettspecifik styrning.",
+    edge: "Vi gör beteendet mätbart med dagspoäng, midjetrend och nästa bästa åtgärd."
+  },
+  {
+    name: "Nike/Sweat/BetterMe",
+    sources: [["Nike", "https://www.nike.com/ntc-app"], ["Sweat", "https://sweat.com/"], ["BetterMe", "https://betterme.world/"]],
+    strength: "Stora träningsbibliotek, visuella pass och specialprogram.",
+    gap: "Ofta inte sammanbundet med bukmått/kostbeslut.",
+    edge: "Vi kopplar träningsbild, könsprotokoll och midjetrend."
+  }
+];
 
 const habits = [
   ["walk", "30 min rask promenad eller cykel"],
@@ -533,10 +624,12 @@ function activateTab(tab) {
 
 function bindProfile() {
   const profile = state.profile;
+  updateSexFocusOptions(profile.sex, profile.sexFocus);
   Object.entries(profile).forEach(([key, value]) => {
     const field = $("#" + key);
     if (field) field.value = value;
   });
+  $("#sex").addEventListener("change", () => updateSexFocusOptions($("#sex").value));
 
   $("#profileForm").addEventListener("submit", (event) => {
     event.preventDefault();
@@ -548,7 +641,8 @@ function bindProfile() {
       waist: numberValue("#waist"),
       targetWaist: numberValue("#targetWaist"),
       level: $("#level").value,
-      foodMode: $("#foodMode").value
+      foodMode: $("#foodMode").value,
+      sexFocus: $("#sexFocus").value
     };
     saveState();
     renderAll();
@@ -560,6 +654,18 @@ function bindProfile() {
     saveState();
     location.reload();
   });
+}
+
+function updateSexFocusOptions(sex, selectedValue) {
+  const select = $("#sexFocus");
+  if (!select) return;
+  const options = sexFocusOptions[sex] || sexFocusOptions.unspecified;
+  select.innerHTML = options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("");
+  const nextValue = selectedValue && options.some(([value]) => value === selectedValue)
+    ? selectedValue
+    : options[0][0];
+  select.value = nextValue;
+  $("#sexFocusLabel").textContent = sex === "female" ? "Kvinnospecifikt fokus" : sex === "male" ? "Mansspecifikt fokus" : "Profilfokus";
 }
 
 function bindLog() {
@@ -679,6 +785,7 @@ function formatSeconds(total) {
 function renderAll() {
   renderCoach();
   renderMetrics();
+  renderSexProtocol();
   renderPriorities();
   renderPlan();
   renderNutrition();
@@ -687,6 +794,7 @@ function renderAll() {
   renderTraining();
   renderWeeklySummary();
   renderSources();
+  renderCompetitors();
   loadLogForDate();
 }
 
@@ -982,6 +1090,21 @@ function renderPriorities() {
   });
 }
 
+function renderSexProtocol() {
+  const sex = state.profile.sex || "unspecified";
+  const protocol = sexProtocols[sex] || sexProtocols.unspecified;
+  const selected = state.profile.sexFocus || Object.keys(protocol.options)[0];
+  const items = protocol.options[selected] || Object.values(protocol.options)[0];
+  $("#sexBadge").textContent = protocol.badge;
+  $("#sexProtocol").innerHTML = `
+    <p>${protocol.lead}</p>
+    <div class="sex-focus-list">
+      ${items.map((item) => `<article><strong>${item}</strong></article>`).join("")}
+    </div>
+    <small>${sex === "female" && selected === "female-postpartum" ? "Vid graviditet, postpartum, smärta eller bäckenbottenbesvär: stäm av med vården innan progression." : "Protokollet är livsstilsstöd, inte medicinsk diagnos."}</small>
+  `;
+}
+
 function renderPlan() {
   const plan = weeklyPlans[state.profile.level];
   $("#planGrid").innerHTML = plan.map(([day, workout, food, recovery]) => `
@@ -1043,6 +1166,7 @@ function renderTraining() {
   const workouts = workoutLibrary[state.profile.level];
   $("#workoutList").innerHTML = workouts.map((workout) => `
     <article class="workout-card">
+      ${workoutVisual(workout.name)}
       <header>
         <div>
           <h3>${workout.name}</h3>
@@ -1053,6 +1177,25 @@ function renderTraining() {
       <ul>${workout.steps.map((step) => `<li>${step}</li>`).join("")}</ul>
     </article>
   `).join("");
+}
+
+function workoutVisual(name) {
+  const type = /styrka|tung/i.test(name) ? "strength" : /intervall|tröskel|hiit/i.test(name) ? "interval" : /zon|gång|promenad/i.test(name) ? "cardio" : "mobility";
+  const figures = {
+    strength: `<path d="M62 82h86M64 72v20M146 72v20" stroke="#f1d18a" stroke-width="10" stroke-linecap="round"/><circle cx="106" cy="45" r="14" fill="#fffefa"/><path d="M104 62l-14 38 29 28M105 64l28 24 30-6M91 101l-28 39M119 128l35 23" stroke="#fffefa" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>`,
+    interval: `<path d="M32 138c38-44 72-44 112 0" fill="none" stroke="#2d866e" stroke-width="12" stroke-linecap="round"/><circle cx="96" cy="45" r="13" fill="#fffefa"/><path d="M95 62l-20 35 34 13 23 37M75 97l-34 25M109 110l39-18M88 84l38-22" stroke="#fffefa" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M152 48l20 8-18 11" fill="none" stroke="#f1d18a" stroke-width="8" stroke-linecap="round"/>`,
+    cardio: `<circle cx="92" cy="44" r="14" fill="#fffefa"/><path d="M90 62l-10 42 29 14M80 104l-23 43M109 118l29 32M86 78l-35 18M95 76l32 23" stroke="#fffefa" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M137 55c18 13 29 31 33 54" fill="none" stroke="#f1d18a" stroke-width="8" stroke-linecap="round"/>`,
+    mobility: `<circle cx="102" cy="43" r="14" fill="#fffefa"/><path d="M101 62l2 54M103 83l-42 20M104 88l43-21M103 116l-42 35M104 116l43 35" stroke="#fffefa" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M48 52c22-20 78-29 110 2" fill="none" stroke="#f1d18a" stroke-width="8" stroke-linecap="round"/>`
+  };
+  return `
+    <div class="exercise-visual ${type}" aria-hidden="true">
+      <svg viewBox="0 0 200 170" role="img" focusable="false">
+        <rect x="8" y="8" width="184" height="154" rx="22" fill="#0f1916"/>
+        <path d="M18 132c30-20 66-23 108-9 24 8 42 7 58-4v43H18z" fill="#17483c"/>
+        ${figures[type]}
+      </svg>
+    </div>
+  `;
 }
 
 function renderWeeklySummary() {
@@ -1093,6 +1236,22 @@ function renderSources() {
   `).join("");
 }
 
+function renderCompetitors() {
+  const target = $("#competitorMatrix");
+  if (!target) return;
+  target.innerHTML = competitorInsights.map(({ name, sources: sourceLinks, strength, gap, edge }) => `
+    <article>
+      <h3>${name}</h3>
+      <p><strong>Styrka:</strong> ${strength}</p>
+      <p><strong>Lucka:</strong> ${gap}</p>
+      <p><strong>Vår kant:</strong> ${edge}</p>
+      <div class="competitor-links">
+        ${sourceLinks.map(([label, url]) => `<a href="${url}" target="_blank" rel="noreferrer">${label}</a>`).join("")}
+      </div>
+    </article>
+  `).join("");
+}
+
 function scoreForDate(key) {
   const entry = state.logs[key];
   if (!entry) return 0;
@@ -1112,6 +1271,7 @@ function streakDays() {
 }
 
 function syncProfileFields() {
+  updateSexFocusOptions(state.profile.sex, state.profile.sexFocus);
   Object.entries(state.profile).forEach(([key, value]) => {
     const field = $("#" + key);
     if (field) field.value = value;

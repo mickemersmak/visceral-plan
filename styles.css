@@ -570,6 +570,11 @@ select:focus {
   grid-column: 1 / -1;
 }
 
+.profile-wide,
+.wide-module {
+  grid-column: 1 / -1;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -784,6 +789,38 @@ select:focus {
 .priority-list span {
   color: var(--muted);
   margin-top: 3px;
+}
+
+.sex-protocol {
+  display: grid;
+  gap: 12px;
+}
+
+.sex-protocol p,
+.sex-protocol small {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.sex-focus-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sex-focus-list article {
+  border: 1px solid rgba(23, 72, 60, 0.12);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 22px rgba(16, 23, 20, 0.045);
+}
+
+.sex-focus-list strong {
+  display: block;
+  color: var(--green);
+  line-height: 1.35;
 }
 
 .insight-grid {
@@ -1069,6 +1106,19 @@ select:focus {
     linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(239, 247, 243, 0.72));
 }
 
+.exercise-visual {
+  margin-bottom: 14px;
+}
+
+.exercise-visual svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 210px;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(16, 23, 20, 0.12);
+}
+
 .workout-card header {
   display: flex;
   justify-content: space-between;
@@ -1199,6 +1249,65 @@ select:focus {
 
 .source-item a {
   overflow-wrap: anywhere;
+}
+
+.competitor-module {
+  margin-top: 20px;
+}
+
+.competitor-matrix {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.competitor-matrix article {
+  border: 1px solid rgba(23, 72, 60, 0.12);
+  border-radius: 10px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 8px 22px rgba(16, 23, 20, 0.045);
+}
+
+.competitor-matrix h3,
+.competitor-matrix p {
+  margin: 0;
+}
+
+.competitor-matrix h3 {
+  margin-bottom: 10px;
+  color: var(--green);
+}
+
+.competitor-matrix p {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.competitor-matrix p + p {
+  margin-top: 8px;
+}
+
+.competitor-matrix strong {
+  color: var(--ink);
+}
+
+.competitor-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.competitor-matrix a {
+  display: inline-flex;
+  color: var(--green);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.competitor-matrix a:hover {
+  text-decoration: underline;
 }
 
 .status-badge.low {
@@ -1457,7 +1566,8 @@ select:focus {
   .profile-form,
   .log-form,
   .insight-grid,
-  .habit-grid {
+  .habit-grid,
+  .sex-focus-list {
     grid-template-columns: 1fr;
   }
 
@@ -1507,6 +1617,10 @@ select:focus {
   }
 
   .food-guide {
+    grid-template-columns: 1fr;
+  }
+
+  .competitor-matrix {
     grid-template-columns: 1fr;
   }
 

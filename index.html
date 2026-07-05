@@ -204,6 +204,10 @@
                     <option value="simple">Enkel vardag</option>
                   </select>
                 </label>
+                <label class="profile-wide">
+                  <span id="sexFocusLabel">Könsspecifikt fokus</span>
+                  <select id="sexFocus"></select>
+                </label>
                 <button class="primary-button" type="submit">Uppdatera plan</button>
               </form>
             </section>
@@ -261,7 +265,20 @@
               <ul id="priorityList" class="priority-list"></ul>
             </section>
 
-            <section class="module insight-module" aria-labelledby="insight-title">
+            <section class="module sex-module" aria-labelledby="sex-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Könsspecifik väg</p>
+                  <h2 id="sex-title">Möjligheter efter profil</h2>
+                </div>
+                <span id="sexBadge" class="status-badge low">Profil</span>
+              </div>
+              <div id="sexProtocol" class="sex-protocol"></div>
+            </section>
+          </div>
+
+          <div class="dashboard-grid lower">
+            <section class="module insight-module wide-module" aria-labelledby="insight-title">
               <div class="module-heading">
                 <div>
                   <p class="eyebrow">Metabol logik</p>
@@ -450,6 +467,16 @@
               <p>Appen är inte diagnos, behandling eller ersättning för läkare. Vid hjärt-kärlsjukdom, diabetes, graviditet, ätstörningshistorik, bröstsmärta, yrsel eller kraftig övervikt: stäm av tränings- och viktmål med vården.</p>
             </div>
             <div id="sourceList" class="source-list"></div>
+          </section>
+
+          <section class="module competitor-module" aria-labelledby="competitor-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">Konkurrentanalys</p>
+                <h2 id="competitor-title">Vad marknaden gör och vår lucka</h2>
+              </div>
+            </div>
+            <div id="competitorMatrix" class="competitor-matrix"></div>
           </section>
         </section>
       </main>
