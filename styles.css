@@ -1220,6 +1220,14 @@ select:focus {
   margin-top: 20px;
 }
 
+.fridge-module {
+  margin-top: 20px;
+  overflow: hidden;
+  border-color: rgba(195, 154, 76, 0.24);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(239, 247, 243, 0.84) 58%, rgba(255, 243, 207, 0.58));
+}
+
 .smart-food-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
@@ -1391,6 +1399,318 @@ select:focus {
 .swap-result small {
   color: var(--green);
   font-weight: 800;
+}
+
+.fridge-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.fridge-controls,
+.fridge-meal-result {
+  border: 1px solid rgba(18, 63, 53, 0.12);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 250, 245, 0.86));
+  box-shadow: 0 14px 34px rgba(13, 20, 17, 0.07);
+}
+
+.fridge-controls {
+  padding: 14px;
+}
+
+.fridge-controls label {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.fridge-controls label span {
+  color: var(--green);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.fridge-controls select {
+  min-height: 44px;
+  border: 1px solid rgba(18, 63, 53, 0.18);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #fffefa;
+  color: var(--ink);
+}
+
+.fridge-food-bank {
+  display: grid;
+  gap: 11px;
+  max-height: 660px;
+  overflow: auto;
+  padding-right: 3px;
+  scrollbar-color: rgba(18, 63, 53, 0.26) transparent;
+}
+
+.fridge-group {
+  border: 1px solid rgba(18, 63, 53, 0.1);
+  border-radius: 11px;
+  padding: 11px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(239, 247, 243, 0.62));
+}
+
+.fridge-group header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.fridge-group header strong,
+.fridge-group header span {
+  display: block;
+}
+
+.fridge-group header strong {
+  color: var(--green);
+}
+
+.fridge-group header span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.fridge-group header b {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(232, 197, 117, 0.26);
+  color: var(--green);
+  font-size: 0.78rem;
+}
+
+.fridge-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.fridge-chip {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-height: 68px;
+  border: 1px solid rgba(18, 63, 53, 0.1);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 254, 250, 0.82);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.fridge-chip:hover,
+.fridge-chip.selected {
+  border-color: rgba(36, 123, 102, 0.38);
+  box-shadow: 0 10px 24px rgba(13, 20, 17, 0.08);
+  transform: translateY(-1px);
+}
+
+.fridge-chip input {
+  width: 17px;
+  height: 17px;
+  margin: 2px 0 0;
+  accent-color: var(--green-2);
+}
+
+.fridge-chip strong,
+.fridge-chip small {
+  display: block;
+}
+
+.fridge-chip strong {
+  color: var(--ink);
+  line-height: 1.22;
+}
+
+.fridge-chip small {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.fridge-meal-result {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.fridge-result-head {
+  border-radius: 12px;
+  padding: 18px;
+  background:
+    linear-gradient(135deg, rgba(10, 18, 16, 0.98), rgba(18, 63, 53, 0.94) 58%, rgba(36, 123, 102, 0.82));
+  color: #fffefa;
+  box-shadow: 0 18px 48px rgba(10, 18, 16, 0.18);
+}
+
+.fridge-result-head span {
+  color: var(--gold);
+  font-size: 0.74rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.fridge-result-head h3 {
+  margin: 7px 0 8px;
+  font-size: 1.32rem;
+  line-height: 1.15;
+}
+
+.fridge-result-head p {
+  margin: 0;
+  color: rgba(255, 254, 250, 0.76);
+  line-height: 1.52;
+}
+
+.fridge-macro-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.fridge-macro-grid article {
+  min-height: 112px;
+  border: 1px solid rgba(18, 63, 53, 0.1);
+  border-radius: 10px;
+  padding: 11px;
+  background: rgba(255, 254, 250, 0.88);
+}
+
+.fridge-macro-grid span,
+.fridge-macro-grid strong,
+.fridge-macro-grid small {
+  display: block;
+}
+
+.fridge-macro-grid span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.fridge-macro-grid strong {
+  margin-top: 8px;
+  color: var(--green);
+  font-size: 1.16rem;
+  line-height: 1.08;
+}
+
+.fridge-macro-grid small {
+  margin-top: 8px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.fridge-ingredient-list {
+  display: grid;
+  gap: 8px;
+}
+
+.fridge-ingredient-list header,
+.fridge-ingredient-list article {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.fridge-ingredient-list header {
+  color: var(--green);
+  font-size: 0.9rem;
+}
+
+.fridge-ingredient-list header span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.fridge-ingredient-list article {
+  border: 1px solid rgba(18, 63, 53, 0.1);
+  border-radius: 10px;
+  padding: 11px;
+  background: rgba(255, 254, 250, 0.82);
+}
+
+.fridge-ingredient-list article.suggested {
+  border-color: rgba(185, 143, 66, 0.28);
+  background: rgba(255, 243, 207, 0.45);
+}
+
+.fridge-ingredient-list strong,
+.fridge-ingredient-list small {
+  display: block;
+}
+
+.fridge-ingredient-list small {
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+.fridge-ingredient-list b {
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.fridge-verdict {
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid rgba(18, 63, 53, 0.12);
+  background: rgba(237, 247, 241, 0.84);
+}
+
+.fridge-verdict.strong {
+  border-color: rgba(36, 123, 102, 0.28);
+  background:
+    linear-gradient(135deg, rgba(237, 247, 241, 0.95), rgba(255, 253, 247, 0.92));
+}
+
+.fridge-verdict.tune {
+  border-color: rgba(185, 143, 66, 0.28);
+  background: rgba(255, 248, 232, 0.88);
+}
+
+.fridge-verdict.watch {
+  border-color: rgba(185, 87, 67, 0.24);
+  background: rgba(255, 240, 237, 0.78);
+}
+
+.fridge-verdict strong,
+.fridge-verdict p {
+  display: block;
+}
+
+.fridge-verdict p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  line-height: 1.48;
+}
+
+.fridge-verdict ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--ink);
+}
+
+.fridge-verdict li + li {
+  margin-top: 5px;
 }
 
 .guide-intro {
@@ -1994,6 +2314,14 @@ textarea:focus {
   .member-value-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .fridge-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .fridge-macro-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 760px) {
@@ -2232,6 +2560,21 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  .fridge-layout,
+  .fridge-chip-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fridge-food-bank {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .fridge-macro-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .coach-score strong {
     font-size: 3.15rem;
   }
@@ -2251,6 +2594,7 @@ textarea:focus {
   .edge-module,
   .meal-template-module,
   .smart-food-module,
+  .fridge-module,
   .sprint-module + .module,
   .member-grid {
     margin-top: 12px;
@@ -2358,5 +2702,13 @@ textarea:focus {
 
   .evidence-strip {
     grid-template-columns: 1fr;
+  }
+
+  .fridge-macro-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fridge-ingredient-list article {
+    align-items: flex-start;
   }
 }

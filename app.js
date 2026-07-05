@@ -68,6 +68,10 @@ const defaultState = {
   member: {
     bookings: [],
     messages: []
+  },
+  pantry: {
+    goal: "fatloss",
+    selected: ["egg", "kvarg", "broccoli", "potato", "olive-oil"]
   }
 };
 
@@ -199,21 +203,21 @@ const competitorInsights = [
     sources: [["Källa", "https://www.myfitnesspal.com/"]],
     strength: "Stor matdatabas, streckkod/röst, kalorier, makronäring och integrationer.",
     gap: "Saknar tydlig visceral-fett-logik och lokal privat PWA utan konto.",
-    edge: "Vi styr på bukmått, midja/längd och nästa åtgärd."
+    edge: "Vi styr på bukmått, midja/längd och måltider av råvaror användaren redan har hemma."
   },
   {
     name: "Lifesum",
     sources: [["Källa", "https://lifesum.com/"]],
     strength: "AI, foto/röst/streckkod, måltidsplaner och vanepoäng.",
     gap: "Mer bred nutrition än fokuserad bukfettscoach.",
-    edge: "Vi gör gram-baserad tallrik och visceralt beslutsrum."
+    edge: "Vi gör gram-baserad tallrik, kylskåpsbyggare och visceralt beslutsrum."
   },
   {
     name: "Cronometer",
     sources: [["Källa", "https://cronometer.com/"]],
     strength: "Djup mikro- och makronäringsdata, rapporter och biometrik.",
     gap: "Kraftfullt men kan bli tungt för användare som vill ha beslut.",
-    edge: "Vi förenklar till metabolt index + konkret byte."
+    edge: "Vi förenklar till metabolt index, måltidskvitto och konkret byte."
   },
   {
     name: "Noom",
@@ -282,20 +286,31 @@ const foodGuideGroups = [
       ["Naturell yoghurt, kvarg, kefir", "Proteinrikt och enkelt; välj osötat.", "150-250 g"],
       ["Ägg", "Mättande protein, lätt att planera runt.", "50-180 g"],
       ["Tofu, tempeh, kyckling", "Magra proteiner som gör energiunderskott lättare.", "120-200 g"],
+      ["Räkor, torsk och annan vit fisk", "Mycket protein per kcal och lätt att kombinera med stora grönsaksportioner.", "150-220 g"],
+      ["Keso/cottage cheese", "Snabb proteinkälla som fungerar i både kalla och varma måltider.", "150-250 g"],
       ["Nötter och frön", "Näringsrikt men energitätt; bäst som kontrollerad mängd.", "15-30 g"],
-      ["Potatis, quinoa, fullkornsris", "Bra kolhydratbas när den äts kokt och portionsstyrd.", "120-220 g kokt"]
+      ["Pumpakärnor och chiafrön", "Ger mineraler, crunch och mättnad i små mängder.", "10-25 g"],
+      ["Potatis, quinoa, fullkornsris", "Bra kolhydratbas när den äts kokt och portionsstyrd.", "120-220 g kokt"],
+      ["Fullkornspasta och rågbröd", "Bättre vardagsval än vitt bröd/pasta när portionen vägs.", "70-180 g beroende på måltid"],
+      ["Edamame och gröna ärtor", "Frysvara med mer protein och fiber än många snabba tillbehör.", "100-200 g"],
+      ["Olivolja, avokado, hummus", "Bra fettkällor, men de ska doseras så energin inte rusar.", "10-70 g"]
     ]
   },
   {
     title: "Frukt",
     items: [
       ["Hallon, blåbär, jordgubbar", "Mycket smak, fiber och volym per energi.", "100-200 g"],
+      ["Frysta bär", "Premiumval i vardagen: billigt, hållbart och enkelt att portionera.", "100-200 g"],
       ["Äpple och päron", "Fiberrikt, bärbart och bra mot sötsug.", "120-180 g"],
       ["Apelsin, grapefrukt, clementin", "Vätska, C-vitamin och tydlig portionsstorlek.", "150-300 g"],
       ["Kiwi", "Fiberrik frukt med mycket C-vitamin.", "75-150 g"],
+      ["Granatäpple", "Smakrik topping som höjer måltiden utan att kräva stor mängd.", "50-100 g"],
+      ["Melon", "Mycket volym och vätska, bra när aptiten är hög.", "150-300 g"],
       ["Plommon, persika, nektarin", "Bra vardagsfrukt när den äts hel.", "100-200 g"],
       ["Banan", "Bra runt träning; något mer energität än bär/citrus.", "100-130 g"],
       ["Mango och druvor", "Näringsrika men lättare att överäta; välj uppmätt portion.", "100-150 g"],
+      ["Avokado", "Botaniskt frukt men praktiskt fettval; mät portionen noga.", "50-100 g"],
+      ["Dadlar", "Fungerar som kontrollerad sötma före pass eller i liten dessert.", "10-25 g"],
       ["Torkad frukt och juice", "Koncentrerad energi/fritt socker; använd sparsamt.", "0-30 g eller byt mot hel frukt"]
     ]
   },
@@ -303,15 +318,101 @@ const foodGuideGroups = [
     title: "Grönsaker",
     items: [
       ["Broccoli, blomkål, vitkål", "Mycket volym, fiber och låg energitäthet.", "150-300 g"],
+      ["Brysselkål, sparris, haricots verts", "Fiberrika premiumgrönsaker som gör tallriken mer mättande.", "150-300 g"],
       ["Spenat, grönkål, ruccola", "Mikronäringsrikt och lätt att lägga till i stora mängder.", "50-150 g"],
       ["Paprika, tomat, gurka", "Fräscht, kalorisnålt och bra för stora tallrikar.", "150-300 g"],
       ["Morot, rödbeta, palsternacka", "Fiberrika rotfrukter; bra ugnsbakade eller kokta.", "120-250 g"],
       ["Svamp, lök, zucchini", "Ger smak och volym utan att energin sticker iväg.", "150-300 g"],
+      ["Frysta wokgrönsaker", "Snabbaste vägen till 250-350 g grönt när kylskåpet är tunt.", "200-350 g"],
+      ["Surkål och kimchi", "Smak, syra och struktur; välj varianter med låg sockerhalt.", "30-100 g"],
       ["Ärtor och edamame", "Mer protein och fiber än många grönsaker.", "100-200 g"],
       ["Potatis och sötpotatis", "Bra mättnad, men räkna som kolhydratbas.", "120-220 g kokt"],
       ["Avokado", "Bra omättat fett men energitätt; bäst i mindre mängd.", "50-100 g"]
     ]
   }
+];
+
+const fridgeCategories = [
+  { id: "protein", title: "Protein", hint: "Mättnad och muskelbevarande" },
+  { id: "dairy", title: "Mejeri", hint: "Snabbt protein" },
+  { id: "legume", title: "Baljväxt", hint: "Fiber + protein" },
+  { id: "veg", title: "Grönt", hint: "Volym och fiber" },
+  { id: "carb", title: "Kolhydratbas", hint: "Träning och mättnad" },
+  { id: "fat", title: "Fettkälla", hint: "Smak i kontrollerad mängd" },
+  { id: "fruit", title: "Frukt och bär", hint: "Sött med struktur" },
+  { id: "freezer", title: "Frys och nödval", hint: "När tiden är kort" },
+  { id: "flavor", title: "Smakbas", hint: "Gör maten lättare att följa" }
+];
+
+const fridgeGoalCopy = {
+  fatloss: {
+    kicker: "Bukfettsfokus",
+    title: "Hög mättnad, tydliga gram och låg sockerlast.",
+    text: "Bygg runt protein, 250-350 g grönt, lagom kolhydrat och en liten fettkälla."
+  },
+  training: {
+    kicker: "Efter träning",
+    title: "Mer kolhydrat och protein för återhämtning.",
+    text: "Måltiden skruvas upp efter pass utan att tappa fiber och portionskontroll."
+  },
+  lowcarb: {
+    kicker: "Lägre kolhydrat",
+    title: "Mer grönt och protein, mindre stärkelse.",
+    text: "Kolhydratbasen halveras och volymen kommer från grönsaker och magert protein."
+  },
+  vegetarian: {
+    kicker: "Vegetariskt fokus",
+    title: "Baljväxter, tofu, mejeri och grön volym.",
+    text: "Prioriterar proteinrika växtval och kompletterar med fiber så måltiden håller."
+  }
+};
+
+const pantryFoods = [
+  { id: "egg", name: "Ägg", category: "protein", role: "protein", kcal: 143, protein: 13, carbs: 1, fat: 10, fiber: 0, defaultGrams: 120 },
+  { id: "chicken", name: "Kycklingfilé", category: "protein", role: "protein", kcal: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0, defaultGrams: 150 },
+  { id: "salmon", name: "Lax", category: "protein", role: "protein", kcal: 208, protein: 20, carbs: 0, fat: 13, fiber: 0, defaultGrams: 150 },
+  { id: "tuna", name: "Tonfisk i vatten", category: "protein", role: "protein", kcal: 116, protein: 26, carbs: 0, fat: 1, fiber: 0, defaultGrams: 120 },
+  { id: "cod", name: "Torsk", category: "protein", role: "protein", kcal: 82, protein: 18, carbs: 0, fat: 0.7, fiber: 0, defaultGrams: 170 },
+  { id: "turkey", name: "Kalkon", category: "protein", role: "protein", kcal: 135, protein: 29, carbs: 0, fat: 1.5, fiber: 0, defaultGrams: 150 },
+  { id: "shrimp", name: "Räkor", category: "freezer", role: "protein", kcal: 99, protein: 24, carbs: 0, fat: 0.3, fiber: 0, defaultGrams: 150 },
+  { id: "tofu", name: "Tofu", category: "protein", role: "protein", kcal: 120, protein: 12, carbs: 2, fat: 7, fiber: 1, defaultGrams: 180 },
+  { id: "tempeh", name: "Tempeh", category: "protein", role: "protein", kcal: 193, protein: 20, carbs: 8, fat: 11, fiber: 5, defaultGrams: 150 },
+  { id: "cottage", name: "Keso/cottage cheese", category: "dairy", role: "dairy", kcal: 98, protein: 11, carbs: 3, fat: 4, fiber: 0, defaultGrams: 200 },
+  { id: "kvarg", name: "Kvarg naturell", category: "dairy", role: "dairy", kcal: 60, protein: 11, carbs: 4, fat: 0.2, fiber: 0, defaultGrams: 250 },
+  { id: "yogurt", name: "Naturell yoghurt", category: "dairy", role: "dairy", kcal: 70, protein: 4, carbs: 5, fat: 3, fiber: 0, defaultGrams: 200 },
+  { id: "lentils", name: "Linser kokta", category: "legume", role: "legume", kcal: 116, protein: 9, carbs: 20, fat: 0.4, fiber: 8, defaultGrams: 200 },
+  { id: "chickpeas", name: "Kikärter kokta", category: "legume", role: "legume", kcal: 164, protein: 9, carbs: 27, fat: 2.6, fiber: 8, defaultGrams: 180 },
+  { id: "blackbeans", name: "Svarta bönor kokta", category: "legume", role: "legume", kcal: 132, protein: 9, carbs: 24, fat: 0.5, fiber: 9, defaultGrams: 200 },
+  { id: "edamame", name: "Edamame", category: "freezer", role: "legume", kcal: 121, protein: 12, carbs: 9, fat: 5, fiber: 5, defaultGrams: 150 },
+  { id: "peas", name: "Gröna ärtor", category: "freezer", role: "legume", kcal: 81, protein: 5, carbs: 14, fat: 0.4, fiber: 5, defaultGrams: 150 },
+  { id: "broccoli", name: "Broccoli", category: "veg", role: "veg", kcal: 35, protein: 3, carbs: 7, fat: 0.4, fiber: 3, defaultGrams: 250 },
+  { id: "cauliflower", name: "Blomkål", category: "veg", role: "veg", kcal: 25, protein: 2, carbs: 5, fat: 0.3, fiber: 2, defaultGrams: 250 },
+  { id: "cabbage", name: "Vitkål", category: "veg", role: "veg", kcal: 25, protein: 1, carbs: 6, fat: 0.1, fiber: 3, defaultGrams: 250 },
+  { id: "spinach", name: "Spenat", category: "veg", role: "veg", kcal: 23, protein: 3, carbs: 4, fat: 0.4, fiber: 2, defaultGrams: 100 },
+  { id: "kale", name: "Grönkål", category: "veg", role: "veg", kcal: 49, protein: 4, carbs: 9, fat: 0.9, fiber: 4, defaultGrams: 100 },
+  { id: "carrot", name: "Morot", category: "veg", role: "veg", kcal: 41, protein: 1, carbs: 10, fat: 0.2, fiber: 3, defaultGrams: 160 },
+  { id: "tomato", name: "Tomat", category: "veg", role: "veg", kcal: 18, protein: 1, carbs: 4, fat: 0.2, fiber: 1, defaultGrams: 180 },
+  { id: "cucumber", name: "Gurka", category: "veg", role: "veg", kcal: 15, protein: 1, carbs: 4, fat: 0.1, fiber: 1, defaultGrams: 200 },
+  { id: "pepper", name: "Paprika", category: "veg", role: "veg", kcal: 31, protein: 1, carbs: 6, fat: 0.3, fiber: 2, defaultGrams: 160 },
+  { id: "mushroom", name: "Svamp", category: "veg", role: "veg", kcal: 22, protein: 3, carbs: 3, fat: 0.3, fiber: 1, defaultGrams: 200 },
+  { id: "zucchini", name: "Zucchini", category: "veg", role: "veg", kcal: 17, protein: 1, carbs: 3, fat: 0.3, fiber: 1, defaultGrams: 200 },
+  { id: "frozen-veg", name: "Wokgrönsaker frysta", category: "freezer", role: "veg", kcal: 45, protein: 2, carbs: 8, fat: 0.5, fiber: 3, defaultGrams: 250 },
+  { id: "potato", name: "Potatis kokt", category: "carb", role: "carb", kcal: 87, protein: 2, carbs: 20, fat: 0.1, fiber: 2, defaultGrams: 200 },
+  { id: "sweetpotato", name: "Sötpotatis", category: "carb", role: "carb", kcal: 86, protein: 2, carbs: 20, fat: 0.1, fiber: 3, defaultGrams: 180 },
+  { id: "brownrice", name: "Fullkornsris kokt", category: "carb", role: "carb", kcal: 112, protein: 3, carbs: 23, fat: 0.9, fiber: 2, defaultGrams: 180 },
+  { id: "quinoa", name: "Quinoa kokt", category: "carb", role: "carb", kcal: 120, protein: 4, carbs: 21, fat: 2, fiber: 3, defaultGrams: 170 },
+  { id: "oats", name: "Havregryn", category: "carb", role: "carb", kcal: 389, protein: 17, carbs: 66, fat: 7, fiber: 11, defaultGrams: 60 },
+  { id: "rye-bread", name: "Rågbröd", category: "carb", role: "carb", kcal: 210, protein: 6, carbs: 40, fat: 2, fiber: 8, defaultGrams: 80 },
+  { id: "wholegrain-pasta", name: "Fullkornspasta kokt", category: "carb", role: "carb", kcal: 140, protein: 6, carbs: 27, fat: 1, fiber: 4, defaultGrams: 180 },
+  { id: "olive-oil", name: "Olivolja", category: "fat", role: "fat", kcal: 884, protein: 0, carbs: 0, fat: 100, fiber: 0, defaultGrams: 10 },
+  { id: "avocado", name: "Avokado", category: "fat", role: "fat", kcal: 160, protein: 2, carbs: 9, fat: 15, fiber: 7, defaultGrams: 70 },
+  { id: "almonds", name: "Mandel", category: "fat", role: "fat", kcal: 579, protein: 21, carbs: 22, fat: 50, fiber: 12, defaultGrams: 20 },
+  { id: "pumpkin-seeds", name: "Pumpakärnor", category: "fat", role: "fat", kcal: 559, protein: 30, carbs: 11, fat: 49, fiber: 6, defaultGrams: 15 },
+  { id: "hummus", name: "Hummus", category: "flavor", role: "fat", kcal: 166, protein: 8, carbs: 14, fat: 10, fiber: 6, defaultGrams: 60 },
+  { id: "berries", name: "Bär", category: "fruit", role: "fruit", kcal: 50, protein: 1, carbs: 12, fat: 0.3, fiber: 5, defaultGrams: 150 },
+  { id: "apple", name: "Äpple", category: "fruit", role: "fruit", kcal: 52, protein: 0.3, carbs: 14, fat: 0.2, fiber: 2.4, defaultGrams: 160 },
+  { id: "banana", name: "Banan", category: "fruit", role: "fruit", kcal: 89, protein: 1, carbs: 23, fat: 0.3, fiber: 3, defaultGrams: 120 },
+  { id: "orange", name: "Apelsin", category: "fruit", role: "fruit", kcal: 47, protein: 1, carbs: 12, fat: 0.1, fiber: 2, defaultGrams: 180 }
 ];
 
 const swapGuide = [
@@ -520,6 +621,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindLog();
   bindTimer();
   bindSwapLab();
+  bindFridgeBuilder();
   bindMemberMessages();
   renderAll();
   activateInitialTab();
@@ -676,6 +778,11 @@ function mergeState(base, next) {
     profile: { ...base.profile, ...(next.profile || {}) },
     habits: { ...base.habits, ...(next.habits || {}) },
     logs: { ...base.logs, ...(next.logs || {}) },
+    pantry: {
+      ...base.pantry,
+      ...(next.pantry || {}),
+      selected: Array.isArray(next.pantry && next.pantry.selected) ? next.pantry.selected : base.pantry.selected
+    },
     member: {
       ...base.member,
       ...(next.member || {}),
@@ -841,6 +948,19 @@ function bindSwapLab() {
   select.addEventListener("change", renderSmartFood);
 }
 
+function bindFridgeBuilder() {
+  const select = $("#fridgeGoal");
+  if (!select) return;
+  ensurePantryState();
+  select.value = state.pantry.goal;
+  select.addEventListener("change", () => {
+    ensurePantryState();
+    state.pantry.goal = select.value;
+    saveState();
+    renderFridgeBuilder();
+  });
+}
+
 function bindMemberMessages() {
   const form = $("#memberMessageForm");
   if (!form) return;
@@ -919,6 +1039,7 @@ function renderAll() {
   renderSprintPlan();
   renderNutrition();
   renderSmartFood();
+  renderFridgeBuilder();
   renderMealTemplates();
   renderFoodGuide();
   renderTraining();
@@ -1263,6 +1384,270 @@ function renderSwapResult() {
     <p>${selected.why}</p>
     <small>${selected.portion}</small>
   `;
+}
+
+function ensurePantryState() {
+  if (!state.pantry) state.pantry = structuredClone(defaultState.pantry);
+  if (!Array.isArray(state.pantry.selected)) state.pantry.selected = [...defaultState.pantry.selected];
+  if (!state.pantry.goal) state.pantry.goal = defaultState.pantry.goal;
+}
+
+function renderFridgeBuilder() {
+  const target = $("#fridgeMealResult");
+  if (!target) return;
+  ensurePantryState();
+  const select = $("#fridgeGoal");
+  if (select && select.value !== state.pantry.goal) select.value = state.pantry.goal;
+  renderFridgeFoodBank();
+  renderFridgeMeal();
+}
+
+function renderFridgeFoodBank() {
+  const target = $("#fridgeFoodBank");
+  if (!target) return;
+  ensurePantryState();
+  const selected = new Set(state.pantry.selected);
+  target.innerHTML = fridgeCategories.map((category) => {
+    const foods = pantryFoods.filter((food) => food.category === category.id);
+    if (!foods.length) return "";
+    return `
+      <section class="fridge-group" aria-label="${category.title}">
+        <header>
+          <div>
+            <strong>${category.title}</strong>
+            <span>${category.hint}</span>
+          </div>
+          <b>${foods.length}</b>
+        </header>
+        <div class="fridge-chip-grid">
+          ${foods.map((food) => `
+            <label class="fridge-chip ${selected.has(food.id) ? "selected" : ""}">
+              <input type="checkbox" value="${food.id}" ${selected.has(food.id) ? "checked" : ""}>
+              <span>
+                <strong>${food.name}</strong>
+                <small>${Math.round(food.kcal)} kcal/100 g · protein ${formatFridgeValue(food.protein)} g · fiber ${formatFridgeValue(food.fiber)} g</small>
+              </span>
+            </label>
+          `).join("")}
+        </div>
+      </section>
+    `;
+  }).join("");
+
+  target.querySelectorAll("input[type='checkbox']").forEach((input) => {
+    input.addEventListener("change", () => {
+      state.pantry.selected = Array.from(target.querySelectorAll("input[type='checkbox']:checked")).map((checked) => checked.value);
+      saveState();
+      renderFridgeBuilder();
+    });
+  });
+}
+
+function renderFridgeMeal() {
+  const target = $("#fridgeMealResult");
+  if (!target) return;
+  const meal = buildFridgeMeal();
+  updateFridgeBadge(meal.selectedCount);
+  target.innerHTML = `
+    <div class="fridge-result-head">
+      <span>${meal.goalCopy.kicker}</span>
+      <h3>${meal.goalCopy.title}</h3>
+      <p>${meal.goalCopy.text}</p>
+    </div>
+    <div class="fridge-macro-grid">
+      <article>
+        <span>Energi</span>
+        <strong>${Math.round(meal.macros.kcal)} kcal</strong>
+        <small>Beräknat från valda gram</small>
+      </article>
+      <article>
+        <span>Protein</span>
+        <strong>${Math.round(meal.macros.protein)} g</strong>
+        <small>Mål per måltid: ${meal.proteinTarget} g</small>
+      </article>
+      <article>
+        <span>Kolhydrater</span>
+        <strong>${Math.round(meal.macros.carbs)} g</strong>
+        <small>${meal.goal === "lowcarb" ? "Reducerad portion" : "Anpassad till målet"}</small>
+      </article>
+      <article>
+        <span>Fiber</span>
+        <strong>${Math.round(meal.macros.fiber)} g</strong>
+        <small>Grönt: ${Math.round(meal.vegGrams)} g</small>
+      </article>
+      <article>
+        <span>Fett</span>
+        <strong>${Math.round(meal.macros.fat)} g</strong>
+        <small>Kontrollerad smakdos</small>
+      </article>
+    </div>
+    <div class="fridge-ingredient-list">
+      <header>
+        <strong>Måltidskvitto</strong>
+        <span>${meal.items.length} byggstenar</span>
+      </header>
+      ${meal.items.map((item) => `
+        <article class="${item.suggested ? "suggested" : ""}">
+          <div>
+            <strong>${item.food.name}</strong>
+            <small>${item.suggested ? "Lägg till om det saknas" : "Finns i dina val"} · ${Math.round(item.food.kcal)} kcal/100 g</small>
+          </div>
+          <b>${item.grams} g</b>
+        </article>
+      `).join("")}
+    </div>
+    <div class="fridge-verdict ${meal.verdict.level}">
+      <strong>${meal.verdict.title}</strong>
+      <p>${meal.verdict.text}</p>
+      ${meal.verdict.actions.length ? `<ul>${meal.verdict.actions.map((action) => `<li>${action}</li>`).join("")}</ul>` : ""}
+    </div>
+  `;
+}
+
+function buildFridgeMeal() {
+  ensurePantryState();
+  const goal = state.pantry.goal || "fatloss";
+  const selectedIds = state.pantry.selected.filter((id) => pantryFoods.some((food) => food.id === id));
+  const selectedFoods = selectedIds.map((id) => pantryFoods.find((food) => food.id === id)).filter(Boolean);
+  const pool = selectedFoods.length ? selectedFoods : defaultState.pantry.selected.map((id) => pantryFoods.find((food) => food.id === id)).filter(Boolean);
+  const used = new Set();
+  const items = [];
+  const findInPool = (predicate) => pool.find((food) => predicate(food) && !used.has(food.id));
+  const fallback = (ids) => ids.map((id) => pantryFoods.find((food) => food.id === id)).find((food) => food && !used.has(food.id));
+  const add = (food, role, suggested = false) => {
+    if (!food || used.has(food.id)) return;
+    used.add(food.id);
+    items.push({
+      food,
+      role,
+      grams: gramsForFridgeFood(food, role, goal),
+      suggested
+    });
+  };
+
+  const vegetarianProtein = (food) => ["legume", "dairy"].includes(food.role) || ["tofu", "tempeh", "egg"].includes(food.id);
+  const protein = goal === "vegetarian"
+    ? findInPool(vegetarianProtein) || fallback(["tofu", "lentils", "kvarg", "egg"])
+    : findInPool((food) => ["protein", "dairy", "legume"].includes(food.role)) || fallback(["chicken", "egg", "kvarg", "tuna"]);
+  add(protein, "protein", !selectedIds.includes(protein && protein.id));
+
+  for (let index = 0; index < 2; index += 1) {
+    const veg = findInPool((food) => food.role === "veg") || fallback(index === 0 ? ["broccoli", "frozen-veg", "cauliflower"] : ["frozen-veg", "cabbage", "pepper"]);
+    add(veg, "veg", !selectedIds.includes(veg && veg.id));
+  }
+
+  const carb = findInPool((food) => food.role === "carb") || (goal === "lowcarb" ? null : fallback(["potato", "quinoa", "brownrice", "rye-bread"]));
+  if (carb) add(carb, "carb", !selectedIds.includes(carb.id));
+
+  const fat = findInPool((food) => food.role === "fat") || fallback(["olive-oil", "avocado", "hummus"]);
+  add(fat, "fat", !selectedIds.includes(fat && fat.id));
+
+  const fruit = findInPool((food) => food.role === "fruit") || (goal === "training" ? fallback(["banana", "berries"]) : null);
+  if (fruit) add(fruit, "fruit", !selectedIds.includes(fruit.id));
+
+  const macros = calculateFridgeMacros(items);
+  const proteinTarget = Math.round(clamp(state.profile.weight * 1.6, 70, 190) / 3);
+  const vegGrams = items.filter((item) => item.role === "veg").reduce((sum, item) => sum + item.grams, 0);
+  return {
+    goal,
+    goalCopy: fridgeGoalCopy[goal] || fridgeGoalCopy.fatloss,
+    selectedCount: selectedIds.length,
+    proteinTarget,
+    vegGrams,
+    items,
+    macros,
+    verdict: fridgeVerdict(items, macros, goal, proteinTarget, vegGrams)
+  };
+}
+
+function gramsForFridgeFood(food, role, goal) {
+  let grams = food.defaultGrams;
+  if (role === "protein" && food.role === "legume") grams += 30;
+  if (goal === "fatloss") {
+    if (role === "veg") grams *= 1.15;
+    if (role === "carb") grams *= 0.9;
+  }
+  if (goal === "training") {
+    if (role === "protein") grams *= 1.1;
+    if (role === "carb") grams *= 1.35;
+    if (role === "veg") grams *= 1.05;
+  }
+  if (goal === "lowcarb") {
+    if (role === "veg") grams *= 1.2;
+    if (role === "carb") grams *= 0.5;
+  }
+  if (goal === "vegetarian") {
+    if (food.role === "legume") grams *= 1.15;
+    if (role === "veg") grams *= 1.1;
+  }
+  if (role === "fat") {
+    const caps = {
+      "olive-oil": 15,
+      almonds: 25,
+      "pumpkin-seeds": 25,
+      avocado: 80,
+      hummus: 70
+    };
+    grams = Math.min(grams, caps[food.id] || 60);
+  }
+  if (role === "fruit" && goal === "lowcarb") grams *= 0.65;
+  return Math.max(10, Math.round(grams / 5) * 5);
+}
+
+function calculateFridgeMacros(items) {
+  return items.reduce((sum, item) => {
+    const factor = item.grams / 100;
+    sum.kcal += item.food.kcal * factor;
+    sum.protein += item.food.protein * factor;
+    sum.carbs += item.food.carbs * factor;
+    sum.fat += item.food.fat * factor;
+    sum.fiber += item.food.fiber * factor;
+    return sum;
+  }, { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+}
+
+function fridgeVerdict(items, macros, goal, proteinTarget, vegGrams) {
+  const actions = [];
+  if (macros.protein < proteinTarget - 5) {
+    actions.push(goal === "vegetarian"
+      ? "Höj protein: lägg till 180 g tofu, 200 g kvarg eller 200 g linser."
+      : "Höj protein: lägg till 150 g kyckling/torsk eller 250 g kvarg.");
+  }
+  if (vegGrams < 250) actions.push("Höj grön volym: sikta på minst 250 g grönsaker i huvudmålet.");
+  if (macros.fiber < 10) actions.push("Höj fiber: välj bär, bönor, linser, kål eller fullkorn i nästa steg.");
+  if (goal === "fatloss" && macros.kcal > 760) actions.push("Energin är hög för bukfettsfas: minska fettkälla eller kolhydratbas med 30-50 g.");
+  if (goal === "training" && macros.carbs < 35) actions.push("Efter träning kan du lägga till potatis, quinoa, rågbröd eller banan.");
+
+  const suggested = items.filter((item) => item.suggested).map((item) => item.food.name);
+  if (suggested.length) actions.push(`Saknas i dina val: ${suggested.join(", ")} lades in som smarta kompletteringar.`);
+
+  if (!actions.length) {
+    return {
+      level: "strong",
+      title: "Komplett måltid för midja och mättnad",
+      text: "Protein, grön volym, fiber och energi ligger i en stark zon för målet.",
+      actions: []
+    };
+  }
+
+  return {
+    level: actions.length > 2 ? "watch" : "tune",
+    title: actions.length > 2 ? "Nästan komplett, men justera två saker" : "Bra bas med en tydlig förbättring",
+    text: "Måltiden är användbar, men coachen skulle skruva den lite innan den blir en premium-mall.",
+    actions
+  };
+}
+
+function updateFridgeBadge(count) {
+  const badge = $("#fridgeBadge");
+  if (!badge) return;
+  badge.textContent = `${count} råvaror`;
+  const level = count >= 10 ? "high" : count >= 5 ? "medium" : "low";
+  badge.className = `status-badge ${level}`;
+}
+
+function formatFridgeValue(value) {
+  return Number.isInteger(value) ? value.toString() : value.toFixed(1).replace(".", ",");
 }
 
 function renderMetrics() {

@@ -83,14 +83,15 @@
       <main class="workspace">
         <section class="topbar" aria-label="Aktuell status">
           <div class="hero-copy">
-            <p class="eyebrow">Kliniskt inspirerat protokoll</p>
-            <h1>En exklusiv plan för att minska farligt bukfett med precision</h1>
-            <p class="hero-lede">Kost, styrka, kondition och återhämtning samlas i ett fokuserat system för visceralt fett, med mätbara riskmarkörer och tydliga dagliga beslut.</p>
+            <p class="eyebrow">Premiumcoach för midja, kost och träning</p>
+            <h1>Visceral Plan för att minska farligt bukfett med precision</h1>
+            <p class="hero-lede">Kost, styrka, kondition, AI-coach, kylskåpsmåltider och medlemsuppföljning samlas i ett fokuserat system för visceralt fett, med mätbara riskmarkörer och tydliga dagliga beslut.</p>
             <div class="hero-proof" aria-label="Programprinciper">
               <span>Midja/längd</span>
               <span>150 min/vecka</span>
               <span>2 styrkepass</span>
               <span>Protein + fiber</span>
+              <span>Kylskåpsmåltider</span>
             </div>
           </div>
           <div class="hero-stack">
@@ -387,6 +388,31 @@
                 </label>
                 <div id="swapResult" class="swap-result"></div>
               </div>
+            </div>
+          </section>
+
+          <section class="module fridge-module" aria-labelledby="fridge-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">Kylskåpsbyggare</p>
+                <h2 id="fridge-title">Bygg en komplett måltid av det du har hemma</h2>
+              </div>
+              <span id="fridgeBadge" class="status-badge low">0 råvaror</span>
+            </div>
+            <div class="fridge-layout">
+              <div class="fridge-controls">
+                <label>
+                  <span>Måltidsmål</span>
+                  <select id="fridgeGoal">
+                    <option value="fatloss">Bukfett och mättnad</option>
+                    <option value="training">Efter träning</option>
+                    <option value="lowcarb">Lägre kolhydrat</option>
+                    <option value="vegetarian">Vegetariskt fokus</option>
+                  </select>
+                </label>
+                <div id="fridgeFoodBank" class="fridge-food-bank"></div>
+              </div>
+              <div id="fridgeMealResult" class="fridge-meal-result"></div>
             </div>
           </section>
 
