@@ -1,5 +1,12 @@
-const OPENAI_URL = "https://api.openai.com/v1/responses";
-const DEFAULT_MODEL = "gpt-5.5";
+const {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_OPENAI_MODEL,
+  getGeminiKey,
+  getOpenAIKey,
+  providerFailureDetail,
+  requestGeminiJSON,
+  requestOpenAIJSON
+} = require("./_ai-providers");
 
 module.exports = async function handler(req, res) {
   setSecurityHeaders(res);
@@ -27,54 +34,38 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const apiKey = normalizeApiKey(process.env.OPENAI_API_KEY);
-    if (!apiKey) {
-      res.status(200).json(localKitchenReply(message, context, "local"));
-      return;
-    }
-
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_KITCHEN_MODEL || process.env.OPENAI_FRIDGE_MODEL || DEFAULT_MODEL,
-        input: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: buildKitchenPrompt(message, context, history)
-              },
-              ...(image ? [{
-                type: "input_image",
-                image_url: image,
-                detail: "low"
-              }] : [])
-            ]
-          }
-        ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "kitchen_coach_reply",
-            strict: true,
-            schema: kitchenReplySchema()
-          }
-        }
-      })
+    const prompt = buildKitchenPrompt(message, context, history);
+    const schema = kitchenReplySchema();
+    const failures = [];
+    const openAI = await requestOpenAIJSON({
+      apiKey: getOpenAIKey(),
+      model: process.env.OPENAI_KITCHEN_MODEL || process.env.OPENAI_FRIDGE_MODEL || DEFAULT_OPENAI_MODEL,
+      prompt,
+      images: image ? [image] : [],
+      detail: "low",
+      schemaName: "kitchen_coach_reply",
+      schema
     });
-
-    const data = await response.json();
-    if (!response.ok) {
-      res.status(200).json(localKitchenReply(message, context, "fallback", data.error && data.error.message));
+    if (openAI.ok) {
+      res.status(200).json(normalizeKitchenReply(openAI.value, context, openAI.provider));
       return;
     }
+    failures.push(openAI);
 
-    res.status(200).json(normalizeKitchenReply(parseModelJSON(data), context, "openai"));
+    const gemini = await requestGeminiJSON({
+      apiKey: getGeminiKey(),
+      model: process.env.GEMINI_KITCHEN_MODEL || process.env.GEMINI_FRIDGE_MODEL || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+      prompt,
+      images: image ? [image] : [],
+      schema
+    });
+    if (gemini.ok) {
+      res.status(200).json(normalizeKitchenReply(gemini.value, context, gemini.provider));
+      return;
+    }
+    failures.push(gemini);
+
+    res.status(200).json(localKitchenReply(message, context, "fallback", providerFailureDetail(failures)));
   } catch (error) {
     res.status(500).json({
       message: "Köks-AI kunde inte svara just nu.",
@@ -351,26 +342,9 @@ function normalizeShoppingPlan(items) {
     : [];
 }
 
-function parseModelJSON(data) {
-  if (typeof data.output_text === "string") return JSON.parse(data.output_text);
-  const text = (data.output || [])
-    .flatMap((item) => item.content || [])
-    .map((content) => content.text || content.output_text || "")
-    .find(Boolean);
-  if (!text) return {};
-  return JSON.parse(text);
-}
-
 function numberOrNull(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
-}
-
-function normalizeApiKey(value) {
-  let key = String(value || "").trim().replace(/^export\s+/i, "");
-  if (/^OPENAI_API_KEY\s*=/.test(key)) key = key.slice(key.indexOf("=") + 1).trim();
-  key = key.replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "").trim();
-  return key.startsWith("sk-") ? key : "";
 }
 
 function setSecurityHeaders(res) {

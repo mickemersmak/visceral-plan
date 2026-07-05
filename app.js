@@ -2232,6 +2232,7 @@ function renderKitchenMessage(message) {
 
 function sourceLabel(source) {
   if (source === "openai") return "AI";
+  if (source === "gemini") return "Gemini AI";
   if (source === "fallback") return "Smart fallback";
   return "Smart";
 }
@@ -2646,7 +2647,7 @@ function localMealScanResult(detail = "") {
       score: 0.35,
       visibleReference: "AI-vision saknas, därför används måltidsbyggarens valda råvaror som uppskattning.",
       shouldRetake: true,
-      advice: "När OpenAI-nyckeln är aktiv: fota hela tallriken rakt ovanifrån för bättre portionssäkerhet."
+      advice: "När OpenAI eller Gemini är aktivt: fota hela tallriken rakt ovanifrån för bättre portionssäkerhet."
     },
     totals,
     items: meal.items.map((item) => ({
@@ -2660,7 +2661,7 @@ function localMealScanResult(detail = "") {
       confidence: item.suggested ? 0.35 : 0.55
     })),
     verdict: meal.verdict,
-    notes: ["Fallback utan AI-vision.", "Resultatet blir exaktare om råvaror väljs i byggaren eller om OpenAI-nyckeln fungerar."],
+    notes: ["Fallback utan AI-vision.", "Resultatet blir exaktare om råvaror väljs i byggaren eller om OpenAI/Gemini-nyckel fungerar."],
     caution: detail ? `AI-fallback: ${detail}` : "Näringsvärdet är en lokal uppskattning, inte en exakt vägning."
   });
 }

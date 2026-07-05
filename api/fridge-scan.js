@@ -1,5 +1,12 @@
-const OPENAI_URL = "https://api.openai.com/v1/responses";
-const DEFAULT_MODEL = "gpt-5.5";
+const {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_OPENAI_MODEL,
+  getGeminiKey,
+  getOpenAIKey,
+  providerFailureDetail,
+  requestGeminiJSON,
+  requestOpenAIJSON
+} = require("./_ai-providers");
 
 module.exports = async function handler(req, res) {
   setSecurityHeaders(res);
@@ -7,15 +14,6 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ message: "Only POST is allowed." });
-    return;
-  }
-
-  const apiKey = normalizeApiKey(process.env.OPENAI_API_KEY);
-  if (!apiKey) {
-    res.status(503).json({
-      message: "OPENAI_API_KEY saknas eller är ogiltig. Frontend använder lokal fallback.",
-      fallback: true
-    });
     return;
   }
 
@@ -38,63 +36,41 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_FRIDGE_MODEL || DEFAULT_MODEL,
-        input: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: buildPrompt(goal, foods, profile, feedback, images.length)
-              },
-              ...images.map((imageUrl) => ({
-                type: "input_image",
-                image_url: imageUrl,
-                detail
-              }))
-            ]
-          }
-        ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "fridge_scan_quality_v2",
-            strict: true,
-            schema: fridgeScanSchema()
-          }
-        }
-      })
+    const schema = fridgeScanSchema();
+    const prompt = buildPrompt(goal, foods, profile, feedback, images.length);
+    const failures = [];
+    const openAI = await requestOpenAIJSON({
+      apiKey: getOpenAIKey(),
+      model: process.env.OPENAI_FRIDGE_MODEL || DEFAULT_OPENAI_MODEL,
+      prompt,
+      images,
+      detail,
+      schemaName: "fridge_scan_quality_v2",
+      schema
     });
-
-    const data = await response.json();
-    if (!response.ok) {
-      res.status(response.status).json({
-        message: "Vision-analysen misslyckades.",
-        detail: data.error && data.error.message ? data.error.message : "OpenAI error"
-      });
+    if (openAI.ok) {
+      sendFridgeScan(res, openAI.value, foods, detail, images.length, openAI.provider);
       return;
     }
+    failures.push(openAI);
 
-    const parsed = parseModelJSON(data);
-    const allowed = new Set(foods.map((food) => food.id));
+    const gemini = await requestGeminiJSON({
+      apiKey: getGeminiKey(),
+      model: process.env.GEMINI_FRIDGE_MODEL || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+      prompt,
+      images,
+      schema
+    });
+    if (gemini.ok) {
+      sendFridgeScan(res, gemini.value, foods, detail, images.length, gemini.provider);
+      return;
+    }
+    failures.push(gemini);
 
-    res.status(200).json({
-      source: "openai",
-      suggestions: normalizeSuggestions(parsed.suggestions, allowed),
-      uncertain: normalizeUncertain(parsed.uncertain, allowed),
-      quality: normalizeQuality(parsed.quality, detail),
-      mealIdea: normalizeMealIdea(parsed.mealIdea, allowed),
-      shopping: normalizeShopping(parsed.shopping),
-      detail,
-      imageCount: images.length,
-      note: String(parsed.note || "Kontrollera råvarorna innan du lägger till dem.").slice(0, 220)
+    res.status(openAI.status || gemini.status || 503).json({
+      message: "Ingen AI-provider kunde analysera kylskåpsbilderna.",
+      detail: providerFailureDetail(failures),
+      fallback: true
     });
   } catch (error) {
     res.status(500).json({
@@ -103,6 +79,22 @@ module.exports = async function handler(req, res) {
     });
   }
 };
+
+function sendFridgeScan(res, parsed, foods, detail, imageCount, source) {
+    const allowed = new Set(foods.map((food) => food.id));
+
+    res.status(200).json({
+      source,
+      suggestions: normalizeSuggestions(parsed.suggestions, allowed),
+      uncertain: normalizeUncertain(parsed.uncertain, allowed),
+      quality: normalizeQuality(parsed.quality, detail),
+      mealIdea: normalizeMealIdea(parsed.mealIdea, allowed),
+      shopping: normalizeShopping(parsed.shopping),
+      detail,
+      imageCount,
+      note: String(parsed.note || "Kontrollera råvarorna innan du lägger till dem.").slice(0, 220)
+    });
+}
 
 function sanitizeImages(images, fallbackImage) {
   const candidates = Array.isArray(images) ? images : [];
@@ -216,16 +208,6 @@ function buildPrompt(goal, foods, profile, feedback, imageCount) {
   ].join("\n");
 }
 
-function parseModelJSON(data) {
-  if (typeof data.output_text === "string") return JSON.parse(data.output_text);
-  const text = (data.output || [])
-    .flatMap((item) => item.content || [])
-    .map((content) => content.text || content.output_text || "")
-    .find(Boolean);
-  if (!text) return { suggestions: [], uncertain: [], note: "" };
-  return JSON.parse(text);
-}
-
 function normalizeSuggestions(items, allowed) {
   return Array.isArray(items)
     ? items
@@ -290,13 +272,6 @@ function normalizeShopping(items) {
 
 function sanitizeDetail(value) {
   return ["low", "high", "original", "auto"].includes(value) ? value : "high";
-}
-
-function normalizeApiKey(value) {
-  let key = String(value || "").trim().replace(/^export\s+/i, "");
-  if (/^OPENAI_API_KEY\s*=/.test(key)) key = key.slice(key.indexOf("=") + 1).trim();
-  key = key.replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "").trim();
-  return key.startsWith("sk-") ? key : "";
 }
 
 function clampNumber(value, min, max) {

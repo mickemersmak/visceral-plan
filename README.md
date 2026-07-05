@@ -18,7 +18,7 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Könsspecifika vägar för män, kvinnor och neutral profil med fokus som bukmått, cykel, perimenopaus, återstart, styrka, stress och kondition.
 - Rankad livsmedelsguide med metriska portionsförslag för livsmedel, frukt och grönsaker.
 - Kylskåpsbyggare som räknar ut en komplett måltid från valda råvaror hemma.
-- Mobilkamerascan av kylskåp med flera bilder, AI-förslag, bildkvalitet, osäkra fynd, användarfeedback och lokal fallback när AI-nyckel saknas.
+- Mobilkamerascan av kylskåp med flera bilder, OpenAI/Gemini-förslag, bildkvalitet, osäkra fynd, användarfeedback och lokal fallback när AI-nyckel saknas.
 - Matfoto-AI som uppskattar näringsvärde från en fotad måltid: kcal, gram, protein, kolhydrater, fett, fiber, komponenter, portionssäkerhet och förbättringsförslag.
 - Köks-AI som kan resonera med användaren om scannade råvaror, fotade måltider, valda livsmedel, måltidsmål, protein, fiber, lunchlådor, smarta kompletteringar och inköpsplan i gram.
 - Utökad råvarubank med protein, mejeri, baljväxter, grönsaker, frukt, frysvaror, kolhydratbaser och fettkällor.
@@ -50,9 +50,9 @@ PWA-funktioner som service worker och installation testas bäst via den deployad
 
 ## AI-vision och köks-AI
 
-Kylskåpsscannen, Matfoto-AI och köks-AI:n fungerar med smart lokal fallback utan nyckel. Med `OPENAI_API_KEY` aktivt i Vercel får scannen AI Quality v2: den kan väga ihop flera kylskåpsbilder, bedöma bildkvalitet, separera säkra och osäkra fynd, visa visuell evidens, ta emot rätt/fel-feedback och skicka bättre kontext till Köks-AI. Matfoto-AI kan uppskatta näringsvärde från en tallriksbild och skicka kcal/makro-underlaget vidare till Köks-AI. Köks-AI kan därefter skapa måltidsförslag, resonera om vad som saknas och bygga en inköpsplan i gram.
+Kylskåpsscannen, Matfoto-AI och köks-AI:n fungerar med smart lokal fallback utan nyckel. Med `OPENAI_API_KEY` aktivt i Vercel får scannen AI Quality v2 via OpenAI. Med `GEMINI_API_KEY` aktivt får samma flöden Gemini som fallback eller testmotor: flera kylskåpsbilder, bildkvalitet, säkra/osäkra fynd, matfoto med kcal/makro och friare Köks-AI-resonemang. Matfoto-AI kan uppskatta näringsvärde från en tallriksbild och skicka kcal/makro-underlaget vidare till Köks-AI. Köks-AI kan därefter skapa måltidsförslag, resonera om vad som saknas och bygga en inköpsplan i gram.
 
-För riktig bildanalys och friare AI-resonemang i produktion: lägg till en giltig `OPENAI_API_KEY` i Vercel. Valfritt kan `OPENAI_FRIDGE_MODEL` och `OPENAI_KITCHEN_MODEL` sättas för att byta modell.
+För riktig bildanalys och friare AI-resonemang i produktion: lägg till en giltig `OPENAI_API_KEY` eller `GEMINI_API_KEY` i Vercel. OpenAI används först när den fungerar, därefter Gemini. Valfritt kan `OPENAI_FRIDGE_MODEL`, `OPENAI_MEAL_MODEL`, `OPENAI_KITCHEN_MODEL`, `GEMINI_MODEL`, `GEMINI_FRIDGE_MODEL`, `GEMINI_MEAL_MODEL` och `GEMINI_KITCHEN_MODEL` sättas för att byta modell. Standard för Gemini är `gemini-3.5-flash`.
 
 ## Databas och admin
 

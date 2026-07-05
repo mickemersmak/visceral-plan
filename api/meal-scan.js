@@ -1,5 +1,12 @@
-const OPENAI_URL = "https://api.openai.com/v1/responses";
-const DEFAULT_MODEL = "gpt-5.5";
+const {
+  DEFAULT_GEMINI_MODEL,
+  DEFAULT_OPENAI_MODEL,
+  getGeminiKey,
+  getOpenAIKey,
+  providerFailureDetail,
+  requestGeminiJSON,
+  requestOpenAIJSON
+} = require("./_ai-providers");
 
 module.exports = async function handler(req, res) {
   setSecurityHeaders(res);
@@ -7,15 +14,6 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ message: "Only POST is allowed." });
-    return;
-  }
-
-  const apiKey = normalizeApiKey(process.env.OPENAI_API_KEY);
-  if (!apiKey) {
-    res.status(503).json({
-      message: "OPENAI_API_KEY saknas eller är ogiltig. Frontend använder lokal fallback.",
-      fallback: true
-    });
     return;
   }
 
@@ -36,51 +34,42 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MEAL_MODEL || process.env.OPENAI_FRIDGE_MODEL || DEFAULT_MODEL,
-        input: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: buildPrompt(goal, profile)
-              },
-              {
-                type: "input_image",
-                image_url: image,
-                detail
-              }
-            ]
-          }
-        ],
-        text: {
-          format: {
-            type: "json_schema",
-            name: "meal_nutrition_scan_v1",
-            strict: true,
-            schema: mealScanSchema()
-          }
-        }
-      })
+    const prompt = buildPrompt(goal, profile);
+    const schema = mealScanSchema();
+    const failures = [];
+    const openAI = await requestOpenAIJSON({
+      apiKey: getOpenAIKey(),
+      model: process.env.OPENAI_MEAL_MODEL || process.env.OPENAI_FRIDGE_MODEL || DEFAULT_OPENAI_MODEL,
+      prompt,
+      images: [image],
+      detail,
+      schemaName: "meal_nutrition_scan_v1",
+      schema
     });
-
-    const data = await response.json();
-    if (!response.ok) {
-      res.status(response.status).json({
-        message: "Matbilden kunde inte analyseras.",
-        detail: data.error && data.error.message ? data.error.message : "OpenAI error"
-      });
+    if (openAI.ok) {
+      res.status(200).json(normalizeMealScan(openAI.value, openAI.provider, detail));
       return;
     }
+    failures.push(openAI);
 
-    res.status(200).json(normalizeMealScan(parseModelJSON(data), "openai", detail));
+    const gemini = await requestGeminiJSON({
+      apiKey: getGeminiKey(),
+      model: process.env.GEMINI_MEAL_MODEL || process.env.GEMINI_FRIDGE_MODEL || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+      prompt,
+      images: [image],
+      schema
+    });
+    if (gemini.ok) {
+      res.status(200).json(normalizeMealScan(gemini.value, gemini.provider, detail));
+      return;
+    }
+    failures.push(gemini);
+
+    res.status(openAI.status || gemini.status || 503).json({
+      message: "Ingen AI-provider kunde analysera matbilden.",
+      detail: providerFailureDetail(failures),
+      fallback: true
+    });
   } catch (error) {
     res.status(500).json({
       message: "Matbilden kunde inte analyseras.",
@@ -260,24 +249,8 @@ function normalizeVerdict(value, totals) {
   };
 }
 
-function parseModelJSON(data) {
-  if (typeof data.output_text === "string") return JSON.parse(data.output_text);
-  const text = (data.output || [])
-    .flatMap((item) => item.content || [])
-    .map((content) => content.text || content.output_text || "")
-    .find(Boolean);
-  return text ? JSON.parse(text) : {};
-}
-
 function sanitizeDetail(value) {
   return ["low", "high", "original", "auto"].includes(value) ? value : "high";
-}
-
-function normalizeApiKey(value) {
-  let key = String(value || "").trim().replace(/^export\s+/i, "");
-  if (/^OPENAI_API_KEY\s*=/.test(key)) key = key.slice(key.indexOf("=") + 1).trim();
-  key = key.replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "").trim();
-  return key.startsWith("sk-") ? key : "";
 }
 
 function clampNumber(value, min, max) {
