@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#1f6f5c">
+    <title>Visceral Plan</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="rail" aria-label="Appöversikt">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">VP</span>
+          <div>
+            <strong>Visceral Plan</strong>
+            <span>Metabolt premiumprogram</span>
+          </div>
+        </div>
+
+        <nav class="tabs" role="tablist" aria-label="Huvudvyer">
+          <button class="tab is-active" type="button" role="tab" aria-selected="true" data-tab="dashboard">Översikt</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" data-tab="plan">Plan</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" data-tab="nutrition">Kost</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" data-tab="training">Träning</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" data-tab="log">Logg</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" data-tab="sources">Källor</button>
+        </nav>
+
+        <figure class="video-card">
+          <img src="assets/video-thumb.jpg" alt="Miniatyr för YouTube-videon Fastest Way to Shrink Visceral Fat">
+          <figcaption>
+            <span>Videounderlag</span>
+            <strong>Fastest Way to Shrink Visceral Fat</strong>
+          </figcaption>
+        </figure>
+
+        <div class="rail-proof" aria-label="Kunskapsbas">
+          <span>CDC</span>
+          <span>WHO</span>
+          <span>NIDDK</span>
+          <span>NHLBI</span>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <section class="topbar" aria-label="Aktuell status">
+          <div class="hero-copy">
+            <p class="eyebrow">Kliniskt inspirerat protokoll</p>
+            <h1>En exklusiv plan för att minska farligt bukfett med precision</h1>
+            <p class="hero-lede">Kost, styrka, kondition och återhämtning samlas i ett fokuserat system för visceralt fett, med mätbara riskmarkörer och tydliga dagliga beslut.</p>
+            <div class="hero-proof" aria-label="Programprinciper">
+              <span>Midja/längd</span>
+              <span>150 min/vecka</span>
+              <span>2 styrkepass</span>
+              <span>Protein + fiber</span>
+            </div>
+          </div>
+          <div class="hero-stack">
+            <div class="today-pill">
+              <span id="todayLabel">Idag</span>
+              <strong id="streakCount">0 dagar</strong>
+            </div>
+            <div class="protocol-note">
+              <span>Kunskapsdjup</span>
+              <strong>8 verifierade källspår</strong>
+              <small>Video, kliniska riktlinjer och folkhälsodata.</small>
+            </div>
+          </div>
+        </section>
+
+        <section class="evidence-strip" aria-label="Evidenssammanfattning">
+          <article>
+            <span>Riskmått</span>
+            <strong>Midja före våg</strong>
+          </article>
+          <article>
+            <span>Träning</span>
+            <strong>Kondition + styrka</strong>
+          </article>
+          <article>
+            <span>Kost</span>
+            <strong>Fiber, protein, låg sockerlast</strong>
+          </article>
+          <article>
+            <span>Tempo</span>
+            <strong>Hållbart underskott</strong>
+          </article>
+        </section>
+
+        <section id="dashboard" class="view is-active" role="tabpanel">
+          <div class="dashboard-grid">
+            <section class="module profile-module" aria-labelledby="profile-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Kalibrering</p>
+                  <h2 id="profile-title">Din metabola startpunkt</h2>
+                </div>
+                <button id="resetData" class="ghost-button" type="button">Rensa data</button>
+              </div>
+
+              <form id="profileForm" class="profile-form">
+                <label>
+                  <span>Kön för midjegräns</span>
+                  <select id="sex">
+                    <option value="male">Man</option>
+                    <option value="female">Kvinna</option>
+                    <option value="unspecified">Ej angivet</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Ålder</span>
+                  <input id="age" type="number" min="18" max="100" step="1">
+                </label>
+                <label>
+                  <span>Längd, cm</span>
+                  <input id="height" type="number" min="120" max="230" step="1">
+                </label>
+                <label>
+                  <span>Vikt, kg</span>
+                  <input id="weight" type="number" min="35" max="250" step="0.1">
+                </label>
+                <label>
+                  <span>Midja, cm</span>
+                  <input id="waist" type="number" min="45" max="220" step="0.1">
+                </label>
+                <label>
+                  <span>Målmidja, cm</span>
+                  <input id="targetWaist" type="number" min="45" max="220" step="0.1">
+                </label>
+                <label>
+                  <span>Nivå</span>
+                  <select id="level">
+                    <option value="beginner">Starta lugnt</option>
+                    <option value="steady">Van motionär</option>
+                    <option value="trained">Träningsvan</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Koststil</span>
+                  <select id="foodMode">
+                    <option value="med">Medelhav</option>
+                    <option value="dash">DASH</option>
+                    <option value="simple">Enkel vardag</option>
+                  </select>
+                </label>
+                <button class="primary-button" type="submit">Uppdatera plan</button>
+              </form>
+            </section>
+
+            <section class="module metrics-module" aria-labelledby="metrics-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Riskkarta</p>
+                  <h2 id="metrics-title">Visceral signal</h2>
+                </div>
+                <span id="riskBadge" class="status-badge">Beräknar</span>
+              </div>
+
+              <div class="metric-grid">
+                <article class="metric-card">
+                  <span>Midja/längd</span>
+                  <strong id="whtrValue">0.00</strong>
+                  <small id="whtrLabel">Mål under 0,50</small>
+                </article>
+                <article class="metric-card">
+                  <span>Midjegräns</span>
+                  <strong id="waistLimitValue">0 cm</strong>
+                  <small id="waistLimitLabel">Riskgräns</small>
+                </article>
+                <article class="metric-card">
+                  <span>BMI</span>
+                  <strong id="bmiValue">0.0</strong>
+                  <small id="bmiLabel">Sekundärt mått</small>
+                </article>
+                <article class="metric-card">
+                  <span>Avstånd till mål</span>
+                  <strong id="goalGapValue">0 cm</strong>
+                  <small id="goalGapLabel">Midja</small>
+                </article>
+              </div>
+
+              <div class="risk-copy">
+                <p id="riskSummary"></p>
+                <div class="progress-track" aria-hidden="true">
+                  <span id="waistProgress"></span>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="dashboard-grid lower">
+            <section class="module today-module" aria-labelledby="today-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Dagens protokoll</p>
+                  <h2 id="today-title">Högst effekt först</h2>
+                </div>
+                <span id="todayScore" class="score-chip">0/7</span>
+              </div>
+              <ul id="priorityList" class="priority-list"></ul>
+            </section>
+
+            <section class="module insight-module" aria-labelledby="insight-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Metabol logik</p>
+                  <h2 id="insight-title">Varför planen fungerar</h2>
+                </div>
+              </div>
+              <div class="insight-grid">
+                <article>
+                  <strong>Energi</strong>
+                  <span>Kontrollerat underskott utan kraschdiet.</span>
+                </article>
+                <article>
+                  <strong>Muskel</strong>
+                  <span>Styrka bevarar vävnaden som håller kroppen aktiv.</span>
+                </article>
+                <article>
+                  <strong>Kondition</strong>
+                  <span>Veckovolym driver fettminskning och bättre glukoskontroll.</span>
+                </article>
+                <article>
+                  <strong>Återhämtning</strong>
+                  <span>Sömn, stress och alkohol styr hur lätt planen håller.</span>
+                </article>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="plan" class="view" role="tabpanel">
+          <section class="module" aria-labelledby="plan-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">7 dagar</p>
+                <h2 id="plan-title">Veckoplan</h2>
+              </div>
+              <button id="printPlan" class="ghost-button" type="button">Skriv ut</button>
+            </div>
+            <div id="planGrid" class="plan-grid"></div>
+          </section>
+        </section>
+
+        <section id="nutrition" class="view" role="tabpanel">
+          <div class="two-column">
+            <section class="module" aria-labelledby="nutrition-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Kost</p>
+                  <h2 id="nutrition-title">Dagens matram</h2>
+                </div>
+                <span id="energyTarget" class="status-badge">Energi</span>
+              </div>
+              <div id="mealFrame" class="meal-frame"></div>
+            </section>
+
+            <section class="module" aria-labelledby="food-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Val</p>
+                  <h2 id="food-title">Prioritera ofta</h2>
+                </div>
+              </div>
+              <div id="foodTargets" class="target-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="training" class="view" role="tabpanel">
+          <div class="two-column">
+            <section class="module" aria-labelledby="workouts-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Passbank</p>
+                  <h2 id="workouts-title">Träning mot bukfett</h2>
+                </div>
+              </div>
+              <div id="workoutList" class="workout-list"></div>
+            </section>
+
+            <section class="module timer-module" aria-labelledby="timer-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Timer</p>
+                  <h2 id="timer-title">Intervallpass</h2>
+                </div>
+              </div>
+              <label class="timer-select">
+                <span>Pass</span>
+                <select id="timerWorkout"></select>
+              </label>
+              <div class="timer-face">
+                <span id="timerPhase">Redo</span>
+                <strong id="timerTime">00:00</strong>
+                <small id="timerRound">Välj pass</small>
+              </div>
+              <div class="timer-actions">
+                <button id="startTimer" class="primary-button" type="button">Start</button>
+                <button id="pauseTimer" class="ghost-button" type="button">Paus</button>
+                <button id="resetTimer" class="ghost-button" type="button">Nollställ</button>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section id="log" class="view" role="tabpanel">
+          <div class="two-column">
+            <section class="module" aria-labelledby="log-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Dagbok</p>
+                  <h2 id="log-title">Dagens logg</h2>
+                </div>
+                <input id="logDate" class="date-input" type="date">
+              </div>
+              <form id="logForm" class="log-form">
+                <label>
+                  <span>Rörelse, minuter</span>
+                  <input id="logMinutes" type="number" min="0" max="300" step="5">
+                </label>
+                <label>
+                  <span>Vikt, kg</span>
+                  <input id="logWeight" type="number" min="35" max="250" step="0.1">
+                </label>
+                <label>
+                  <span>Midja, cm</span>
+                  <input id="logWaist" type="number" min="45" max="220" step="0.1">
+                </label>
+                <div class="habit-grid" id="habitGrid"></div>
+                <button class="primary-button" type="submit">Spara logg</button>
+              </form>
+            </section>
+
+            <section class="module" aria-labelledby="summary-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Senaste 7</p>
+                  <h2 id="summary-title">Trend</h2>
+                </div>
+              </div>
+              <div id="weeklySummary" class="weekly-summary"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="sources" class="view" role="tabpanel">
+          <section class="module" aria-labelledby="sources-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">Underlag</p>
+                <h2 id="sources-title">Källor och avgränsningar</h2>
+              </div>
+            </div>
+            <div class="source-note">
+              <p id="videoNote"></p>
+              <p>Appen är inte diagnos, behandling eller ersättning för läkare. Vid hjärt-kärlsjukdom, diabetes, graviditet, ätstörningshistorik, bröstsmärta, yrsel eller kraftig övervikt: stäm av tränings- och viktmål med vården.</p>
+            </div>
+            <div id="sourceList" class="source-list"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
