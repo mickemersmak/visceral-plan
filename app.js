@@ -64,8 +64,82 @@ const defaultState = {
     sexFocus: "male-visceral"
   },
   habits: {},
-  logs: {}
+  logs: {},
+  member: {
+    bookings: [],
+    messages: []
+  }
 };
+
+const memberValueProps = [
+  ["Träning", "Pass, progression, timer och bokningsbara coachytor."],
+  ["Kost", "Gram-mallar, smarta byten och livsmedelsranking."],
+  ["AI-coach", "Nästa bästa åtgärd, svagaste länk och veckans experiment."],
+  ["Hälsodata", "Midja, vikt, vanor, dagspoäng och trend samlat för coachning."],
+  ["Bokning", "Rekommenderade pass kopplas till medlemmens mål och status."],
+  ["Kommunikation", "Coachmeddelanden, medlemsflöde och uppföljning i samma vy."]
+];
+
+const bookingCatalog = [
+  {
+    id: "visceral-check",
+    title: "Midjecheck + AI-genomgång",
+    day: "Mån",
+    time: "17:30",
+    coach: "Coach Sara",
+    duration: "25 min",
+    capacity: "4 platser",
+    fit: "Bäst när midja/längd är över 0,50 eller datan är ny."
+  },
+  {
+    id: "strength-foundation",
+    title: "Styrka för bukfett",
+    day: "Tis",
+    time: "18:15",
+    coach: "Coach Amir",
+    duration: "45 min",
+    capacity: "8 platser",
+    fit: "Prioriteras om styrkedagarna är färre än 2 per vecka."
+  },
+  {
+    id: "zone2-club",
+    title: "Zon 2-grupp",
+    day: "Ons",
+    time: "07:00",
+    coach: "Coach Lina",
+    duration: "40 min",
+    capacity: "12 platser",
+    fit: "Bygger veckovolym utan att slita på återhämtningen."
+  },
+  {
+    id: "nutrition-lab",
+    title: "Kostlab: helg utan bakslag",
+    day: "Tors",
+    time: "19:00",
+    coach: "Dietistteam",
+    duration: "30 min",
+    capacity: "6 platser",
+    fit: "För medlemmar som behöver portionsram, protein och social strategi."
+  },
+  {
+    id: "stress-reset",
+    title: "Stressreset och sömnspärr",
+    day: "Sön",
+    time: "20:00",
+    coach: "Coach Elin",
+    duration: "20 min",
+    capacity: "10 platser",
+    fit: "För kvällsätande, stress, alkoholfriktion eller låg sömnföljsamhet."
+  }
+];
+
+const retentionCards = [
+  ["Mer än passbokning", "Bokning kopplas till midjetrend, score och coachens rekommendation, inte bara schema."],
+  ["Mer än matlogg", "Kostdelen visar gram-mallar och byten som matchar träning och buksignal."],
+  ["Mer än kampanjer", "Kommunikationen kan triggas av faktisk medlemsdata: låg följsamhet, utebliven logg eller förbättrad trend."],
+  ["Mer än hälsodata", "Data översätts till bokning, meddelande och nästa åtgärd i samma flöde."],
+  ["Bättre retention", "Gymmet får fler naturliga kontaktpunkter före medlemmen tappar fart."]
+];
 
 const sexFocusOptions = {
   male: [
@@ -446,6 +520,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindLog();
   bindTimer();
   bindSwapLab();
+  bindMemberMessages();
   renderAll();
   activateInitialTab();
 });
@@ -600,7 +675,13 @@ function mergeState(base, next) {
   return {
     profile: { ...base.profile, ...(next.profile || {}) },
     habits: { ...base.habits, ...(next.habits || {}) },
-    logs: { ...base.logs, ...(next.logs || {}) }
+    logs: { ...base.logs, ...(next.logs || {}) },
+    member: {
+      ...base.member,
+      ...(next.member || {}),
+      bookings: Array.isArray(next.member && next.member.bookings) ? next.member.bookings : base.member.bookings,
+      messages: Array.isArray(next.member && next.member.messages) ? next.member.messages : base.member.messages
+    }
   };
 }
 
@@ -760,6 +841,27 @@ function bindSwapLab() {
   select.addEventListener("change", renderSmartFood);
 }
 
+function bindMemberMessages() {
+  const form = $("#memberMessageForm");
+  if (!form) return;
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const field = $("#memberMessage");
+    const text = field.value.trim();
+    if (!text) return;
+    state.member.messages.unshift({
+      id: `msg-${Date.now()}`,
+      type: "member",
+      title: "Meddelande skickat",
+      text,
+      date: new Date().toISOString()
+    });
+    field.value = "";
+    saveState();
+    renderMemberHub();
+  });
+}
+
 function startTimer() {
   if (timer.running) return;
   timer.running = true;
@@ -821,6 +923,7 @@ function renderAll() {
   renderFoodGuide();
   renderTraining();
   renderWeeklySummary();
+  renderMemberHub();
   renderSources();
   renderCompetitors();
   loadLogForDate();
@@ -1248,6 +1351,7 @@ function renderPriorities() {
       renderMetrics();
       renderSprintPlan();
       renderWeeklySummary();
+      renderMemberHub();
       loadLogForDate();
     });
   });
@@ -1553,6 +1657,177 @@ function renderTrendChart() {
       <g class="chart-labels">${labels}</g>
     </svg>
   `;
+}
+
+function renderMemberHub() {
+  ensureMemberState();
+  renderMemberValueGrid();
+  renderBookingList();
+  renderHealthDataGrid();
+  renderMessageFeed();
+  renderRetentionGrid();
+}
+
+function ensureMemberState() {
+  state.member = state.member || { bookings: [], messages: [] };
+  state.member.bookings = Array.isArray(state.member.bookings) ? state.member.bookings : [];
+  state.member.messages = Array.isArray(state.member.messages) ? state.member.messages : [];
+}
+
+function renderMemberValueGrid() {
+  const target = $("#memberValueGrid");
+  if (!target) return;
+  target.innerHTML = memberValueProps.map(([title, text]) => `
+    <article>
+      <strong>${title}</strong>
+      <span>${text}</span>
+    </article>
+  `).join("");
+  $("#memberStatus").textContent = activeUser.guest ? "Demo" : "Medlem";
+}
+
+function renderBookingList() {
+  const target = $("#bookingList");
+  if (!target) return;
+  const analysis = analyzeProgress();
+  const recommended = recommendedBookingIds(analysis);
+  $("#bookingBadge").textContent = `${state.member.bookings.length} bokade`;
+  target.innerHTML = bookingCatalog.map((item) => {
+    const booked = state.member.bookings.includes(item.id);
+    const isRecommended = recommended.includes(item.id);
+    return `
+      <article class="${booked ? "is-booked" : ""}">
+        <div class="booking-main">
+          <span>${item.day} ${item.time} · ${item.duration}</span>
+          <strong>${item.title}</strong>
+          <p>${item.fit}</p>
+          <small>${item.coach} · ${item.capacity}</small>
+        </div>
+        <div class="booking-actions">
+          ${isRecommended ? `<em>Rekommenderad</em>` : ""}
+          <button class="${booked ? "ghost-button" : "primary-button"}" type="button" data-booking-id="${item.id}">
+            ${booked ? "Avboka" : "Boka"}
+          </button>
+        </div>
+      </article>
+    `;
+  }).join("");
+  $$("[data-booking-id]").forEach((button) => {
+    button.addEventListener("click", () => toggleBooking(button.dataset.bookingId));
+  });
+}
+
+function recommendedBookingIds(analysis) {
+  const ids = [];
+  if (analysis.entries.length < 3 || analysis.whtr >= 0.5) ids.push("visceral-check");
+  if (analysis.strengthDays < 2) ids.push("strength-foundation");
+  if (analysis.minutes < 150) ids.push("zone2-club");
+  if (analysis.proteinDays < 5 || analysis.vegDays < 5 || analysis.sugarFreeDays < 5) ids.push("nutrition-lab");
+  if (analysis.sleepDays < 5 || analysis.stressDays < 5 || analysis.alcoholFreeDays < 4) ids.push("stress-reset");
+  return ids.length ? ids : ["visceral-check", "strength-foundation"];
+}
+
+function toggleBooking(id) {
+  ensureMemberState();
+  const item = bookingCatalog.find((booking) => booking.id === id);
+  if (!item) return;
+  const booked = state.member.bookings.includes(id);
+  state.member.bookings = booked
+    ? state.member.bookings.filter((bookingId) => bookingId !== id)
+    : [...state.member.bookings, id];
+  state.member.messages.unshift({
+    id: `booking-${Date.now()}`,
+    type: "system",
+    title: booked ? "Bokning avbokad" : "Bokning skapad",
+    text: `${item.title}, ${item.day} ${item.time}.`,
+    date: new Date().toISOString()
+  });
+  saveState();
+  renderMemberHub();
+}
+
+function renderHealthDataGrid() {
+  const target = $("#healthDataGrid");
+  if (!target) return;
+  const analysis = analyzeProgress();
+  const p = state.profile;
+  const whtr = p.waist / p.height;
+  const lastLog = getRecentEntries(14)[0];
+  const healthCards = [
+    ["Visceral Score", `${analysis.score}/100`, `${analysis.tier.label}: ${analysis.weakest[0]} är största hävstången.`],
+    ["Midja", `${p.waist.toFixed(1).replace(".", ",")} cm`, `Mål: ${p.targetWaist.toFixed(1).replace(".", ",")} cm.`],
+    ["Midja/längd", whtr.toFixed(2).replace(".", ","), whtr < 0.5 ? "Under 0,50." : "Fokusera på buksignal."],
+    ["Rörelse 7 dagar", `${analysis.minutes} min`, "Golvet är 150 min/vecka."],
+    ["Styrka", `${analysis.strengthDays}/2 pass`, "Bokning kan styra nästa pass."],
+    ["Senaste logg", lastLog ? lastLog.key : "Saknas", lastLog ? "Redo för coachuppföljning." : "Logga idag för bättre coachdata."]
+  ];
+  target.innerHTML = healthCards.map(([title, value, note]) => `
+    <article>
+      <span>${title}</span>
+      <strong>${value}</strong>
+      <small>${note}</small>
+    </article>
+  `).join("");
+}
+
+function renderMessageFeed() {
+  const target = $("#messageFeed");
+  if (!target) return;
+  const analysis = analyzeProgress();
+  const action = getNextBestAction(analysis);
+  const bookedNames = state.member.bookings
+    .map((id) => bookingCatalog.find((item) => item.id === id))
+    .filter(Boolean)
+    .map((item) => item.title);
+  const automated = [
+    {
+      id: "coach-action",
+      type: "coach",
+      title: "AI-coachens prioritet",
+      text: `${action.title}: ${action.text}`,
+      date: new Date().toISOString()
+    },
+    {
+      id: "gym-next",
+      type: "gym",
+      title: bookedNames.length ? "Kommande bokningar" : "Boka nästa steg",
+      text: bookedNames.length ? bookedNames.join(", ") : "Välj ett rekommenderat pass så kopplas träningen till din buksignal.",
+      date: new Date().toISOString()
+    }
+  ];
+  const feed = [...automated, ...state.member.messages].slice(0, 8);
+  $("#messageBadge").textContent = `${feed.length} meddelanden`;
+  target.innerHTML = feed.map((item) => `
+    <article class="${item.type}">
+      <span>${messageSender(item.type)} · ${formatMessageDate(item.date)}</span>
+      <strong>${item.title}</strong>
+      <p>${item.text}</p>
+    </article>
+  `).join("");
+}
+
+function messageSender(type) {
+  if (type === "member") return "Du";
+  if (type === "gym") return "Gymteam";
+  if (type === "system") return "Bokning";
+  return "AI-coach";
+}
+
+function formatMessageDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "nu";
+  return new Intl.DateTimeFormat("sv-SE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function renderRetentionGrid() {
+  const target = $("#retentionGrid");
+  if (!target) return;
+  target.innerHTML = retentionCards.map(([title, text]) => `
+    <article>
+      <strong>${title}</strong>
+      <span>${text}</span>
+    </article>
+  `).join("");
 }
 
 function renderSources() {

@@ -60,6 +60,7 @@
           <button class="tab" type="button" role="tab" aria-selected="false" data-tab="nutrition">Kost</button>
           <button class="tab" type="button" role="tab" aria-selected="false" data-tab="training">Träning</button>
           <button class="tab" type="button" role="tab" aria-selected="false" data-tab="log">Logg</button>
+          <button class="tab" type="button" role="tab" aria-selected="false" data-tab="member">Medlem</button>
           <button class="tab" type="button" role="tab" aria-selected="false" data-tab="sources">Källor</button>
         </nav>
 
@@ -487,6 +488,74 @@
               </div>
               <div id="weeklySummary" class="weekly-summary"></div>
               <div id="trendChart" class="trend-chart" aria-label="Trendgraf för midja och vanor"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="member" class="view" role="tabpanel">
+          <section class="module member-hero-module" aria-labelledby="member-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">Medlemsnav</p>
+                <h2 id="member-title">Träning, kost, AI-coach, hälsodata och bokning i samma app</h2>
+              </div>
+              <span id="memberStatus" class="status-badge low">Aktiv</span>
+            </div>
+            <div id="memberValueGrid" class="member-value-grid"></div>
+          </section>
+
+          <div class="two-column member-grid">
+            <section class="module booking-module" aria-labelledby="booking-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Bokning</p>
+                  <h2 id="booking-title">Rekommenderade pass</h2>
+                </div>
+                <span id="bookingBadge" class="status-badge low">0 bokade</span>
+              </div>
+              <div id="bookingList" class="booking-list"></div>
+            </section>
+
+            <section class="module health-module" aria-labelledby="health-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Hälsodata</p>
+                  <h2 id="health-title">Medlemsprofil för coachen</h2>
+                </div>
+                <span class="status-badge low">Metriskt</span>
+              </div>
+              <div id="healthDataGrid" class="health-data-grid"></div>
+            </section>
+          </div>
+
+          <div class="two-column member-grid">
+            <section class="module communication-module" aria-labelledby="communication-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Kommunikation</p>
+                  <h2 id="communication-title">Coach och medlemsflöde</h2>
+                </div>
+                <span id="messageBadge" class="status-badge medium">Inkorg</span>
+              </div>
+              <div id="messageFeed" class="message-feed"></div>
+              <form id="memberMessageForm" class="member-message-form">
+                <label>
+                  <span>Meddelande till coach</span>
+                  <textarea id="memberMessage" rows="3" placeholder="Ex. Jag vill boka en midjecheck eller få hjälp med helgmaten."></textarea>
+                </label>
+                <button class="primary-button" type="submit">Skicka till coach</button>
+              </form>
+            </section>
+
+            <section class="module retention-module" aria-labelledby="retention-title">
+              <div class="module-heading">
+                <div>
+                  <p class="eyebrow">Gymkedja</p>
+                  <h2 id="retention-title">Det här saknas ofta i separata appar</h2>
+                </div>
+                <span class="status-badge low">Helhet</span>
+              </div>
+              <div id="retentionGrid" class="retention-grid"></div>
             </section>
           </div>
         </section>

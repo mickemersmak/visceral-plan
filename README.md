@@ -22,6 +22,9 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Svenska gram-mallar för frukost, lunch, middag och akutval.
 - Trendgraf för midja och dagspoäng.
 - Träningsbank med visuella övningsbilder för styrka, intervall, kondition och mobilitet.
+- Medlemsnav med träning, kost, AI-coach, hälsodata, bokning och medlemskommunikation i samma app.
+- Lokal bokningsdemo för coachpass, gruppträning, kostlab och uppföljning.
+- Medlemsflöde där coachprioritet, bokningar och egna meddelanden samlas.
 - Konkurrentmatris som jämför mot MyFitnessPal, Lifesum, Cronometer och träningsappar som Nike Training Club, Sweat och BetterMe.
 
 Alla mått i appen är metriska: cm, kg, g, minuter, sekunder och kcal.
@@ -30,7 +33,7 @@ Alla mått i appen är metriska: cm, kg, g, minuter, sekunder och kcal.
 
 Visceral Plan jagar inte bara kalorier. Den styr på bukmått, midja/längd, könsspecifika risk- och träningsvägar, veckovolym, vaneföljsamhet, styrka, återhämtning och konkreta matbyten. Visceral Score 2.0 visar både totalsignal och svagaste länk, så användaren får ett beslut i stället för ännu en översiktspanel. All data sparas lokalt i PWA:n, så användaren får en privat coach utan konto hos en extern tjänst.
 
-Konkurrentanalysen visar att stora appar ofta är starka på loggning, matdatabaser, AI-inmatning eller stora träningsbibliotek. Vår kant är ett smalare och skarpare system för bukfett: midja/längd, gram-baserad kost, 14-dagars sprint, lokalt dataskydd, könsprotokoll och träningsbeslut som följer midjetrenden.
+Konkurrentanalysen visar att stora appar ofta är starka på loggning, matdatabaser, AI-inmatning eller stora träningsbibliotek. Vår kant är ett smalare och skarpare system för bukfett: midja/längd, gram-baserad kost, 14-dagars sprint, lokalt dataskydd, könsprotokoll och träningsbeslut som följer midjetrenden. För gymkedjor blir appen en komplett medlemsyta där bokning och kommunikation styrs av faktisk hälsodata, inte bara av ett passchema.
 
 ## Kör lokalt
 

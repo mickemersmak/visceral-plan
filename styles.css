@@ -1664,6 +1664,185 @@ select:focus {
   text-decoration: underline;
 }
 
+.member-hero-module {
+  background:
+    linear-gradient(135deg, rgba(15, 25, 22, 0.97), rgba(23, 72, 60, 0.92)),
+    var(--green);
+  color: #fffefa;
+}
+
+.member-hero-module::before {
+  background: linear-gradient(90deg, #f1d18a, var(--green-2), #fffefa);
+}
+
+.member-hero-module .eyebrow {
+  color: #f1d18a;
+}
+
+.member-value-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.member-value-grid article {
+  border: 1px solid rgba(255, 254, 250, 0.14);
+  border-radius: 12px;
+  padding: 13px;
+  background: rgba(255, 254, 250, 0.08);
+}
+
+.member-value-grid strong,
+.member-value-grid span {
+  display: block;
+}
+
+.member-value-grid strong {
+  color: #f1d18a;
+}
+
+.member-value-grid span {
+  margin-top: 6px;
+  color: rgba(255, 254, 250, 0.72);
+  line-height: 1.45;
+}
+
+.member-grid {
+  margin-top: 20px;
+}
+
+.booking-list,
+.health-data-grid,
+.message-feed,
+.retention-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.booking-list article,
+.health-data-grid article,
+.message-feed article,
+.retention-grid article {
+  border: 1px solid rgba(23, 72, 60, 0.12);
+  border-radius: 10px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 8px 22px rgba(16, 23, 20, 0.045);
+}
+
+.booking-list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.booking-list article.is-booked {
+  border-color: rgba(45, 134, 110, 0.34);
+  background:
+    linear-gradient(180deg, rgba(237, 247, 241, 0.98), rgba(255, 255, 255, 0.84));
+}
+
+.booking-main span,
+.booking-main small,
+.booking-main p,
+.health-data-grid span,
+.health-data-grid small,
+.message-feed span,
+.message-feed p,
+.retention-grid span {
+  color: var(--muted);
+}
+
+.booking-main strong,
+.health-data-grid strong,
+.message-feed strong,
+.retention-grid strong {
+  display: block;
+  color: var(--green);
+}
+
+.booking-main p,
+.message-feed p {
+  margin: 7px 0;
+  line-height: 1.45;
+}
+
+.booking-main small {
+  font-weight: 800;
+}
+
+.booking-actions {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.booking-actions em {
+  border: 1px solid rgba(195, 154, 76, 0.38);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: var(--green);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.health-data-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.health-data-grid article {
+  display: grid;
+  gap: 5px;
+}
+
+.health-data-grid strong {
+  font-size: 1.32rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.message-feed article.member {
+  border-color: rgba(45, 100, 139, 0.22);
+}
+
+.message-feed article.coach {
+  border-color: rgba(195, 154, 76, 0.34);
+}
+
+.member-message-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid rgba(23, 72, 60, 0.16);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  padding: 12px;
+  min-height: 94px;
+}
+
+textarea:focus {
+  border-color: var(--green);
+  outline: 3px solid rgba(45, 134, 110, 0.14);
+}
+
+.retention-grid {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.retention-grid span {
+  display: block;
+  margin-top: 5px;
+  line-height: 1.45;
+}
+
 .status-badge.low {
   color: var(--green);
   border-color: rgba(31, 111, 92, 0.28);
@@ -1698,7 +1877,7 @@ select:focus {
   }
 
   .tabs {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 
   .video-card {
@@ -1729,7 +1908,8 @@ select:focus {
   }
 
   .score-breakdown,
-  .coach-brief {
+  .coach-brief,
+  .member-value-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1821,7 +2001,7 @@ select:focus {
     right: 10px;
     bottom: calc(10px + env(safe-area-inset-bottom));
     z-index: 40;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 4px;
     padding: 8px;
     border: 1px solid rgba(241, 209, 138, 0.24);
@@ -1935,7 +2115,9 @@ select:focus {
   .edge-grid,
   .meal-template-grid,
   .score-breakdown,
-  .coach-brief {
+  .coach-brief,
+  .member-value-grid,
+  .health-data-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1987,8 +2169,21 @@ select:focus {
   .edge-module,
   .meal-template-module,
   .smart-food-module,
-  .sprint-module + .module {
+  .sprint-module + .module,
+  .member-grid {
     margin-top: 12px;
+  }
+
+  .booking-list article {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-actions {
+    justify-items: stretch;
+  }
+
+  .booking-actions em {
+    width: fit-content;
   }
 
   .food-guide {
