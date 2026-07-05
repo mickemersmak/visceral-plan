@@ -14,7 +14,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=14">
+    <link rel="stylesheet" href="styles.css?v=16">
   </head>
   <body>
     <div class="app-shell">
@@ -427,7 +427,7 @@
                   <div class="fridge-scan-copy">
                     <span>Kamerascan</span>
                     <strong>Scanna kylskåpet</strong>
-                    <small>Bildanalys ger råvaruförslag direkt till måltidsbyggaren.</small>
+                    <small>Bildanalys ger råvaruförslag och Köks-AI kan resonera vidare på bilden.</small>
                   </div>
                   <div class="fridge-scan-actions">
                     <button id="fridgeScanButton" class="primary-button" type="button">Öppna kamera</button>
@@ -439,6 +439,26 @@
                   </div>
                   <div id="fridgeScanSuggestions" class="fridge-scan-suggestions"></div>
                 </div>
+                <section class="kitchen-ai-panel" aria-labelledby="kitchen-ai-title">
+                  <div class="kitchen-ai-head">
+                    <div>
+                      <span>Köks-AI</span>
+                      <strong id="kitchen-ai-title">Resonera fram bästa måltiden</strong>
+                    </div>
+                    <b id="kitchenAiSource">Smart</b>
+                  </div>
+                  <div id="kitchenAiThread" class="kitchen-ai-thread" aria-live="polite"></div>
+                  <div class="kitchen-ai-prompts" aria-label="Snabbfrågor till köks-AI">
+                    <button type="button" data-kitchen-prompt="Vad kan jag laga av det här för att minska bukfett?">Måltidsförslag</button>
+                    <button type="button" data-kitchen-prompt="Gör måltiden mer proteinrik och mättande.">Mer protein</button>
+                    <button type="button" data-kitchen-prompt="Vad saknas för att måltiden ska bli komplett?">Vad saknas?</button>
+                    <button type="button" data-kitchen-prompt="Gör detta till en snabb lunchlåda.">Lunchlåda</button>
+                  </div>
+                  <form id="kitchenAiForm" class="kitchen-ai-form" novalidate>
+                    <textarea id="kitchenAiInput" rows="2" placeholder="Fråga t.ex. vad du kan laga, vad som saknas eller hur du gör den bättre efter träning."></textarea>
+                    <button id="kitchenAiSend" class="primary-button" type="submit">Fråga AI</button>
+                  </form>
+                </section>
                 <div id="fridgeFoodBank" class="fridge-food-bank"></div>
               </div>
               <div id="fridgeMealResult" class="fridge-meal-result"></div>
@@ -715,6 +735,6 @@
       </main>
     </div>
 
-    <script src="app.js?v=14"></script>
+    <script src="app.js?v=16"></script>
   </body>
 </html>

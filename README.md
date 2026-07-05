@@ -19,6 +19,7 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Rankad livsmedelsguide med metriska portionsförslag för livsmedel, frukt och grönsaker.
 - Kylskåpsbyggare som räknar ut en komplett måltid från valda råvaror hemma.
 - Mobilkamerascan av kylskåp med AI-förslag via Vercel API och lokal fallback när AI-nyckel saknas.
+- Köks-AI som kan resonera med användaren om scannade råvaror, valda livsmedel, måltidsmål, protein, fiber, lunchlådor och smarta kompletteringar.
 - Utökad råvarubank med protein, mejeri, baljväxter, grönsaker, frukt, frysvaror, kolhydratbaser och fettkällor.
 - Metabolt index som väger bukmått, rörelse, styrka, kostvanor, återhämtning och loggföljsamhet.
 - Visceral Score 2.0 med nedbrytning av buksignal, rörelse, styrka, kost, återhämtning och loggning.
@@ -46,9 +47,9 @@ Konkurrentanalysen visar att stora appar ofta är starka på loggning, matdataba
 
 PWA-funktioner som service worker och installation testas bäst via den deployade HTTPS-versionen.
 
-## AI-vision
+## AI-vision och köks-AI
 
-Kylskåpsscannen fungerar som lokal demo utan nyckel. För riktig bildanalys i produktion: lägg till `OPENAI_API_KEY` i Vercel. Valfritt kan `OPENAI_FRIDGE_MODEL` sättas för att byta visionmodell.
+Kylskåpsscannen och köks-AI:n fungerar med smart lokal fallback utan nyckel. För riktig bildanalys och friare AI-resonemang i produktion: lägg till `OPENAI_API_KEY` i Vercel. Valfritt kan `OPENAI_FRIDGE_MODEL` och `OPENAI_KITCHEN_MODEL` sättas för att byta modell.
 
 ## Databas och admin
 

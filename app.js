@@ -73,7 +73,8 @@ const defaultState = {
   },
   pantry: {
     goal: "fatloss",
-    selected: ["egg", "kvarg", "broccoli", "potato", "olive-oil"]
+    selected: ["egg", "kvarg", "broccoli", "potato", "olive-oil"],
+    kitchenMessages: []
   }
 };
 
@@ -615,6 +616,7 @@ let fridgeScan = {
   message: "Kamera redo",
   note: ""
 };
+let kitchenAiLoading = false;
 let adminUsers = [];
 let adminLoading = false;
 let adminLoaded = false;
@@ -637,6 +639,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindTimer();
   bindSwapLab();
   bindFridgeBuilder();
+  bindKitchenAssistant();
   bindMemberMessages();
   bindAdmin();
   renderAll();
@@ -1103,6 +1106,42 @@ function bindFridgeBuilder() {
   applyButton?.addEventListener("click", applyFridgeScanSuggestions);
 }
 
+function bindKitchenAssistant() {
+  const form = $("#kitchenAiForm");
+  if (!form) return;
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = $("#kitchenAiInput");
+    const message = input.value.trim();
+    if (!message || kitchenAiLoading) return;
+    input.value = "";
+    askKitchenAssistant(message);
+  });
+
+  $$(".kitchen-ai-prompts [data-kitchen-prompt]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!kitchenAiLoading) askKitchenAssistant(button.dataset.kitchenPrompt);
+    });
+  });
+
+  $("#kitchenAiThread")?.addEventListener("click", (event) => {
+    const promptButton = event.target.closest("[data-kitchen-prompt]");
+    if (promptButton && !kitchenAiLoading) {
+      askKitchenAssistant(promptButton.dataset.kitchenPrompt);
+      return;
+    }
+
+    const addButton = event.target.closest("[data-kitchen-add]");
+    if (!addButton) return;
+    const ids = addButton.dataset.kitchenAdd.split(",").filter((id) => pantryFoods.some((food) => food.id === id));
+    if (!ids.length) return;
+    ensurePantryState();
+    state.pantry.selected = Array.from(new Set([...state.pantry.selected, ...ids]));
+    saveState();
+    renderFridgeBuilder();
+  });
+}
+
 function bindMemberMessages() {
   const form = $("#memberMessageForm");
   if (!form) return;
@@ -1563,6 +1602,7 @@ function renderSwapResult() {
 function ensurePantryState() {
   if (!state.pantry) state.pantry = structuredClone(defaultState.pantry);
   if (!Array.isArray(state.pantry.selected)) state.pantry.selected = [...defaultState.pantry.selected];
+  if (!Array.isArray(state.pantry.kitchenMessages)) state.pantry.kitchenMessages = [];
   if (!state.pantry.goal) state.pantry.goal = defaultState.pantry.goal;
 }
 
@@ -1573,6 +1613,7 @@ function renderFridgeBuilder() {
   const select = $("#fridgeGoal");
   if (select && select.value !== state.pantry.goal) select.value = state.pantry.goal;
   renderFridgeScanPanel();
+  renderKitchenAssistant();
   renderFridgeFoodBank();
   renderFridgeMeal();
 }
@@ -1664,6 +1705,298 @@ function scanStatusTitle(status) {
   return "Redo för scan";
 }
 
+function renderKitchenAssistant() {
+  const target = $("#kitchenAiThread");
+  const source = $("#kitchenAiSource");
+  const sendButton = $("#kitchenAiSend");
+  if (!target || !source || !sendButton) return;
+  ensurePantryState();
+  const messages = state.pantry.kitchenMessages.length
+    ? state.pantry.kitchenMessages
+    : [introKitchenMessage()];
+  const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant");
+  source.textContent = kitchenAiLoading ? "Tänker" : sourceLabel(lastAssistant && lastAssistant.source);
+  sendButton.disabled = kitchenAiLoading;
+  sendButton.textContent = kitchenAiLoading ? "Tänker..." : "Fråga AI";
+
+  target.innerHTML = `
+    ${messages.map(renderKitchenMessage).join("")}
+    ${kitchenAiLoading ? `
+      <article class="kitchen-message assistant thinking">
+        <strong>Köks-AI analyserar</strong>
+        <p>Väger råvaror, protein, fiber, scanträffar och ditt mål.</p>
+      </article>
+    ` : ""}
+  `;
+  target.scrollTop = target.scrollHeight;
+}
+
+function introKitchenMessage() {
+  const meal = buildFridgeMeal();
+  return {
+    id: "kitchen-intro",
+    role: "assistant",
+    source: "local",
+    mealName: "Din smarta kökshjälp",
+    text: `Scanna kylskåpet eller välj råvaror, så hjälper jag dig resonera fram en måltid. Just nu ser jag ${meal.selectedCount} valda råvaror och ett mål: ${meal.goalCopy.title}.`,
+    reasoning: "Jag prioriterar protein, fiber, grön volym och energitäthet för midja och mättnad.",
+    steps: ["Fråga vad du kan laga.", "Be mig göra måltiden mer proteinrik.", "Be mig hitta vad som saknas."],
+    add: [],
+    shopping: [],
+    questions: ["Vill du ha frukost, lunchlåda eller middag?"]
+  };
+}
+
+function renderKitchenMessage(message) {
+  const isUser = message.role === "user";
+  const addIds = Array.isArray(message.add) ? message.add.filter((id) => pantryFoods.some((food) => food.id === id)) : [];
+  const addNames = addIds.map(foodNameById).filter(Boolean);
+  return `
+    <article class="kitchen-message ${isUser ? "user" : "assistant"}">
+      ${isUser ? `
+        <p>${escapeHTML(message.text)}</p>
+      ` : `
+        <header>
+          <span>${escapeHTML(sourceLabel(message.source))}</span>
+          <strong>${escapeHTML(message.mealName || "Köks-AI")}</strong>
+        </header>
+        <p>${escapeHTML(message.text || message.reply || "")}</p>
+        ${message.reasoning ? `<small>${escapeHTML(message.reasoning)}</small>` : ""}
+        ${Array.isArray(message.steps) && message.steps.length ? `
+          <ul>${message.steps.map((step) => `<li>${escapeHTML(step)}</li>`).join("")}</ul>
+        ` : ""}
+        ${addNames.length ? `
+          <div class="kitchen-add-list">
+            <span>Lägg till i byggaren</span>
+            <strong>${escapeHTML(addNames.join(", "))}</strong>
+            <button class="ghost-button" type="button" data-kitchen-add="${escapeHTML(addIds.join(","))}">Använd AI-val</button>
+          </div>
+        ` : ""}
+        ${Array.isArray(message.shopping) && message.shopping.length ? `
+          <div class="kitchen-shopping">
+            <span>Smart inköpsrad</span>
+            <p>${message.shopping.map(escapeHTML).join(" · ")}</p>
+          </div>
+        ` : ""}
+        ${Array.isArray(message.questions) && message.questions.length ? `
+          <div class="kitchen-followups">
+            ${message.questions.map((question) => `<button type="button" data-kitchen-prompt="${escapeHTML(question)}">${escapeHTML(question)}</button>`).join("")}
+          </div>
+        ` : ""}
+      `}
+    </article>
+  `;
+}
+
+function sourceLabel(source) {
+  if (source === "openai") return "AI";
+  if (source === "fallback") return "Smart fallback";
+  return "Smart";
+}
+
+async function askKitchenAssistant(message) {
+  ensurePantryState();
+  const userMessage = {
+    id: `kitchen-user-${Date.now()}`,
+    role: "user",
+    text: message,
+    createdAt: new Date().toISOString()
+  };
+  state.pantry.kitchenMessages = [...state.pantry.kitchenMessages, userMessage].slice(-12);
+  kitchenAiLoading = true;
+  saveState();
+  renderKitchenAssistant();
+
+  try {
+    const context = buildKitchenContext();
+    const reply = await requestKitchenAssistantReply(message, context);
+    appendKitchenAssistantReply(reply);
+  } catch (error) {
+    const fallback = localKitchenAssistantReply(message, buildKitchenContext(), error.message);
+    appendKitchenAssistantReply(fallback);
+  } finally {
+    kitchenAiLoading = false;
+    saveState();
+    renderFridgeBuilder();
+  }
+}
+
+function appendKitchenAssistantReply(reply) {
+  ensurePantryState();
+  const assistantMessage = {
+    id: `kitchen-ai-${Date.now()}`,
+    role: "assistant",
+    source: reply.source || "local",
+    mealName: reply.mealName || "Smart kylskåpsmåltid",
+    text: reply.reply || reply.text || "Jag kan hjälpa dig skruva måltiden.",
+    reasoning: reply.reasoning || "",
+    steps: Array.isArray(reply.steps) ? reply.steps.slice(0, 5) : [],
+    add: Array.isArray(reply.add) ? reply.add.slice(0, 6) : [],
+    remove: Array.isArray(reply.remove) ? reply.remove.slice(0, 4) : [],
+    shopping: Array.isArray(reply.shopping) ? reply.shopping.slice(0, 6) : [],
+    questions: Array.isArray(reply.questions) ? reply.questions.slice(0, 3) : [],
+    caution: reply.caution || "",
+    createdAt: new Date().toISOString()
+  };
+  state.pantry.kitchenMessages = [...state.pantry.kitchenMessages, assistantMessage].slice(-12);
+}
+
+async function requestKitchenAssistantReply(message, context) {
+  const history = state.pantry.kitchenMessages
+    .filter((item) => item.role === "user" || item.role === "assistant")
+    .slice(-8)
+    .map((item) => ({ role: item.role, text: item.text || item.reply || "" }));
+  const response = await fetch("/api/kitchen-coach", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      history,
+      context,
+      image: fridgeScan.imageUrl || ""
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "Köks-AI kunde inte svara.");
+  return normalizeKitchenAssistantReply(data, context);
+}
+
+function normalizeKitchenAssistantReply(reply, context) {
+  const allowed = new Set(context.allowedFoodIds);
+  const cleanIds = (ids, limit) => Array.isArray(ids)
+    ? ids.map(String).filter((id) => allowed.has(id)).slice(0, limit)
+    : [];
+  const cleanList = (items, limit) => Array.isArray(items)
+    ? items.map((item) => String(item || "").trim()).filter(Boolean).slice(0, limit)
+    : [];
+  return {
+    source: reply.source || "openai",
+    reply: String(reply.reply || "Jag kan hjälpa dig resonera fram en bättre måltid.").slice(0, 900),
+    mealName: String(reply.mealName || "Smart kylskåpsmåltid").slice(0, 90),
+    reasoning: String(reply.reasoning || "").slice(0, 500),
+    steps: cleanList(reply.steps, 5),
+    add: cleanIds(reply.add, 6),
+    remove: cleanIds(reply.remove, 4),
+    shopping: cleanList(reply.shopping, 6),
+    questions: cleanList(reply.questions, 3),
+    caution: String(reply.caution || "").slice(0, 220)
+  };
+}
+
+function buildKitchenContext() {
+  ensurePantryState();
+  const meal = buildFridgeMeal();
+  const selected = state.pantry.selected
+    .map((id) => pantryFoods.find((food) => food.id === id))
+    .filter(Boolean);
+  const scanFoods = fridgeScan.suggestions
+    .map((suggestion) => {
+      const food = pantryFoods.find((item) => item.id === suggestion.id);
+      return food ? {
+        ...food,
+        confidence: suggestion.confidence,
+        reason: suggestion.reason
+      } : null;
+    })
+    .filter(Boolean);
+  return {
+    goal: meal.goal,
+    goalLabel: meal.goalCopy.title,
+    profile: {
+      sex: state.profile.sex,
+      age: state.profile.age,
+      height: state.profile.height,
+      weight: state.profile.weight,
+      waist: state.profile.waist,
+      targetWaist: state.profile.targetWaist,
+      level: state.profile.level
+    },
+    meal: {
+      kcal: Math.round(meal.macros.kcal),
+      protein: Math.round(meal.macros.protein),
+      carbs: Math.round(meal.macros.carbs),
+      fat: Math.round(meal.macros.fat),
+      fiber: Math.round(meal.macros.fiber),
+      proteinTarget: meal.proteinTarget,
+      vegGrams: Math.round(meal.vegGrams),
+      verdict: meal.verdict.title
+    },
+    mealItems: meal.items.map((item) => ({
+      id: item.food.id,
+      name: item.food.name,
+      grams: item.grams,
+      role: item.role,
+      suggested: item.suggested
+    })),
+    selectedFoods: selected.map(kitchenFoodSummary),
+    scanFoods: scanFoods.map(kitchenFoodSummary),
+    allowedFoodIds: pantryFoods.map((food) => food.id)
+  };
+}
+
+function kitchenFoodSummary(food) {
+  return {
+    id: food.id,
+    name: food.name,
+    role: food.role,
+    kcal: food.kcal,
+    protein: food.protein,
+    fiber: food.fiber
+  };
+}
+
+function localKitchenAssistantReply(message, context, detail = "") {
+  const text = message.toLowerCase();
+  const meal = context.meal || {};
+  const selectedIds = new Set((context.selectedFoods || []).map((food) => food.id));
+  const add = [];
+  const steps = [];
+  const shopping = [];
+  const addIfMissing = (ids) => ids.forEach((id) => {
+    if (!selectedIds.has(id) && pantryFoods.some((food) => food.id === id)) add.push(id);
+  });
+
+  if ((meal.protein || 0) < (meal.proteinTarget || 35) - 5 || text.includes("protein")) {
+    addIfMissing(context.goal === "vegetarian" ? ["tofu", "lentils", "kvarg"] : ["chicken", "egg", "kvarg"]);
+    steps.push("Säkra 30-45 g protein i huvudmålet innan du finjusterar kolhydrater och fett.");
+  }
+  if ((meal.vegGrams || 0) < 250 || text.includes("saknas") || text.includes("fiber")) {
+    addIfMissing(["broccoli", "frozen-veg", "cabbage", "spinach"]);
+    steps.push("Lägg in 250-350 g grönsaker för volym, fiber och bättre mättnad.");
+  }
+  if (context.goal === "training" || text.includes("träning")) {
+    addIfMissing(["potato", "banana", "brownrice", "oats"]);
+    steps.push("Efter träning: addera en kontrollerad kolhydratbas och håll fettkällan mindre.");
+  }
+  if (text.includes("snabb") || text.includes("lunch")) {
+    steps.push("Gör den som panna/skål: värm basen 8-10 min, lägg protein ovanpå och avsluta med 10-15 g fettkälla.");
+    shopping.push("Frysta wokgrönsaker", "Kvarg naturell", "Ägg", "Tonfisk eller tofu");
+  }
+  if (!steps.length) {
+    steps.push("Behåll basen, men justera i ordningen protein, grön volym, fiber, fettmängd.");
+  }
+
+  return normalizeKitchenAssistantReply({
+    source: "local",
+    reply: `Jag skulle bygga vidare på din nuvarande måltid: cirka ${meal.kcal || 0} kcal, ${meal.protein || 0} g protein och ${meal.fiber || 0} g fiber. Det smartaste nästa steget är att göra den mer mättande utan att blåsa upp energin.`,
+    mealName: context.goal === "training" ? "Träningsklar kylskåpsskål" : "Mättande midjetallrik",
+    reasoning: detail
+      ? `Lokal fallback används eftersom AI-svaret inte kunde hämtas: ${detail}`
+      : "Lokal coachlogik använder måltidsmålet, makron och valda råvaror.",
+    steps,
+    add: Array.from(new Set(add)).slice(0, 5),
+    remove: [],
+    shopping,
+    questions: ["Vill du göra den vegetarisk?", "Ska den passa lunchlåda?", "Vill du minska kolhydraterna?"],
+    caution: ""
+  }, context);
+}
+
+function foodNameById(id) {
+  const food = pantryFoods.find((item) => item.id === id);
+  return food ? food.name : "";
+}
+
 async function handleFridgeScanFile(file) {
   if (!file.type.startsWith("image/")) {
     fridgeScan = {
@@ -1697,7 +2030,7 @@ async function handleFridgeScanFile(file) {
       suggestions: apiSuggestions,
       message: `${apiSuggestions.length} förslag hittades`,
       note: apiSuggestions.length
-        ? "Kontrollera förslagen och lägg till de råvaror som stämmer."
+        ? "Kontrollera förslagen och fråga Köks-AI vad du kan laga av dem."
         : "AI hittade inga säkra råvaror. Testa en ljusare bild."
     };
   } catch {
@@ -1709,7 +2042,7 @@ async function handleFridgeScanFile(file) {
       source: "local",
       suggestions: fallbackSuggestions,
       message: `${fallbackSuggestions.length} lokala förslag hittades`,
-      note: "AI-analysen är inte aktiv ännu, så appen använder bildfärg och måltidsmål som fallback."
+      note: "Appen använder bildfärg och måltidsmål som fallback. Köks-AI kan ändå resonera på råvarorna."
     };
   }
 

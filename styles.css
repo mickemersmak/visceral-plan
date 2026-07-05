@@ -1640,6 +1640,192 @@ select:focus {
   font-size: 0.78rem;
 }
 
+.kitchen-ai-panel {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(18, 63, 53, 0.16);
+  border-radius: 12px;
+  padding: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 254, 250, 0.98), rgba(244, 240, 229, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.kitchen-ai-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.kitchen-ai-head div {
+  display: grid;
+  gap: 3px;
+}
+
+.kitchen-ai-head span {
+  color: var(--gold-dark);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.kitchen-ai-head strong {
+  color: var(--green);
+  font-size: 0.98rem;
+}
+
+.kitchen-ai-head b {
+  border-radius: 999px;
+  padding: 7px 9px;
+  background: rgba(18, 63, 53, 0.08);
+  color: var(--green);
+  font-size: 0.72rem;
+}
+
+.kitchen-ai-thread {
+  display: grid;
+  gap: 9px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.kitchen-message {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(18, 63, 53, 0.12);
+  border-radius: 12px;
+  padding: 11px;
+  background: #fffefa;
+}
+
+.kitchen-message.user {
+  margin-left: 24px;
+  border-color: rgba(195, 154, 76, 0.28);
+  background: rgba(245, 233, 204, 0.72);
+}
+
+.kitchen-message.assistant {
+  margin-right: 10px;
+}
+
+.kitchen-message.thinking {
+  background:
+    linear-gradient(135deg, rgba(18, 63, 53, 0.08), rgba(195, 154, 76, 0.1));
+}
+
+.kitchen-message header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kitchen-message header span {
+  color: var(--gold-dark);
+  font-size: 0.7rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.kitchen-message strong,
+.kitchen-message p,
+.kitchen-message small,
+.kitchen-message li {
+  overflow-wrap: anywhere;
+}
+
+.kitchen-message p,
+.kitchen-message small,
+.kitchen-shopping p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+.kitchen-message p {
+  color: var(--ink);
+}
+
+.kitchen-message small {
+  font-size: 0.82rem;
+}
+
+.kitchen-message ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.42;
+}
+
+.kitchen-add-list,
+.kitchen-shopping {
+  display: grid;
+  gap: 5px;
+  border-radius: 10px;
+  padding: 9px;
+  background: rgba(18, 63, 53, 0.06);
+}
+
+.kitchen-add-list span,
+.kitchen-shopping span {
+  color: var(--gold-dark);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.kitchen-add-list .ghost-button {
+  justify-self: start;
+  min-height: 34px;
+  padding: 7px 10px;
+}
+
+.kitchen-followups,
+.kitchen-ai-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.kitchen-followups button,
+.kitchen-ai-prompts button {
+  border: 1px solid rgba(18, 63, 53, 0.14);
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: rgba(255, 254, 250, 0.9);
+  color: var(--green);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.kitchen-ai-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.kitchen-ai-form textarea {
+  min-height: 48px;
+  max-height: 120px;
+  resize: vertical;
+  border: 1px solid rgba(18, 63, 53, 0.16);
+  border-radius: 10px;
+  padding: 10px 11px;
+  background: #fffefa;
+  color: var(--ink);
+  font: inherit;
+}
+
+.kitchen-ai-form .primary-button {
+  min-height: 48px;
+  white-space: nowrap;
+}
+
 .fridge-food-bank {
   display: grid;
   gap: 11px;
@@ -2910,6 +3096,16 @@ textarea:focus {
 
   .fridge-scan-preview {
     min-height: 154px;
+  }
+
+  .kitchen-ai-form {
+    grid-template-columns: 1fr;
+  }
+
+  .kitchen-message.user,
+  .kitchen-message.assistant {
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .fridge-food-bank {
