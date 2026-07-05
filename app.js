@@ -605,6 +605,14 @@ let timer = {
   running: false,
   intervalId: null
 };
+let fridgeScan = {
+  status: "idle",
+  imageUrl: "",
+  suggestions: [],
+  source: "idle",
+  message: "Kamera redo",
+  note: ""
+};
 let deferredInstallPrompt = null;
 
 const $ = (selector) => document.querySelector(selector);
@@ -959,6 +967,17 @@ function bindFridgeBuilder() {
     saveState();
     renderFridgeBuilder();
   });
+
+  const scanButton = $("#fridgeScanButton");
+  const fileInput = $("#fridgeCameraInput");
+  const applyButton = $("#fridgeApplyScan");
+  scanButton?.addEventListener("click", () => fileInput?.click());
+  fileInput?.addEventListener("change", (event) => {
+    const [file] = Array.from(event.target.files || []);
+    if (file) handleFridgeScanFile(file);
+    event.target.value = "";
+  });
+  applyButton?.addEventListener("click", applyFridgeScanSuggestions);
 }
 
 function bindMemberMessages() {
@@ -1398,6 +1417,7 @@ function renderFridgeBuilder() {
   ensurePantryState();
   const select = $("#fridgeGoal");
   if (select && select.value !== state.pantry.goal) select.value = state.pantry.goal;
+  renderFridgeScanPanel();
   renderFridgeFoodBank();
   renderFridgeMeal();
 }
@@ -1440,6 +1460,310 @@ function renderFridgeFoodBank() {
       saveState();
       renderFridgeBuilder();
     });
+  });
+}
+
+function renderFridgeScanPanel() {
+  const preview = $("#fridgeScanPreview");
+  const target = $("#fridgeScanSuggestions");
+  const applyButton = $("#fridgeApplyScan");
+  if (!preview || !target || !applyButton) return;
+
+  const hasImage = Boolean(fridgeScan.imageUrl);
+  preview.className = `fridge-scan-preview ${hasImage ? "" : "empty"} ${fridgeScan.status}`;
+  preview.innerHTML = hasImage
+    ? `<img src="${fridgeScan.imageUrl}" alt="Bild från kylskåpsscan"><span>${escapeHTML(fridgeScan.message)}</span>`
+    : `<span>Ingen bild ännu</span>`;
+
+  applyButton.hidden = fridgeScan.suggestions.length === 0 || fridgeScan.status === "scanning";
+  target.innerHTML = `
+    <div class="scan-status-row ${fridgeScan.status}">
+      <strong>${scanStatusTitle(fridgeScan.status)}</strong>
+      <span>${escapeHTML(fridgeScan.note || fridgeScan.message)}</span>
+    </div>
+    ${fridgeScan.suggestions.length ? `
+      <div class="scan-suggestion-grid">
+        ${fridgeScan.suggestions.map((suggestion) => {
+          const food = pantryFoods.find((item) => item.id === suggestion.id);
+          if (!food) return "";
+          return `
+            <article>
+              <div>
+                <strong>${food.name}</strong>
+                <small>${escapeHTML(suggestion.reason || "Passar måltidsmålet.")}</small>
+              </div>
+              <b>${Math.round((suggestion.confidence || 0.6) * 100)}%</b>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    ` : ""}
+  `;
+}
+
+function scanStatusTitle(status) {
+  if (status === "scanning") return "Analyserar bild";
+  if (status === "ready") return "AI-förslag klara";
+  if (status === "fallback") return "Lokala förslag klara";
+  if (status === "error") return "Scan kunde inte läsas";
+  return "Redo för scan";
+}
+
+async function handleFridgeScanFile(file) {
+  if (!file.type.startsWith("image/")) {
+    fridgeScan = {
+      ...fridgeScan,
+      status: "error",
+      message: "Välj en bildfil.",
+      note: "Kameran behöver leverera en bild för att scannen ska fungera.",
+      suggestions: []
+    };
+    renderFridgeScanPanel();
+    return;
+  }
+
+  try {
+    const imageUrl = await resizeFridgeScanImage(file);
+    fridgeScan = {
+      status: "scanning",
+      imageUrl,
+      suggestions: [],
+      source: "camera",
+      message: "Analyserar kylskåpet",
+      note: "Bild skickas till vision-analys om nyckel finns, annars körs lokal fallback."
+    };
+    renderFridgeScanPanel();
+
+    const apiSuggestions = await requestFridgeVisionSuggestions(imageUrl);
+    fridgeScan = {
+      ...fridgeScan,
+      status: "ready",
+      source: "ai",
+      suggestions: apiSuggestions,
+      message: `${apiSuggestions.length} förslag hittades`,
+      note: apiSuggestions.length
+        ? "Kontrollera förslagen och lägg till de råvaror som stämmer."
+        : "AI hittade inga säkra råvaror. Testa en ljusare bild."
+    };
+  } catch {
+    const colorHints = await extractFridgeColorHints(fridgeScan.imageUrl).catch(() => []);
+    const fallbackSuggestions = localFridgeScanSuggestions(colorHints);
+    fridgeScan = {
+      ...fridgeScan,
+      status: "fallback",
+      source: "local",
+      suggestions: fallbackSuggestions,
+      message: `${fallbackSuggestions.length} lokala förslag hittades`,
+      note: "AI-analysen är inte aktiv ännu, så appen använder bildfärg och måltidsmål som fallback."
+    };
+  }
+
+  renderFridgeBuilder();
+}
+
+async function requestFridgeVisionSuggestions(imageUrl) {
+  const response = await fetch("/api/fridge-scan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      image: imageUrl,
+      goal: state.pantry.goal,
+      profile: {
+        sex: state.profile.sex,
+        weight: state.profile.weight,
+        waist: state.profile.waist
+      },
+      foods: pantryFoods.map(({ id, name, category, role }) => ({ id, name, category, role }))
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "Vision unavailable");
+  const suggestions = normalizeFridgeScanSuggestions(data.suggestions || data.items || []);
+  if (!suggestions.length) throw new Error("No suggestions");
+  return suggestions;
+}
+
+function applyFridgeScanSuggestions() {
+  ensurePantryState();
+  const ids = fridgeScan.suggestions.map((suggestion) => suggestion.id).filter((id) => pantryFoods.some((food) => food.id === id));
+  if (!ids.length) return;
+  state.pantry.selected = Array.from(new Set([...state.pantry.selected, ...ids]));
+  fridgeScan = {
+    ...fridgeScan,
+    message: `${ids.length} råvaror lades till`,
+    note: "Måltidsbyggaren räknar om direkt med de nya valen."
+  };
+  saveState();
+  renderFridgeBuilder();
+}
+
+function normalizeFridgeScanSuggestions(rawSuggestions) {
+  const seen = new Set();
+  return rawSuggestions
+    .map((suggestion) => {
+      const id = matchPantryFoodId(suggestion.id || suggestion.name || suggestion.label);
+      if (!id || seen.has(id)) return null;
+      seen.add(id);
+      return {
+        id,
+        confidence: clamp(Number(suggestion.confidence) || 0.65, 0.35, 0.98),
+        reason: suggestion.reason || suggestion.why || "Identifierad från kylskåpsbilden."
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 8);
+}
+
+function matchPantryFoodId(value) {
+  if (!value) return "";
+  const normalized = normalizeScanText(value);
+  const exact = pantryFoods.find((food) => food.id === value || normalizeScanText(food.id) === normalized);
+  if (exact) return exact.id;
+  const aliases = {
+    agg: "egg",
+    eggs: "egg",
+    yoghurt: "yogurt",
+    grekiskyoghurt: "yogurt",
+    keso: "cottage",
+    cottagecheese: "cottage",
+    kyckling: "chicken",
+    chickenbreast: "chicken",
+    tonfisk: "tuna",
+    tuna: "tuna",
+    rakor: "shrimp",
+    prawns: "shrimp",
+    broccoli: "broccoli",
+    blomkal: "cauliflower",
+    vitkal: "cabbage",
+    spenat: "spinach",
+    gronkal: "kale",
+    morot: "carrot",
+    tomat: "tomato",
+    gurka: "cucumber",
+    paprika: "pepper",
+    svamp: "mushroom",
+    potatis: "potato",
+    sweetpotato: "sweetpotato",
+    sotpotatis: "sweetpotato",
+    ris: "brownrice",
+    quinoa: "quinoa",
+    havre: "oats",
+    ragbrod: "rye-bread",
+    pasta: "wholegrain-pasta",
+    olivolja: "olive-oil",
+    avocado: "avocado",
+    avokado: "avocado",
+    mandel: "almonds",
+    hummus: "hummus",
+    berries: "berries",
+    bar: "berries",
+    apple: "apple",
+    applefruit: "apple",
+    banan: "banana",
+    banana: "banana",
+    apelsin: "orange",
+    orange: "orange"
+  };
+  if (aliases[normalized]) return aliases[normalized];
+  const byName = pantryFoods.find((food) => {
+    const name = normalizeScanText(food.name);
+    return name.includes(normalized) || normalized.includes(name.split("/")[0]);
+  });
+  return byName ? byName.id : "";
+}
+
+function normalizeScanText(value) {
+  return String(value)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function localFridgeScanSuggestions(colorHints = []) {
+  ensurePantryState();
+  const current = new Set(state.pantry.selected);
+  const byGoal = {
+    fatloss: ["egg", "kvarg", "cottage", "broccoli", "tomato", "cucumber", "chicken", "potato"],
+    training: ["kvarg", "banana", "potato", "chicken", "berries", "oats", "yogurt", "egg"],
+    lowcarb: ["egg", "chicken", "tuna", "cottage", "broccoli", "cucumber", "avocado", "olive-oil"],
+    vegetarian: ["tofu", "tempeh", "lentils", "chickpeas", "kvarg", "edamame", "broccoli", "avocado"]
+  };
+  const fallback = ["egg", "kvarg", "broccoli", "tomato", "cucumber", "carrot", "potato", "berries", "olive-oil"];
+  const ids = Array.from(new Set([...colorHints, ...(byGoal[state.pantry.goal] || byGoal.fatloss), ...fallback]))
+    .filter((id) => pantryFoods.some((food) => food.id === id))
+    .filter((id) => !current.has(id));
+  const finalIds = ids.length ? ids.slice(0, 8) : fallback.slice(0, 6);
+  return finalIds.map((id, index) => ({
+    id,
+    confidence: clamp(0.82 - index * 0.04, 0.52, 0.82),
+    reason: colorHints.includes(id)
+      ? "Bildsignal matchar färg och form i kylskåpet."
+      : "Smart komplettering för valt måltidsmål."
+  }));
+}
+
+function resizeFridgeScanImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const maxSide = 1300;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const context = canvas.getContext("2d");
+        context.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function extractFridgeColorHints(imageUrl) {
+  return new Promise((resolve, reject) => {
+    if (!imageUrl) {
+      resolve([]);
+      return;
+    }
+    const img = new Image();
+    img.onerror = reject;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 72;
+      canvas.height = 72;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      const counts = { green: 0, red: 0, orange: 0, white: 0, dark: 0 };
+      for (let index = 0; index < pixels.length; index += 16) {
+        const r = pixels[index];
+        const g = pixels[index + 1];
+        const b = pixels[index + 2];
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        if (max < 70) counts.dark += 1;
+        if (max > 180 && max - min < 38) counts.white += 1;
+        if (g > r * 1.12 && g > b * 1.08 && g > 70) counts.green += 1;
+        if (r > g * 1.18 && r > b * 1.18 && r > 100) counts.red += 1;
+        if (r > 145 && g > 80 && g < 180 && b < 120) counts.orange += 1;
+      }
+      const hints = [];
+      if (counts.green > 18) hints.push("broccoli", "spinach", "cucumber");
+      if (counts.red > 12) hints.push("tomato", "pepper");
+      if (counts.orange > 12) hints.push("carrot", "banana");
+      if (counts.white > 22) hints.push("egg", "kvarg", "yogurt", "cottage");
+      if (counts.dark > 28) hints.push("mushroom", "berries", "rye-bread");
+      resolve(Array.from(new Set(hints)));
+    };
+    img.src = imageUrl;
   });
 }
 
@@ -1648,6 +1972,16 @@ function updateFridgeBadge(count) {
 
 function formatFridgeValue(value) {
   return Number.isInteger(value) ? value.toString() : value.toFixed(1).replace(".", ",");
+}
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;"
+  })[char]);
 }
 
 function renderMetrics() {

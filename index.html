@@ -410,6 +410,22 @@
                     <option value="vegetarian">Vegetariskt fokus</option>
                   </select>
                 </label>
+                <div class="fridge-scan-panel">
+                  <div class="fridge-scan-copy">
+                    <span>Kamerascan</span>
+                    <strong>Scanna kylskåpet</strong>
+                    <small>Bildanalys ger råvaruförslag direkt till måltidsbyggaren.</small>
+                  </div>
+                  <div class="fridge-scan-actions">
+                    <button id="fridgeScanButton" class="primary-button" type="button">Öppna kamera</button>
+                    <button id="fridgeApplyScan" class="ghost-button" type="button" hidden>Lägg till förslag</button>
+                  </div>
+                  <input id="fridgeCameraInput" type="file" accept="image/*" capture="environment" hidden>
+                  <div id="fridgeScanPreview" class="fridge-scan-preview empty">
+                    <span>Ingen bild ännu</span>
+                  </div>
+                  <div id="fridgeScanSuggestions" class="fridge-scan-suggestions"></div>
+                </div>
                 <div id="fridgeFoodBank" class="fridge-food-bank"></div>
               </div>
               <div id="fridgeMealResult" class="fridge-meal-result"></div>

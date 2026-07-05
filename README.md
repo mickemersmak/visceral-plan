@@ -16,6 +16,7 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Könsspecifika vägar för män, kvinnor och neutral profil med fokus som bukmått, cykel, perimenopaus, återstart, styrka, stress och kondition.
 - Rankad livsmedelsguide med metriska portionsförslag för livsmedel, frukt och grönsaker.
 - Kylskåpsbyggare som räknar ut en komplett måltid från valda råvaror hemma.
+- Mobilkamerascan av kylskåp med AI-förslag via Vercel API och lokal fallback när AI-nyckel saknas.
 - Utökad råvarubank med protein, mejeri, baljväxter, grönsaker, frukt, frysvaror, kolhydratbaser och fettkällor.
 - Metabolt index som väger bukmått, rörelse, styrka, kostvanor, återhämtning och loggföljsamhet.
 - Visceral Score 2.0 med nedbrytning av buksignal, rörelse, styrka, kost, återhämtning och loggning.
@@ -33,7 +34,7 @@ Alla mått i appen är metriska: cm, kg, g, minuter, sekunder och kcal.
 
 ## Det som skiljer appen
 
-Visceral Plan jagar inte bara kalorier. Den styr på bukmått, midja/längd, könsspecifika risk- och träningsvägar, veckovolym, vaneföljsamhet, styrka, återhämtning och konkreta matbyten. Kylskåpsbyggaren gör appen mer praktisk än en vanlig matlogg: användaren väljer råvaror hemma och får gram, kcal, protein, kolhydrater, fett, fiber och coachens justeringar direkt. Visceral Score 2.0 visar både totalsignal och svagaste länk, så användaren får ett beslut i stället för ännu en översiktspanel. All data sparas lokalt i PWA:n, så användaren får en privat coach utan konto hos en extern tjänst.
+Visceral Plan jagar inte bara kalorier. Den styr på bukmått, midja/längd, könsspecifika risk- och träningsvägar, veckovolym, vaneföljsamhet, styrka, återhämtning och konkreta matbyten. Kylskåpsbyggaren gör appen mer praktisk än en vanlig matlogg: användaren kan scanna kylskåpet med mobilkameran, lägga till råvaruförslag och få gram, kcal, protein, kolhydrater, fett, fiber och coachens justeringar direkt. Visceral Score 2.0 visar både totalsignal och svagaste länk, så användaren får ett beslut i stället för ännu en översiktspanel. All data sparas lokalt i PWA:n, så användaren får en privat coach utan konto hos en extern tjänst.
 
 Konkurrentanalysen visar att stora appar ofta är starka på loggning, matdatabaser, AI-inmatning eller stora träningsbibliotek. Vår kant är ett smalare och skarpare system för bukfett: midja/längd, gram-baserad kost, kylskåpsmåltider, 14-dagars sprint, lokalt dataskydd, könsprotokoll och träningsbeslut som följer midjetrenden. För gymkedjor blir appen en komplett medlemsyta där bokning och kommunikation styrs av faktisk hälsodata, inte bara av ett passchema.
 
@@ -42,3 +43,7 @@ Konkurrentanalysen visar att stora appar ofta är starka på loggning, matdataba
 Öppna `index.html` direkt i webbläsaren.
 
 PWA-funktioner som service worker och installation testas bäst via den deployade HTTPS-versionen.
+
+## AI-vision
+
+Kylskåpsscannen fungerar som lokal demo utan nyckel. För riktig bildanalys i produktion: lägg till `OPENAI_API_KEY` i Vercel. Valfritt kan `OPENAI_FRIDGE_MODEL` sättas för att byta visionmodell.

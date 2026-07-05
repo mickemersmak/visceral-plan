@@ -1443,6 +1443,177 @@ select:focus {
   color: var(--ink);
 }
 
+.fridge-scan-panel {
+  display: grid;
+  gap: 11px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(195, 154, 76, 0.28);
+  border-radius: 12px;
+  padding: 13px;
+  background:
+    linear-gradient(135deg, rgba(10, 18, 16, 0.96), rgba(18, 63, 53, 0.92) 60%, rgba(36, 123, 102, 0.78));
+  color: #fffefa;
+  box-shadow: 0 18px 44px rgba(10, 18, 16, 0.18);
+}
+
+.fridge-scan-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.fridge-scan-copy span {
+  color: var(--gold);
+  font-size: 0.74rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.fridge-scan-copy strong,
+.fridge-scan-copy small {
+  display: block;
+}
+
+.fridge-scan-copy strong {
+  font-size: 1.05rem;
+}
+
+.fridge-scan-copy small {
+  color: rgba(255, 254, 250, 0.72);
+  line-height: 1.42;
+}
+
+.fridge-scan-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.fridge-scan-panel .primary-button,
+.fridge-scan-panel .ghost-button {
+  min-height: 42px;
+  justify-content: center;
+}
+
+.fridge-scan-panel .ghost-button {
+  border-color: rgba(255, 254, 250, 0.28);
+  color: #fffefa;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fridge-scan-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 178px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 254, 250, 0.14);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    rgba(255, 255, 255, 0.05);
+}
+
+.fridge-scan-preview.empty {
+  min-height: 118px;
+}
+
+.fridge-scan-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 260px;
+  object-fit: cover;
+}
+
+.fridge-scan-preview span {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: rgba(10, 18, 16, 0.72);
+  color: #fffefa;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-align: center;
+  backdrop-filter: blur(14px);
+}
+
+.fridge-scan-preview.empty span {
+  position: static;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 254, 250, 0.74);
+}
+
+.fridge-scan-suggestions {
+  display: grid;
+  gap: 9px;
+}
+
+.scan-status-row {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(255, 254, 250, 0.12);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.scan-status-row strong,
+.scan-status-row span {
+  display: block;
+}
+
+.scan-status-row span {
+  color: rgba(255, 254, 250, 0.7);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.scan-status-row.ready,
+.scan-status-row.fallback {
+  border-color: rgba(232, 197, 117, 0.28);
+}
+
+.scan-suggestion-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.scan-suggestion-grid article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(255, 254, 250, 0.13);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.scan-suggestion-grid strong,
+.scan-suggestion-grid small {
+  display: block;
+}
+
+.scan-suggestion-grid small {
+  margin-top: 3px;
+  color: rgba(255, 254, 250, 0.68);
+  line-height: 1.34;
+}
+
+.scan-suggestion-grid b {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  border-radius: 999px;
+  background: rgba(232, 197, 117, 0.2);
+  color: var(--gold);
+  font-size: 0.78rem;
+}
+
 .fridge-food-bank {
   display: grid;
   gap: 11px;
@@ -2563,6 +2734,14 @@ textarea:focus {
   .fridge-layout,
   .fridge-chip-grid {
     grid-template-columns: 1fr;
+  }
+
+  .fridge-scan-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .fridge-scan-preview {
+    min-height: 154px;
   }
 
   .fridge-food-bank {
