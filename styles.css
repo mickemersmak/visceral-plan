@@ -136,6 +136,68 @@ a {
   color: #ffd3c8;
 }
 
+.auth-card {
+  border: 1px solid rgba(195, 154, 76, 0.26);
+  border-radius: var(--radius);
+  background: rgba(255, 254, 250, 0.06);
+  color: #fffefa;
+}
+
+.auth-card summary {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.auth-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.auth-card summary span,
+.auth-card p {
+  color: rgba(255, 254, 250, 0.62);
+  font-size: 0.78rem;
+}
+
+.auth-card summary strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.auth-form label span {
+  color: rgba(255, 254, 250, 0.72);
+}
+
+.auth-form input {
+  border-color: rgba(255, 254, 250, 0.12);
+  background: rgba(255, 254, 250, 0.1);
+  color: #fffefa;
+}
+
+.auth-form input::placeholder {
+  color: rgba(255, 254, 250, 0.42);
+}
+
+.auth-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.auth-card p {
+  margin: 0;
+  line-height: 1.4;
+}
+
 .tabs {
   display: grid;
   gap: 8px;
@@ -716,6 +778,74 @@ select:focus {
   margin-top: 3px;
 }
 
+.food-guide-module {
+  margin-top: 20px;
+}
+
+.guide-intro {
+  max-width: 920px;
+  margin: -6px 0 18px;
+  color: var(--muted);
+  line-height: 1.58;
+}
+
+.food-guide {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.food-column {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.food-column h3 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.ranked-food {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  border: 1px solid rgba(23, 72, 60, 0.12);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 8px 22px rgba(16, 23, 20, 0.045);
+}
+
+.ranked-food b {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--green), var(--green-2));
+  color: #fffefa;
+  font-size: 0.84rem;
+}
+
+.ranked-food strong,
+.ranked-food span,
+.ranked-food small {
+  display: block;
+}
+
+.ranked-food span {
+  color: var(--muted);
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+.ranked-food small {
+  margin-top: 7px;
+  color: var(--green);
+  font-weight: 800;
+}
+
 .workout-card {
   padding: 16px;
   background:
@@ -957,6 +1087,30 @@ select:focus {
     justify-content: end;
   }
 
+  .auth-card {
+    grid-column: 1 / -1;
+    max-height: 48px;
+    overflow: hidden;
+  }
+
+  .auth-card[open] {
+    max-height: 320px;
+  }
+
+  .auth-card summary {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    padding: 9px 10px;
+  }
+
+  .auth-card summary span {
+    font-size: 0.72rem;
+  }
+
+  .auth-form {
+    grid-template-columns: 1fr;
+  }
+
   .connection-pill {
     display: none;
   }
@@ -1108,6 +1262,14 @@ select:focus {
   .dashboard-grid.lower,
   .two-column {
     gap: 12px;
+  }
+
+  .food-guide-module {
+    margin-top: 12px;
+  }
+
+  .food-guide {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-grid.lower {

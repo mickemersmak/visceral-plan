@@ -32,6 +32,28 @@
           <span id="connectionStatus" class="connection-pill">Online</span>
         </div>
 
+        <details class="auth-card" id="authCard">
+          <summary>
+            <span>Aktiv profil</span>
+            <strong id="activeUserLabel">Gästläge</strong>
+          </summary>
+          <form id="authForm" class="auth-form">
+            <label>
+              <span>Namn eller e-post</span>
+              <input id="authName" type="text" autocomplete="username" placeholder="ex. mikael">
+            </label>
+            <label>
+              <span>PIN, minst 4 siffror</span>
+              <input id="authPin" type="password" inputmode="numeric" autocomplete="current-password" minlength="4" placeholder="••••">
+            </label>
+            <div class="auth-actions">
+              <button class="primary-button" type="submit">Logga in</button>
+              <button id="logoutProfile" class="ghost-button" type="button">Gäst</button>
+            </div>
+            <p id="authMessage">Lokal profil på denna enhet. Ingen serverinloggning.</p>
+          </form>
+        </details>
+
         <nav class="tabs" role="tablist" aria-label="Huvudvyer">
           <button class="tab is-active" type="button" role="tab" aria-selected="true" data-tab="dashboard">Översikt</button>
           <button class="tab" type="button" role="tab" aria-selected="false" data-tab="plan">Plan</button>
@@ -280,6 +302,18 @@
               <div id="foodTargets" class="target-list"></div>
             </section>
           </div>
+
+          <section class="module food-guide-module" aria-labelledby="food-guide-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">Bästa val</p>
+                <h2 id="food-guide-title">Rankade livsmedel för mättnad och bukmått</h2>
+              </div>
+              <span class="status-badge low">100 % metriskt</span>
+            </div>
+            <p class="guide-intro">Listorna prioriterar fiber, protein, låg energitäthet, lite fritt socker och minimalt processade råvaror. Det betyder inte att andra råvaror är förbjudna, bara att de här oftast ger mest effekt per 100 g.</p>
+            <div id="foodGuide" class="food-guide"></div>
+          </section>
         </section>
 
         <section id="training" class="view" role="tabpanel">

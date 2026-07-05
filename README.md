@@ -12,6 +12,10 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Daglig logg med vanor, rörelse, vikt och midjemått.
 - Källflik med verifierade hälso- och videounderlag.
 - PWA-stöd med manifest, ikoner, offline-cache, installationsknapp och mobil bottom navigation.
+- Lokal profilinloggning med PIN för flera användare på samma enhet.
+- Rankad livsmedelsguide med metriska portionsförslag för livsmedel, frukt och grönsaker.
+
+Alla mått i appen är metriska: cm, kg, g, minuter, sekunder och kcal.
 
 ## Kör lokalt
 

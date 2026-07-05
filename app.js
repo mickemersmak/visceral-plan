@@ -1,4 +1,7 @@
 const STORAGE_KEY = "visceral-plan-state-v1";
+const USERS_KEY = "visceral-plan-users-v1";
+const SESSION_KEY = "visceral-plan-session-v1";
+const GUEST_USER = { id: "guest", name: "Gästläge", guest: true };
 
 const sources = [
   {
@@ -28,7 +31,7 @@ const sources = [
   },
   {
     title: "NHLBI: Aim for a Healthy Weight",
-    note: "Midjemått över 35 tum för kvinnor eller 40 tum för män ökar risk; 3-5 procent viktminskning kan förbättra riskmarkörer.",
+    note: "Midjemått runt 89 cm för kvinnor eller 102 cm för män används som riskmarkörer; 3-5 procent viktminskning kan förbättra riskmarkörer.",
     url: "https://www.nhlbi.nih.gov/health/heart-healthy-living/healthy-weight"
   },
   {
@@ -40,6 +43,11 @@ const sources = [
     title: "WHO: Healthy Diet",
     note: "Minimalt processad mat, minst 400 g frukt/grönt, minst 25 g fiber, begränsat fritt socker, salt och ohälsosamma fetter.",
     url: "https://www.who.int/news-room/fact-sheets/detail/healthy-diet"
+  },
+  {
+    title: "Dietary Guidelines for Americans / RealFood.gov",
+    note: "Prioriterar hela, näringsrika livsmedel och begränsning av tillsatt socker, mättat fett, natrium och alkohol.",
+    url: "https://www.dietaryguidelines.gov/"
   }
 ];
 
@@ -74,7 +82,7 @@ const foodModes = {
     ["Frukost", "Grekisk yoghurt eller ägg, bär, havre eller råg, nötter/frön. Kaffe eller te utan socker."],
     ["Lunch", "Halva tallriken grönsaker, en fjärdedel fisk/kyckling/bönor/tofu, en fjärdedel fullkorn eller potatis. Olivolja som fett."],
     ["Middag", "Protein + två sorters grönsaker + baljväxt/fullkorn. Lägg till frukt om sötsug kommer."],
-    ["Mellanmål", "Kvarg/yoghurt, frukt, morötter, kokt ägg eller en liten näve nötter."]
+    ["Mellanmål", "Kvarg/yoghurt, frukt, morötter, kokt ägg eller 15-30 g nötter."]
   ],
   dash: [
     ["Frukost", "Havregryn, bär, naturell yoghurt och frön. Vatten, kaffe eller te utan socker."],
@@ -84,7 +92,7 @@ const foodModes = {
   ],
   simple: [
     ["Frukost", "Protein + fiber: ägg och rågbröd, yoghurt och bär, eller havre med mjölk."],
-    ["Lunch", "Tallrik: 2 nävar grönt, 1 handflata protein, 1 knytnäve långsamma kolhydrater."],
+    ["Lunch", "Tallrik: 200-300 g grönsaker, 120-180 g protein och 120-200 g potatis, baljväxter eller fullkorn."],
     ["Middag", "Bygg från frys och basvaror: wokgrönt, bönor, tonfisk/kyckling/tofu, ris/potatis."],
     ["Mellanmål", "Planerat mellanmål före hunger: frukt + protein eller grönsaker + hummus."]
   ]
@@ -93,10 +101,52 @@ const foodModes = {
 const foodTargets = [
   ["1", "Minimalt processat först", "Basera veckan på råvaror, baljväxter, fullkorn, fisk, ägg, magra mejerier, nötter, frukt och grönsaker."],
   ["2", "Fritt socker ned", "Välj vatten, kaffe eller te utan socker. Juice och läsk räknas som sockerkälla i praktiken."],
-  ["3", "Fiber varje mål", "Sikta på grönt, baljväxter eller fullkorn vid varje huvudmål. WHO anger minst 25 g fiber per dag för personer över 10 år."],
+  ["3", "Fiber varje mål", "Sikta på grönt, baljväxter eller fullkorn vid varje huvudmål. WHO anger minst 400 g frukt/grönt och 25 g fiber per dag för personer över 10 år."],
   ["4", "Protein jämnt fördelat", "Lägg en tydlig proteinkälla i varje huvudmål för mättnad och muskelbevarande träningseffekt."],
   ["5", "Alkohol med friktion", "Planera alkoholfria dagar. Alkohol kan bidra med mycket energi och påverka leverns fettomsättning."],
   ["6", "Sömn och stress", "Sömnbrist och kronisk stress gör planen svårare att följa och kan påverka bukfettsinlagring."]
+];
+
+const foodGuideGroups = [
+  {
+    title: "Livsmedel",
+    items: [
+      ["Linser, bönor, kikärter", "Fiber + protein ger hög mättnad och jämnare energi.", "150-250 g till lunch/middag"],
+      ["Havre, råg, korn", "Fullkorn med mycket fiber; bra bas när portionen är tydlig.", "40-80 g torrvikt"],
+      ["Fisk, särskilt fet fisk", "Protein och omättade fetter; bra ersättning för chark och rött kött.", "120-180 g"],
+      ["Naturell yoghurt, kvarg, kefir", "Proteinrikt och enkelt; välj osötat.", "150-250 g"],
+      ["Ägg", "Mättande protein, lätt att planera runt.", "1-3 st"],
+      ["Tofu, tempeh, kyckling", "Magra proteiner som gör energiunderskott lättare.", "120-200 g"],
+      ["Nötter och frön", "Näringsrikt men energitätt; bäst som kontrollerad mängd.", "15-30 g"],
+      ["Potatis, quinoa, fullkornsris", "Bra kolhydratbas när den äts kokt och portionsstyrd.", "120-220 g kokt"]
+    ]
+  },
+  {
+    title: "Frukt",
+    items: [
+      ["Hallon, blåbär, jordgubbar", "Mycket smak, fiber och volym per energi.", "100-200 g"],
+      ["Äpple och päron", "Fiberrikt, bärbart och bra mot sötsug.", "1 frukt, 120-180 g"],
+      ["Apelsin, grapefrukt, clementin", "Vätska, C-vitamin och tydlig portionsstorlek.", "1-2 frukter"],
+      ["Kiwi", "Fiberrik frukt med mycket C-vitamin.", "1-2 st"],
+      ["Plommon, persika, nektarin", "Bra vardagsfrukt när den äts hel.", "100-200 g"],
+      ["Banan", "Bra runt träning; något mer energität än bär/citrus.", "1 st, 100-130 g"],
+      ["Mango och druvor", "Näringsrika men lättare att överäta; välj uppmätt portion.", "100-150 g"],
+      ["Torkad frukt och juice", "Koncentrerad energi/fritt socker; använd sparsamt.", "0-30 g eller byt mot hel frukt"]
+    ]
+  },
+  {
+    title: "Grönsaker",
+    items: [
+      ["Broccoli, blomkål, vitkål", "Mycket volym, fiber och låg energitäthet.", "150-300 g"],
+      ["Spenat, grönkål, ruccola", "Mikronäringsrikt och lätt att lägga till i stora mängder.", "50-150 g"],
+      ["Paprika, tomat, gurka", "Fräscht, kalorisnålt och bra för stora tallrikar.", "150-300 g"],
+      ["Morot, rödbeta, palsternacka", "Fiberrika rotfrukter; bra ugnsbakade eller kokta.", "120-250 g"],
+      ["Svamp, lök, zucchini", "Ger smak och volym utan att energin sticker iväg.", "150-300 g"],
+      ["Ärtor och edamame", "Mer protein och fiber än många grönsaker.", "100-200 g"],
+      ["Potatis och sötpotatis", "Bra mättnad, men räkna som kolhydratbas.", "120-220 g kokt"],
+      ["Avokado", "Bra omättat fett men energitätt; bäst i mindre mängd.", "50-100 g"]
+    ]
+  }
 ];
 
 const workoutLibrary = {
@@ -210,6 +260,7 @@ const timerPresets = {
   ]
 };
 
+let activeUser = loadActiveUser();
 let state = loadState();
 let timer = {
   presetName: "Intervall start",
@@ -227,6 +278,7 @@ document.addEventListener("DOMContentLoaded", () => {
   registerServiceWorker();
   bindInstallPrompt();
   syncConnectionState();
+  bindAuth();
   setToday();
   bindTabs();
   bindProfile();
@@ -278,9 +330,104 @@ function syncConnectionState() {
   window.addEventListener("offline", update);
 }
 
+function loadUsers() {
+  try {
+    const users = JSON.parse(localStorage.getItem(USERS_KEY));
+    return Array.isArray(users) ? users : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveUsers(users) {
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+}
+
+function loadActiveUser() {
+  const sessionId = localStorage.getItem(SESSION_KEY);
+  const user = loadUsers().find((item) => item.id === sessionId);
+  return user || GUEST_USER;
+}
+
+function stateStorageKey(userId = activeUser.id) {
+  return `${STORAGE_KEY}:${userId}`;
+}
+
+function normalizeUserId(name) {
+  return name.trim().toLowerCase().replace(/[^a-z0-9åäö._-]+/gi, "-").replace(/^-+|-+$/g, "") || "profil";
+}
+
+function hashPin(pin) {
+  let hash = 5381;
+  for (const char of pin) hash = ((hash << 5) + hash) + char.charCodeAt(0);
+  return String(hash >>> 0);
+}
+
+function bindAuth() {
+  renderAuth();
+  $("#authForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const rawName = $("#authName").value.trim();
+    const pin = $("#authPin").value.trim();
+    if (!rawName || pin.length < 4) {
+      setAuthMessage("Ange namn/e-post och minst 4 siffror.");
+      return;
+    }
+
+    const users = loadUsers();
+    const id = normalizeUserId(rawName);
+    const pinHash = hashPin(pin);
+    let user = users.find((item) => item.id === id);
+
+    if (user && user.pinHash !== pinHash) {
+      setAuthMessage("Fel PIN för den profilen.");
+      return;
+    }
+
+    if (!user) {
+      user = { id, name: rawName, pinHash, createdAt: new Date().toISOString() };
+      users.push(user);
+      saveUsers(users);
+      setAuthMessage("Ny lokal profil skapad.");
+    } else {
+      setAuthMessage("Inloggad på lokal profil.");
+    }
+
+    switchUser(user);
+    $("#authPin").value = "";
+  });
+
+  $("#logoutProfile").addEventListener("click", () => {
+    switchUser(GUEST_USER);
+    setAuthMessage("Gästläge aktivt.");
+  });
+}
+
+function renderAuth() {
+  $("#activeUserLabel").textContent = activeUser.name;
+  $("#authName").value = activeUser.guest ? "" : activeUser.name;
+}
+
+function setAuthMessage(message) {
+  $("#authMessage").textContent = `${message} Data sparas endast på denna enhet.`;
+}
+
+function switchUser(user) {
+  activeUser = user;
+  if (user.guest) localStorage.removeItem(SESSION_KEY);
+  else localStorage.setItem(SESSION_KEY, user.id);
+  state = loadState();
+  syncProfileFields();
+  renderAuth();
+  renderAll();
+}
+
 function loadState() {
   try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const stored = JSON.parse(localStorage.getItem(stateStorageKey()));
+    if (stored) return mergeState(defaultState, stored);
+    const legacy = activeUser.guest ? JSON.parse(localStorage.getItem(STORAGE_KEY)) : null;
+    if (legacy) return mergeState(defaultState, legacy);
     return stored ? mergeState(defaultState, stored) : structuredClone(defaultState);
   } catch {
     return structuredClone(defaultState);
@@ -296,7 +443,7 @@ function mergeState(base, next) {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(stateStorageKey(), JSON.stringify(state));
 }
 
 function setToday() {
@@ -481,6 +628,7 @@ function renderAll() {
   renderPriorities();
   renderPlan();
   renderNutrition();
+  renderFoodGuide();
   renderTraining();
   renderWeeklySummary();
   renderSources();
@@ -614,6 +762,24 @@ function renderNutrition() {
   `).join("");
 }
 
+function renderFoodGuide() {
+  $("#foodGuide").innerHTML = foodGuideGroups.map((group) => `
+    <section class="food-column" aria-label="${group.title}">
+      <h3>${group.title}</h3>
+      ${group.items.map(([name, why, portion], index) => `
+        <article class="ranked-food">
+          <b>${index + 1}</b>
+          <div>
+            <strong>${name}</strong>
+            <span>${why}</span>
+            <small>${portion}</small>
+          </div>
+        </article>
+      `).join("")}
+    </section>
+  `).join("");
+}
+
 function renderTraining() {
   const workouts = workoutLibrary[state.profile.level];
   $("#workoutList").innerHTML = workouts.map((workout) => `
@@ -658,7 +824,7 @@ function renderWeeklySummary() {
 }
 
 function renderSources() {
-  $("#videoNote").textContent = "Jag kunde verifiera videons titel, kanal, beskrivning, kapitel och auto-caption-spår. Själva caption-endpointen returnerade tom respons här, så appens sakpåståenden bygger på videons verifierbara metadata och etablerade medicinska källor.";
+  $("#videoNote").textContent = "Jag kunde verifiera videons titel, kanal, beskrivning, kapitel och auto-caption-spår. Själva caption-endpointen returnerade tom respons här, så appens sakpåståenden bygger på videons verifierbara metadata och etablerade medicinska källor. Inloggningen är en lokal PWA-profil på denna enhet, inte en serverbaserad journal.";
   $("#sourceList").innerHTML = sources.map((source) => `
     <article class="source-item">
       <strong>${source.title}</strong>
