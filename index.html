@@ -137,6 +137,7 @@
               <article class="coach-score" aria-label="Metabolt index">
                 <span>Metabolt index</span>
                 <strong id="metabolicScore">0</strong>
+                <em id="scoreTier" class="score-tier">Kalibrerar</em>
                 <small id="metabolicLabel">Logga några dagar för skarpare analys.</small>
                 <div class="progress-track" aria-hidden="true">
                   <span id="metabolicProgress"></span>
@@ -144,6 +145,8 @@
               </article>
               <div class="coach-intel">
                 <div id="nextAction" class="next-action"></div>
+                <div id="scoreBreakdown" class="score-breakdown" aria-label="Score-fördelning"></div>
+                <div id="coachBrief" class="coach-brief"></div>
                 <div id="coachReport" class="coach-report"></div>
               </div>
             </div>
@@ -305,9 +308,31 @@
               </div>
             </section>
           </div>
+
+          <section class="module edge-module" aria-labelledby="edge-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">Vår kant</p>
+                <h2 id="edge-title">Det som gör planen svår att kopiera</h2>
+              </div>
+              <span class="status-badge low">Specialist</span>
+            </div>
+            <div id="edgeGrid" class="edge-grid"></div>
+          </section>
         </section>
 
         <section id="plan" class="view" role="tabpanel">
+          <section class="module sprint-module" aria-labelledby="sprint-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">Startfas</p>
+                <h2 id="sprint-title">14-dagars bukfettssprint</h2>
+              </div>
+              <span id="sprintBadge" class="status-badge low">Dag 1-14</span>
+            </div>
+            <div id="sprintPlan" class="sprint-grid"></div>
+          </section>
+
           <section class="module" aria-labelledby="plan-title">
             <div class="module-heading">
               <div>
@@ -362,6 +387,17 @@
                 <div id="swapResult" class="swap-result"></div>
               </div>
             </div>
+          </section>
+
+          <section class="module meal-template-module" aria-labelledby="meal-template-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">Gram-mallar</p>
+                <h2 id="meal-template-title">Svenska måltider som driver midjan nedåt</h2>
+              </div>
+              <span id="mealTemplateBadge" class="status-badge low">Metriskt</span>
+            </div>
+            <div id="mealTemplates" class="meal-template-grid"></div>
           </section>
 
           <section class="module food-guide-module" aria-labelledby="food-guide-title">
@@ -450,6 +486,7 @@
                 </div>
               </div>
               <div id="weeklySummary" class="weekly-summary"></div>
+              <div id="trendChart" class="trend-chart" aria-label="Trendgraf för midja och vanor"></div>
             </section>
           </div>
         </section>

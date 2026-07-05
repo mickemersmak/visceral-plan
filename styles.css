@@ -684,6 +684,29 @@ select:focus {
   font-variant-numeric: tabular-nums;
 }
 
+.score-tier {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid rgba(241, 209, 138, 0.38);
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: #f1d18a;
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.score-tier.medium {
+  color: #ffe0a3;
+}
+
+.score-tier.high {
+  color: #ffd3c8;
+  border-color: rgba(255, 211, 200, 0.42);
+}
+
 .coach-score .progress-track {
   background: rgba(255, 254, 250, 0.14);
 }
@@ -722,6 +745,71 @@ select:focus {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.score-breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.score-breakdown article,
+.coach-brief article {
+  border: 1px solid rgba(255, 254, 250, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 254, 250, 0.08);
+  padding: 12px;
+}
+
+.score-breakdown article div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.score-breakdown strong,
+.coach-brief strong {
+  color: #f1d18a;
+}
+
+.score-breakdown span,
+.score-breakdown small,
+.coach-brief span,
+.coach-brief p {
+  color: rgba(255, 254, 250, 0.72);
+}
+
+.score-breakdown small,
+.coach-brief span,
+.coach-brief strong {
+  display: block;
+}
+
+.mini-track {
+  height: 7px;
+  border-radius: 999px;
+  margin: 9px 0 7px;
+  background: rgba(255, 254, 250, 0.14);
+  overflow: hidden;
+}
+
+.mini-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green-2), #f1d18a);
+}
+
+.coach-brief {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.coach-brief p {
+  margin: 7px 0 0;
+  line-height: 1.45;
 }
 
 .coach-report article {
@@ -850,6 +938,125 @@ select:focus {
   line-height: 1.45;
 }
 
+.edge-module {
+  margin-top: 20px;
+}
+
+.edge-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.edge-grid article {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  border: 1px solid rgba(23, 72, 60, 0.12);
+  border-radius: 10px;
+  padding: 13px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(239, 247, 243, 0.78));
+  box-shadow: 0 8px 22px rgba(16, 23, 20, 0.045);
+}
+
+.edge-grid b {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #111815;
+  background: linear-gradient(135deg, var(--amber), #f1d18a);
+}
+
+.edge-grid strong,
+.edge-grid span {
+  display: block;
+}
+
+.edge-grid strong {
+  color: var(--green);
+}
+
+.edge-grid span {
+  margin-top: 5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.sprint-module + .module {
+  margin-top: 20px;
+}
+
+.sprint-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(190px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.sprint-grid article {
+  min-width: 190px;
+  border: 1px solid rgba(23, 72, 60, 0.12);
+  border-radius: 10px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 8px 22px rgba(16, 23, 20, 0.045);
+}
+
+.sprint-grid article.is-current {
+  border-color: rgba(195, 154, 76, 0.58);
+  background:
+    linear-gradient(180deg, rgba(255, 252, 239, 0.98), rgba(239, 247, 243, 0.78));
+}
+
+.sprint-grid header {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.sprint-grid header span,
+.sprint-grid small,
+.sprint-grid em {
+  color: var(--muted);
+}
+
+.sprint-grid header span {
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.sprint-grid strong {
+  color: var(--green);
+  line-height: 1.25;
+}
+
+.sprint-grid p,
+.sprint-grid small,
+.sprint-grid em {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.sprint-grid small,
+.sprint-grid em {
+  display: block;
+  margin-top: 9px;
+}
+
+.sprint-grid em {
+  border-top: 1px solid rgba(23, 72, 60, 0.1);
+  padding-top: 9px;
+  font-style: normal;
+  font-weight: 800;
+  color: var(--coral);
+}
+
 .plan-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(160px, 1fr));
@@ -935,6 +1142,10 @@ select:focus {
   margin-top: 20px;
 }
 
+.meal-template-module {
+  margin-top: 20px;
+}
+
 .smart-food-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
@@ -1002,6 +1213,77 @@ select:focus {
 .plate-grid span {
   color: var(--muted);
   line-height: 1.4;
+}
+
+.meal-template-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.meal-template-grid article {
+  border: 1px solid rgba(23, 72, 60, 0.12);
+  border-radius: 10px;
+  padding: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(239, 247, 243, 0.78));
+  box-shadow: 0 8px 22px rgba(16, 23, 20, 0.045);
+}
+
+.meal-template-grid header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.meal-template-grid strong {
+  color: var(--green);
+  line-height: 1.25;
+}
+
+.meal-template-grid header span {
+  flex: 0 0 auto;
+  border: 1px solid rgba(195, 154, 76, 0.38);
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: var(--green);
+  font-size: 0.72rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.meal-template-grid dl {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.meal-template-grid dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(23, 72, 60, 0.09);
+  padding-bottom: 7px;
+}
+
+.meal-template-grid dt,
+.meal-template-grid dd,
+.meal-template-grid p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.meal-template-grid dd {
+  color: var(--ink);
+  font-weight: 800;
+  text-align: right;
+}
+
+.meal-template-grid p {
+  margin-top: 12px;
 }
 
 .swap-lab {
@@ -1221,6 +1503,78 @@ select:focus {
   color: var(--muted);
 }
 
+.trend-chart {
+  margin-top: 14px;
+  border: 1px solid rgba(23, 72, 60, 0.12);
+  border-radius: 12px;
+  padding: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(239, 247, 243, 0.78));
+  box-shadow: 0 8px 22px rgba(16, 23, 20, 0.045);
+}
+
+.chart-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.chart-head strong,
+.chart-head span {
+  display: block;
+}
+
+.chart-head strong {
+  color: var(--green);
+}
+
+.chart-head span,
+.empty-chart span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.chart-head b {
+  color: var(--green);
+  font-size: 1.15rem;
+  white-space: nowrap;
+}
+
+.trend-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.trend-chart polyline {
+  fill: none;
+  stroke: var(--coral);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.score-bars rect {
+  fill: rgba(45, 134, 110, 0.42);
+}
+
+.chart-labels text {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.empty-chart {
+  display: grid;
+  gap: 5px;
+}
+
+.empty-chart strong {
+  color: var(--green);
+}
+
 .source-note {
   display: grid;
   gap: 10px;
@@ -1367,6 +1721,16 @@ select:focus {
   .dashboard-grid.lower,
   .two-column {
     grid-template-columns: 1fr;
+  }
+
+  .edge-grid,
+  .meal-template-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .score-breakdown,
+  .coach-brief {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1567,7 +1931,11 @@ select:focus {
   .log-form,
   .insight-grid,
   .habit-grid,
-  .sex-focus-list {
+  .sex-focus-list,
+  .edge-grid,
+  .meal-template-grid,
+  .score-breakdown,
+  .coach-brief {
     grid-template-columns: 1fr;
   }
 
@@ -1616,6 +1984,13 @@ select:focus {
     margin-top: 12px;
   }
 
+  .edge-module,
+  .meal-template-module,
+  .smart-food-module,
+  .sprint-module + .module {
+    margin-top: 12px;
+  }
+
   .food-guide {
     grid-template-columns: 1fr;
   }
@@ -1646,10 +2021,27 @@ select:focus {
     padding: 2px 2px 8px;
   }
 
-  .plan-day {
+  .sprint-grid {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 2px 2px 8px;
+  }
+
+  .plan-day,
+  .sprint-grid article {
     flex: 0 0 76%;
     min-width: 220px;
     scroll-snap-align: start;
+  }
+
+  .meal-template-grid header {
+    display: grid;
+  }
+
+  .chart-head {
+    display: grid;
   }
 
   .workout-card header {

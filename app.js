@@ -285,6 +285,31 @@ const swapGuide = [
   }
 ];
 
+const edgeCards = [
+  ["Buksignal före kalorier", "Appen prioriterar midja/längd, midjetrend och vanor som påverkar visceralt fett, inte bara dagskalorier."],
+  ["Beslut varje dag", "Användaren får en nästa bästa åtgärd baserad på svagaste länken i veckan."],
+  ["Kön och livsfas", "Protokollen skiljer på man, kvinna, cykel, perimenopaus, postpartum, stress, alkohol och konditionsmål."],
+  ["Svensk gram-precision", "Måltider och råvaror är byggda i cm, kg, g och minuter med vanliga nordiska livsmedel."],
+  ["Privat PWA", "Profil och logg ligger lokalt på enheten, vilket ger en premiumcoach utan extern kontotvång."]
+];
+
+const sprintBlueprint = [
+  ["Mät nolläge", "Midja på morgonen, vikt och 30 min rask gång.", "Kvarg/yoghurt 200 g + bär 150 g + havre 40 g."],
+  ["Ta bort flytande energi", "Alla drycker utan socker och 10 min promenad efter middag.", "Protein 120-180 g + grönsaker 250-350 g."],
+  ["Styrkestart", "Helkropp 25 min, lugnt tempo och bra teknik.", "Ägg 100-150 g eller tofu 150 g med råg/havre."],
+  ["Fiberankare", "Minst 400 g frukt/grönt under dagen.", "Linser/bönor 180-250 g i lunch eller middag."],
+  ["Sömnspärr", "Sätt 7+ timmar sömnfönster och stäng sena snacks.", "Planerat kvällsmål: yoghurt/kvarg 200 g + bär 100 g."],
+  ["Zon 2-bas", "35-45 min prattempo, cykel eller rask gång.", "Potatis/fullkorn 120-200 g + protein 120-180 g."],
+  ["Veckomätning", "Mät midja igen och skriv vad som var lättast.", "Förbered två matlådor med 250 g grönt per låda."],
+  ["Alkoholfri hävstång", "Planera minst fyra alkoholfria dagar kommande vecka.", "Byt alkohol till 0 ml och ät proteinrik middag först."],
+  ["Progressiv styrka", "Upprepa styrkan och höj 1-2 repetitioner per övning.", "Proteinmål per huvudmål enligt tallriken i gram."],
+  ["Sockerkontroll", "Noll läsk/juice och ett smart byte från matlabbet.", "Frukt 150 g istället för juice eller sött mellanmål."],
+  ["Stressbroms", "10 min nedvarvning, andning eller lugn promenad.", "Fet fisk 120-180 g eller baljväxtmål med olivolja 10 g."],
+  ["Intervall light", "Kort intervallpass om kroppen känns pigg, annars zon 2.", "Kolhydrater runt pass: potatis/ris/fullkorn 120-180 g."],
+  ["Social strategi", "Bestäm portionsram innan helg/social mat.", "Halva tallriken grönt, protein först, dessert uppmätt."],
+  ["Ny baslinje", "Mät midja, vikt, rörelseminuter och välj nästa 14-dagarsfokus.", "Planera tre standardmåltider som kan upprepas."]
+];
+
 const workoutLibrary = {
   beginner: [
     {
@@ -786,10 +811,13 @@ function renderAll() {
   renderCoach();
   renderMetrics();
   renderSexProtocol();
+  renderEdgeGrid();
   renderPriorities();
   renderPlan();
+  renderSprintPlan();
   renderNutrition();
   renderSmartFood();
+  renderMealTemplates();
   renderFoodGuide();
   renderTraining();
   renderWeeklySummary();
@@ -827,17 +855,33 @@ function analyzeProgress() {
   const sugarFreeDays = entries.filter((item) => item.entry.habits && item.entry.habits.sugarfree).length;
   const waistTrend = getTrend(entries.map((item) => item.entry.waist).filter(Boolean));
 
-  const waistScore = whtr < 0.5 ? 28 : whtr < 0.55 ? 23 : whtr < 0.6 ? 18 : 12;
-  const movementScore = Math.min(22, Math.round((minutes / 150) * 22));
+  const waistBase = whtr < 0.5 ? 27 : whtr < 0.55 ? 22 : whtr < 0.6 ? 17 : 11;
+  const waistMomentum = waistTrend > 0.4 ? 3 : waistTrend < -0.4 ? -4 : 0;
+  const waistScore = clamp(waistBase + waistMomentum, 0, 30);
+  const movementScore = Math.min(20, Math.round((minutes / 150) * 20));
   const strengthScore = Math.min(12, Math.round((strengthDays / 2) * 12));
   const foodScore = Math.min(18, Math.round(((vegDays + proteinDays + sugarFreeDays) / Math.max(3, entries.length * 3)) * 18));
-  const recoveryScore = Math.min(10, Math.round(((sleepDays + stressDays + alcoholFreeDays) / Math.max(3, entries.length * 3)) * 10));
-  const loggingScore = Math.min(10, Math.round((entries.length / 5) * 10));
+  const recoveryScore = Math.min(12, Math.round(((sleepDays + stressDays + alcoholFreeDays) / Math.max(3, entries.length * 3)) * 12));
+  const loggingScore = Math.min(8, Math.round((entries.length / 5) * 8));
+  const breakdown = [
+    ["Buksignal", waistScore, 30, whtr < 0.5 ? "Under 0,50 eller på väg dit" : "Midja/längd behöver mest fokus"],
+    ["Rörelse", movementScore, 20, `${minutes} min senaste 7 dagarna`],
+    ["Styrka", strengthScore, 12, `${strengthDays}/2 styrkedagar`],
+    ["Kost", foodScore, 18, `${proteinDays + vegDays + sugarFreeDays} matträffar`],
+    ["Återhämtning", recoveryScore, 12, `${sleepDays + stressDays + alcoholFreeDays} återhämtningsträffar`],
+    ["Loggning", loggingScore, 8, `${entries.length}/5 dagar för smart analys`]
+  ];
   const score = clamp(waistScore + movementScore + strengthScore + foodScore + recoveryScore + loggingScore, 0, 100);
+  const weakest = breakdown.reduce((lowest, item) => (item[1] / item[2]) < (lowest[1] / lowest[2]) ? item : lowest, breakdown[0]);
+  const strongest = breakdown.reduce((highest, item) => (item[1] / item[2]) > (highest[1] / highest[2]) ? item : highest, breakdown[0]);
 
   return {
     entries,
     score,
+    tier: scoreTier(score, whtr),
+    breakdown,
+    weakest,
+    strongest,
     whtr,
     minutes,
     strengthDays,
@@ -853,12 +897,21 @@ function analyzeProgress() {
   };
 }
 
+function scoreTier(score, whtr) {
+  if (score >= 82 && whtr < 0.52) return { label: "Precision", className: "low" };
+  if (score >= 68) return { label: "Momentum", className: "low" };
+  if (score >= 50) return { label: "Byggfas", className: "medium" };
+  return { label: "Startläge", className: "high" };
+}
+
 function renderCoach() {
   const analysis = analyzeProgress();
   const status = $("#coachStatus");
   const score = analysis.score;
   $("#metabolicScore").textContent = score;
   $("#metabolicProgress").style.width = `${score}%`;
+  $("#scoreTier").textContent = analysis.tier.label;
+  $("#scoreTier").className = `score-tier ${analysis.tier.className}`;
 
   let label = "Bygg databas med 3-5 loggdagar.";
   let className = "medium";
@@ -884,6 +937,9 @@ function renderCoach() {
     <small>${action.reason}</small>
   `;
 
+  renderScoreBreakdown(analysis);
+  renderCoachBrief(analysis);
+
   const report = getCoachReport(analysis);
   $("#coachReport").innerHTML = report.map(([title, text]) => `
     <article>
@@ -891,6 +947,110 @@ function renderCoach() {
       <span>${text}</span>
     </article>
   `).join("");
+}
+
+function renderScoreBreakdown(analysis) {
+  const target = $("#scoreBreakdown");
+  if (!target) return;
+  target.innerHTML = analysis.breakdown.map(([label, value, max, note]) => {
+    const ratio = Math.round((value / max) * 100);
+    return `
+      <article>
+        <div>
+          <strong>${label}</strong>
+          <span>${value}/${max}</span>
+        </div>
+        <div class="mini-track" aria-hidden="true"><span style="width: ${ratio}%"></span></div>
+        <small>${note}</small>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderCoachBrief(analysis) {
+  const target = $("#coachBrief");
+  if (!target) return;
+  const blocker = getPrimaryBlocker(analysis);
+  const experiment = getWeeklyExperiment(analysis);
+  target.innerHTML = `
+    <article>
+      <span>Starkaste signal</span>
+      <strong>${analysis.strongest[0]}</strong>
+      <p>${analysis.strongest[3]}</p>
+    </article>
+    <article>
+      <span>Dolda bromsen</span>
+      <strong>${blocker.title}</strong>
+      <p>${blocker.text}</p>
+    </article>
+    <article>
+      <span>Veckans experiment</span>
+      <strong>${experiment.title}</strong>
+      <p>${experiment.text}</p>
+    </article>
+  `;
+}
+
+function getPrimaryBlocker(analysis) {
+  if (analysis.entries.length < 3) {
+    return {
+      title: "För lite signaldata",
+      text: "Tre loggdagar räcker för att appen ska börja skilja mellan kost, rörelse och återhämtning."
+    };
+  }
+  if (analysis.weakest[0] === "Rörelse") {
+    return {
+      title: "Veckovolym saknas",
+      text: "Lägg 10-20 min efter måltid tills du når minst 150 min per vecka."
+    };
+  }
+  if (analysis.weakest[0] === "Kost") {
+    return {
+      title: "Måltidsramen läcker",
+      text: "Protein, grönt och sockerfri dryck är snabbaste vägen till mindre hunger."
+    };
+  }
+  if (analysis.weakest[0] === "Återhämtning") {
+    return {
+      title: "Stress eller sömn tar marginalen",
+      text: "Sömnfönster och alkoholfri kväll höjer chansen att kosten håller nästa dag."
+    };
+  }
+  return {
+    title: `${analysis.weakest[0]} släpar`,
+    text: analysis.weakest[3]
+  };
+}
+
+function getWeeklyExperiment(analysis) {
+  if (analysis.alcoholFreeDays < 4) {
+    return {
+      title: "4 alkoholfria dagar",
+      text: "Gör det som ett mätbart experiment, inte ett livslöfte."
+    };
+  }
+  if (analysis.strengthDays < 2) {
+    return {
+      title: "2 styrkepass",
+      text: "Två korta helkroppspass räcker för att skydda muskelmassa under fettminskning."
+    };
+  }
+  if (analysis.vegDays < 5) {
+    return {
+      title: "400 g frukt/grönt",
+      text: "Fördela mängden över två huvudmål och ett mellanmål."
+    };
+  }
+  if (analysis.sleepDays < 5) {
+    return {
+      title: "Sömn före mer intensitet",
+      text: "Lägg dig tidigare tre kvällar innan du ökar träningsbelastningen."
+    };
+  }
+  return {
+    title: "Midjemätning + matlådor",
+    text: "Behåll basen och gör söndagen till kalibreringsdag."
+  };
 }
 
 function getNextBestAction(analysis) {
@@ -1084,7 +1244,10 @@ function renderPriorities() {
       log.habits[input.dataset.quickHabit] = input.checked;
       state.logs[key] = log;
       saveState();
+      renderCoach();
       renderMetrics();
+      renderSprintPlan();
+      renderWeeklySummary();
       loadLogForDate();
     });
   });
@@ -1105,6 +1268,20 @@ function renderSexProtocol() {
   `;
 }
 
+function renderEdgeGrid() {
+  const target = $("#edgeGrid");
+  if (!target) return;
+  target.innerHTML = edgeCards.map(([title, text], index) => `
+    <article>
+      <b>${index + 1}</b>
+      <div>
+        <strong>${title}</strong>
+        <span>${text}</span>
+      </div>
+    </article>
+  `).join("");
+}
+
 function renderPlan() {
   const plan = weeklyPlans[state.profile.level];
   $("#planGrid").innerHTML = plan.map(([day, workout, food, recovery]) => `
@@ -1118,6 +1295,46 @@ function renderPlan() {
     </article>
   `).join("");
   $("#printPlan").onclick = () => window.print();
+}
+
+function renderSprintPlan() {
+  const target = $("#sprintPlan");
+  if (!target) return;
+  const analysis = analyzeProgress();
+  const dayPointer = clamp(analysis.entries.length + 1, 1, 14);
+  $("#sprintBadge").textContent = analysis.entries.length ? `Nästa: dag ${dayPointer}` : "Dag 1-14";
+  target.innerHTML = sprintBlueprint.map(([title, action, food], index) => {
+    const day = index + 1;
+    const profileNote = sprintProfileNote(day);
+    return `
+      <article class="${day === dayPointer ? "is-current" : ""}">
+        <header>
+          <span>Dag ${day}</span>
+          <strong>${title}</strong>
+        </header>
+        <p>${action}</p>
+        <small>${food}</small>
+        ${profileNote ? `<em>${profileNote}</em>` : ""}
+      </article>
+    `;
+  }).join("");
+}
+
+function sprintProfileNote(day) {
+  const { sex, sexFocus } = state.profile;
+  if (sex === "female" && sexFocus === "female-cycle" && [3, 9, 12].includes(day)) {
+    return "Justera intensiteten efter energi och symtom.";
+  }
+  if (sex === "female" && sexFocus === "female-postpartum" && [3, 9, 12].includes(day)) {
+    return "Välj bål/bäckenbotten och promenad om kroppen inte är redo för intervall.";
+  }
+  if (sex === "male" && sexFocus === "male-stress" && [5, 8, 11].includes(day)) {
+    return "Lägg extra friktion på kvällsalkohol och sena jobbimpulser.";
+  }
+  if (sex === "male" && sexFocus === "male-cardio" && [6, 12].includes(day)) {
+    return "Håll passet kontrollerat: flås, men inte maxning.";
+  }
+  return "";
 }
 
 function renderNutrition() {
@@ -1140,6 +1357,55 @@ function renderNutrition() {
     <article>
       <b>${num}</b>
       <div><strong>${title}</strong><span>${text}</span></div>
+    </article>
+  `).join("");
+}
+
+function renderMealTemplates() {
+  const target = $("#mealTemplates");
+  if (!target) return;
+  const p = state.profile;
+  const proteinTarget = clamp(Math.round(p.weight * 1.6), 70, 190);
+  const mainProtein = Math.round(proteinTarget / 3);
+  const vegTarget = p.waist / p.height >= 0.5 ? "250-350 g" : "200-300 g";
+  const femaleNote = p.sex === "female" ? "Undvik för lågt energiintag: lägg till fullkorn/potatis runt träning." : "Bra bas för midja ned utan att tappa styrka.";
+  const templates = [
+    {
+      title: "Proteinfrukost",
+      badge: `${mainProtein} g protein`,
+      rows: [["Kvarg/yoghurt/kefir", "200-250 g"], ["Bär eller äpple", "100-180 g"], ["Havre/råg", "40-70 g"], ["Frön/nötter", "10-20 g"]],
+      note: "Stabil mättnad från morgonen."
+    },
+    {
+      title: "Lunchlåda",
+      badge: `${vegTarget} grönt`,
+      rows: [["Kyckling/fisk/tofu", "120-180 g"], ["Grönsaker", vegTarget], ["Potatis/fullkorn", "120-220 g"], ["Olivolja/sås", "10-20 g"]],
+      note: "Byggbar mall som fungerar även socialt."
+    },
+    {
+      title: "Baljväxtmiddag",
+      badge: "Fiberhävstång",
+      rows: [["Linser/bönor/kikärter", "180-250 g"], ["Extra grönsaker", "250-350 g"], ["Ägg/fisk/tofu vid behov", "80-150 g"], ["Frukt efteråt", "100-150 g"]],
+      note: "Hög volym och fiber utan att kännas som diet."
+    },
+    {
+      title: "Akutval på språng",
+      badge: "5 minuter",
+      rows: [["Protein", "150-250 g kvarg eller 2-3 ägg"], ["Frukt/grönt", "150-300 g"], ["Fullkorn", "60-100 g bröd eller 40-70 g havre"], ["Dryck", "0 ml socker"]],
+      note: femaleNote
+    }
+  ];
+  $("#mealTemplateBadge").textContent = `${proteinTarget} g protein/dag`;
+  target.innerHTML = templates.map((template) => `
+    <article>
+      <header>
+        <strong>${template.title}</strong>
+        <span>${template.badge}</span>
+      </header>
+      <dl>
+        ${template.rows.map(([name, amount]) => `<div><dt>${name}</dt><dd>${amount}</dd></div>`).join("")}
+      </dl>
+      <p>${template.note}</p>
     </article>
   `).join("");
 }
@@ -1223,6 +1489,70 @@ function renderWeeklySummary() {
       <strong>${value}</strong>
     </div>
   `).join("");
+  renderTrendChart();
+}
+
+function renderTrendChart() {
+  const target = $("#trendChart");
+  if (!target) return;
+  const days = Array.from({ length: 14 }, (_, index) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (13 - index));
+    const key = dateKey(d);
+    const entry = state.logs[key];
+    return {
+      key,
+      label: `${d.getDate()}/${d.getMonth() + 1}`,
+      waist: entry && entry.waist ? entry.waist : null,
+      score: scoreForDate(key)
+    };
+  });
+  const waistValues = days.map((item) => item.waist).filter(Boolean);
+  if (waistValues.length < 2) {
+    target.innerHTML = `
+      <div class="empty-chart">
+        <strong>Trendgraf väntar på mer data</strong>
+        <span>Logga midja minst två dagar för att se riktning. Dagspoängen visas samtidigt som vanorna fylls på.</span>
+      </div>
+    `;
+    return;
+  }
+  const width = 640;
+  const height = 220;
+  const padX = 34;
+  const padY = 24;
+  const minWaist = Math.min(...waistValues) - 1;
+  const maxWaist = Math.max(...waistValues) + 1;
+  const x = (index) => padX + (index / (days.length - 1)) * (width - padX * 2);
+  const yWaist = (value) => height - padY - ((value - minWaist) / Math.max(1, maxWaist - minWaist)) * (height - padY * 2);
+  const waistPoints = days
+    .map((item, index) => item.waist ? `${x(index).toFixed(1)},${yWaist(item.waist).toFixed(1)}` : null)
+    .filter(Boolean)
+    .join(" ");
+  const bars = days.map((item, index) => {
+    const barHeight = (item.score / 7) * 58;
+    const bx = x(index) - 6;
+    const by = height - padY - barHeight;
+    return `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="12" height="${barHeight.toFixed(1)}" rx="4"></rect>`;
+  }).join("");
+  const labels = days.filter((_, index) => index % 3 === 0 || index === days.length - 1).map((item, index, arr) => {
+    const originalIndex = days.findIndex((day) => day.key === item.key);
+    return `<text x="${x(originalIndex).toFixed(1)}" y="${height - 4}" text-anchor="${index === arr.length - 1 ? "end" : "middle"}">${item.label}</text>`;
+  }).join("");
+  target.innerHTML = `
+    <div class="chart-head">
+      <div>
+        <strong>14-dagars riktning</strong>
+        <span>Linje = midja i cm, staplar = dagspoäng.</span>
+      </div>
+      <b>${formatTrend(waistValues[0] - waistValues[waistValues.length - 1], "cm")}</b>
+    </div>
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Midje- och vanetrend senaste 14 dagar">
+      <g class="score-bars">${bars}</g>
+      <polyline points="${waistPoints}"></polyline>
+      <g class="chart-labels">${labels}</g>
+    </svg>
+  `;
 }
 
 function renderSources() {

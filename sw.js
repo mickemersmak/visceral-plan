@@ -1,4 +1,4 @@
-const CACHE_NAME = "visceral-plan-v5";
+const CACHE_NAME = "visceral-plan-v6";
 const APP_SHELL = [
   "/",
   "/index.html",
