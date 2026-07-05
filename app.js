@@ -619,6 +619,7 @@ let adminUsers = [];
 let adminLoading = false;
 let adminLoaded = false;
 let adminMessage = "Logga in som admin för databasläge.";
+let authMode = "login";
 let deferredInstallPrompt = null;
 
 const $ = (selector) => document.querySelector(selector);
@@ -740,41 +741,47 @@ function hashPin(pin) {
 
 function bindAuth() {
   renderAuth();
+  $$(".auth-mode button").forEach((button) => {
+    button.addEventListener("click", () => {
+      setAuthMode(button.dataset.authMode);
+      $("#authMessage").textContent = authMode === "register"
+        ? "Skapa konto med e-post och PIN för en personlig kontoprofil."
+        : "Logga in med e-post och PIN för att fortsätta på din profil.";
+    });
+  });
+
   $("#authForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-    const rawName = $("#authName").value.trim();
+    const email = $("#authEmail").value.trim();
     const pin = $("#authPin").value.trim();
-    if (!rawName || pin.length < 4) {
-      setAuthMessage("Ange namn/e-post och minst 4 siffror.");
+    if (!email || !email.includes("@")) {
+      setAuthMessage("Ange en giltig e-postadress.");
+      return;
+    }
+    if (authMode === "register") {
+      const name = $("#authDisplayName").value.trim();
+      const confirmPin = $("#authPinConfirm").value.trim();
+      if (!name || name.length < 2) {
+        setAuthMessage("Ange ditt namn för kontot.");
+        return;
+      }
+      if (pin.length < 6) {
+        setAuthMessage("Välj en PIN med minst 6 siffror.");
+        return;
+      }
+      if (pin !== confirmPin) {
+        setAuthMessage("PIN och bekräftelse matchar inte.");
+        return;
+      }
+      await registerWithDatabase(name, email, pin);
       return;
     }
 
-    if (rawName.includes("@")) {
-      await loginWithDatabase(rawName, pin);
+    if (pin.length < 4) {
+      setAuthMessage("Ange PIN med minst 4 siffror.");
       return;
     }
-
-    const users = loadUsers();
-    const id = normalizeUserId(rawName);
-    const pinHash = hashPin(pin);
-    let user = users.find((item) => item.id === id);
-
-    if (user && user.pinHash !== pinHash) {
-      setAuthMessage("Fel PIN för den profilen.");
-      return;
-    }
-
-    if (!user) {
-      user = { id, name: rawName, pinHash, createdAt: new Date().toISOString() };
-      users.push(user);
-      saveUsers(users);
-      setAuthMessage("Ny lokal profil skapad.");
-    } else {
-      setAuthMessage("Inloggad på lokal profil.");
-    }
-
-    switchUser(user);
-    $("#authPin").value = "";
+    await loginWithDatabase(email, pin);
   });
 
   $("#logoutProfile").addEventListener("click", () => {
@@ -783,12 +790,31 @@ function bindAuth() {
   });
 }
 
+function setAuthMode(mode) {
+  authMode = mode === "register" ? "register" : "login";
+  const isRegister = authMode === "register";
+  const loginButton = $("#authLoginMode");
+  const registerButton = $("#authRegisterMode");
+  loginButton?.classList.toggle("is-active", !isRegister);
+  registerButton?.classList.toggle("is-active", isRegister);
+  loginButton?.setAttribute("aria-selected", String(!isRegister));
+  registerButton?.setAttribute("aria-selected", String(isRegister));
+  $("#authDisplayNameField").hidden = !isRegister;
+  $("#authPinConfirmField").hidden = !isRegister;
+  $("#authPinLabel").textContent = isRegister ? "PIN, minst 6 siffror" : "PIN";
+  $("#authPin").autocomplete = isRegister ? "new-password" : "current-password";
+  $("#authPin").minLength = isRegister ? 6 : 4;
+  $("#authSubmitButton").textContent = isRegister ? "Skapa konto" : "Logga in";
+}
+
 function renderAuth() {
   $("#activeUserLabel").textContent = activeUser.name;
-  $("#authName").value = activeUser.guest ? "" : (activeUser.email || activeUser.name);
+  $("#authEmail").value = activeUser.server ? activeUser.email : "";
+  $("#authDisplayName").value = activeUser.server ? activeUser.name : "";
+  setAuthMode(authMode);
   const message = activeUser.server
     ? `Databasroll: ${roleLabel(activeUser.role)}. Sessionen sparas på denna enhet.`
-    : "Lokal profil på denna enhet. Ingen serverinloggning.";
+    : "Logga in eller skapa konto för en personlig kontoprofil.";
   $("#authMessage").textContent = message;
 }
 
@@ -834,9 +860,35 @@ async function loginWithDatabase(email, pin) {
       name: data.user.name || data.user.email
     });
     $("#authPin").value = "";
+    $("#authPinConfirm").value = "";
     setAuthMessage("Inloggad via databas.", `Roll: ${roleLabel(data.user.role)}.`);
   } catch (error) {
     setAuthMessage(error.message || "Databasen kunde inte nås.", "Kontrollera att DATABASE_URL är satt och att profilen finns.");
+  }
+}
+
+async function registerWithDatabase(name, email, pin) {
+  setAuthMessage("Skapar konto i databasen...", "Vänta.");
+  try {
+    const response = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, pin })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "Registrering misslyckades.");
+    setAuthMode("login");
+    switchUser({
+      ...data.user,
+      token: data.token,
+      server: true,
+      name: data.user.name || data.user.email
+    });
+    $("#authPin").value = "";
+    $("#authPinConfirm").value = "";
+    setAuthMessage("Kontot är skapat.", "Du är inloggad med din nya kontoprofil.");
+  } catch (error) {
+    setAuthMessage(error.message || "Kunde inte skapa konto.", "Försök igen eller logga in om kontot redan finns.");
   }
 }
 

@@ -186,6 +186,32 @@ a {
   padding: 0 12px 12px;
 }
 
+.auth-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 254, 250, 0.1);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.auth-mode button {
+  border: 0;
+  border-radius: 9px;
+  padding: 8px 7px;
+  background: transparent;
+  color: rgba(255, 254, 250, 0.66);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.auth-mode button.is-active {
+  background: linear-gradient(135deg, #f1d18a, #c39a4c);
+  color: #17221d;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
 .auth-form label span {
   color: rgba(255, 254, 250, 0.72);
 }
@@ -2685,7 +2711,8 @@ textarea:focus {
   }
 
   .auth-card[open] {
-    max-height: 320px;
+    max-height: min(560px, calc(100vh - 118px));
+    overflow-y: auto;
   }
 
   .auth-card summary {

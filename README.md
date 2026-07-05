@@ -68,3 +68,5 @@ curl -X POST https://visceral-plan.vercel.app/api/admin/bootstrap \
 ```
 
 Efter bootstrap kan super admin logga in med e-post + PIN i appen. Adminfliken visas då automatiskt och kan skapa användare eller admins.
+
+Vanliga medlemmar kan själva skapa konto i appens profilkort. Registrering går via `POST /api/auth/register`, skapar rollen `user` och loggar in användaren direkt med en serverbaserad kontoprofil.
