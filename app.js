@@ -613,6 +613,7 @@ let timer = {
 let fridgeScan = {
   status: "idle",
   imageUrl: "",
+  images: [],
   suggestions: [],
   uncertain: [],
   quality: null,
@@ -621,6 +622,14 @@ let fridgeScan = {
   detail: "high",
   source: "idle",
   message: "Kamera redo",
+  note: ""
+};
+let mealScan = {
+  status: "idle",
+  imageUrl: "",
+  result: null,
+  source: "idle",
+  message: "Matkamera redo",
   note: ""
 };
 let kitchenAiLoading = false;
@@ -645,6 +654,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindLog();
   bindTimer();
   bindSwapLab();
+  bindMealScan();
   bindFridgeBuilder();
   bindKitchenAssistant();
   bindMemberMessages();
@@ -1092,6 +1102,24 @@ function bindSwapLab() {
   select.addEventListener("change", renderSmartFood);
 }
 
+function bindMealScan() {
+  const scanButton = $("#mealScanButton");
+  const fileInput = $("#mealCameraInput");
+  if (!scanButton || !fileInput) return;
+  scanButton.addEventListener("click", () => fileInput.click());
+  fileInput.addEventListener("change", (event) => {
+    const [file] = Array.from(event.target.files || []);
+    if (file) handleMealScanFile(file);
+    event.target.value = "";
+  });
+  $("#mealScanPanel")?.addEventListener("click", (event) => {
+    const askButton = event.target.closest("[data-meal-scan-ask]");
+    if (askButton && !kitchenAiLoading) {
+      askKitchenAssistant(askButton.dataset.mealScanAsk || "Gör min fotade måltid bättre för bukfett.");
+    }
+  });
+}
+
 function bindFridgeBuilder() {
   const select = $("#fridgeGoal");
   if (!select) return;
@@ -1107,13 +1135,21 @@ function bindFridgeBuilder() {
   const scanButton = $("#fridgeScanButton");
   const fileInput = $("#fridgeCameraInput");
   const applyButton = $("#fridgeApplyScan");
+  const analyzeButton = $("#fridgeAnalyzeScan");
   scanButton?.addEventListener("click", () => fileInput?.click());
   fileInput?.addEventListener("change", (event) => {
-    const [file] = Array.from(event.target.files || []);
-    if (file) handleFridgeScanFile(file);
+    const files = Array.from(event.target.files || []);
+    if (files.length) handleFridgeScanFiles(files);
     event.target.value = "";
   });
   applyButton?.addEventListener("click", applyFridgeScanSuggestions);
+  analyzeButton?.addEventListener("click", analyzeFridgeScanImages);
+
+  $("#fridgeScanPreview")?.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-scan-remove-image]");
+    if (!removeButton) return;
+    removeFridgeScanImage(Number(removeButton.dataset.scanRemoveImage));
+  });
 
   $("#fridgeScanSuggestions")?.addEventListener("click", (event) => {
     const confirmButton = event.target.closest("[data-scan-confirm]");
@@ -1611,6 +1647,7 @@ function getCoachReport(analysis) {
 function renderSmartFood() {
   renderPlateBuilder();
   renderSwapResult();
+  renderMealScan();
 }
 
 function renderPlateBuilder() {
@@ -1645,6 +1682,104 @@ function renderSwapResult() {
     <p>${selected.why}</p>
     <small>${selected.portion}</small>
   `;
+}
+
+function renderMealScan() {
+  const preview = $("#mealScanPreview");
+  const result = $("#mealScanResult");
+  if (!preview || !result) return;
+  const hasImage = Boolean(mealScan.imageUrl);
+  preview.className = `meal-scan-preview ${hasImage ? "" : "empty"} ${mealScan.status}`;
+  preview.innerHTML = hasImage
+    ? `<img src="${mealScan.imageUrl}" alt="Fotad måltid"><span>${escapeHTML(mealScan.message)}</span>`
+    : `<span>Ingen matbild ännu</span>`;
+
+  const scan = mealScan.result;
+  result.innerHTML = `
+    <div class="meal-scan-status ${mealScan.status}">
+      <strong>${mealScanStatusTitle(mealScan.status)}</strong>
+      <span>${escapeHTML(mealScan.note || mealScan.message)}</span>
+    </div>
+    ${scan ? renderMealScanResult(scan) : `
+      <p class="meal-scan-empty">Fota tallriken rakt ovanifrån. AI uppskattar portion, kcal, protein, kolhydrater, fett och fiber samt vad som saknas för en bättre midjemåltid.</p>
+    `}
+  `;
+}
+
+function renderMealScanResult(scan) {
+  const totals = scan.totals || {};
+  const quality = scan.portionQuality || {};
+  const macroCards = [
+    ["Energi", `${Math.round(totals.kcal || 0)} kcal`, `${Math.round(totals.grams || 0)} g mat`],
+    ["Protein", `${Math.round(totals.protein || 0)} g`, "Mättnad och muskelstöd"],
+    ["Kolhydrater", `${Math.round(totals.carbs || 0)} g`, `Socker ca ${Math.round(totals.sugar || 0)} g`],
+    ["Fett", `${Math.round(totals.fat || 0)} g`, "Kontrollera olja/sås"],
+    ["Fiber", `${Math.round(totals.fiber || 0)} g`, "Bukfettsvänlig mättnad"]
+  ];
+  return `
+    <article class="meal-scan-card">
+      <header>
+        <div>
+          <span>${escapeHTML(sourceLabel(scan.source))}</span>
+          <strong>${escapeHTML(scan.dishName || "Fotad måltid")}</strong>
+        </div>
+        <b>${Math.round((scan.confidence || 0.5) * 100)}%</b>
+      </header>
+      <div class="meal-scan-quality ${quality.shouldRetake ? "warn" : "good"}">
+        <strong>Portionssäkerhet ${Math.round((quality.score || 0.5) * 100)}%</strong>
+        <p>${escapeHTML(quality.visibleReference || "Ingen tydlig storleksreferens.")}</p>
+        <small>${escapeHTML(quality.advice || "Ta gärna en rak bild med hela tallriken.")}</small>
+      </div>
+      <div class="meal-scan-macros">
+        ${macroCards.map(([label, value, detail]) => `
+          <article>
+            <span>${label}</span>
+            <strong>${value}</strong>
+            <small>${detail}</small>
+          </article>
+        `).join("")}
+      </div>
+      ${Array.isArray(scan.items) && scan.items.length ? `
+        <div class="meal-scan-items">
+          <header>
+            <strong>Synliga komponenter</strong>
+            <span>${scan.items.length} delar</span>
+          </header>
+          ${scan.items.map((item) => `
+            <article>
+              <div>
+                <strong>${escapeHTML(item.name)}</strong>
+                <small>${Math.round(item.kcal || 0)} kcal · P ${formatFridgeValue(item.protein || 0)} g · Fibrer ${formatFridgeValue(item.fiber || 0)} g</small>
+              </div>
+              <b>${Math.round(item.grams || 0)} g</b>
+            </article>
+          `).join("")}
+        </div>
+      ` : ""}
+      <div class="meal-scan-verdict ${scan.verdict && scan.verdict.level ? scan.verdict.level : "tune"}">
+        <strong>${escapeHTML(scan.verdict && scan.verdict.title || "Näringsvärde uppskattat")}</strong>
+        <p>${escapeHTML(scan.verdict && scan.verdict.text || "AI har uppskattat måltiden från bilden.")}</p>
+        ${scan.verdict && Array.isArray(scan.verdict.actions) && scan.verdict.actions.length ? `<ul>${scan.verdict.actions.map((action) => `<li>${escapeHTML(action)}</li>`).join("")}</ul>` : ""}
+      </div>
+      ${Array.isArray(scan.notes) && scan.notes.length ? `
+        <div class="meal-scan-notes">
+          ${scan.notes.map((note) => `<span>${escapeHTML(note)}</span>`).join("")}
+        </div>
+      ` : ""}
+      <div class="scan-action-row">
+        <button type="button" data-meal-scan-ask="${escapeHTML(buildMealScanKitchenPrompt(scan))}">Gör bättre med Köks-AI</button>
+      </div>
+      ${scan.caution ? `<small class="meal-scan-caution">${escapeHTML(scan.caution)}</small>` : ""}
+    </article>
+  `;
+}
+
+function mealScanStatusTitle(status) {
+  if (status === "scanning") return "Analyserar matbild";
+  if (status === "ready") return "Näringsvärde klart";
+  if (status === "fallback") return "Lokal uppskattning";
+  if (status === "error") return "Matbilden kunde inte läsas";
+  return "Redo för matfoto";
 }
 
 function ensurePantryState() {
@@ -1713,20 +1848,35 @@ function renderFridgeScanPanel() {
   const preview = $("#fridgeScanPreview");
   const target = $("#fridgeScanSuggestions");
   const applyButton = $("#fridgeApplyScan");
-  if (!preview || !target || !applyButton) return;
+  const analyzeButton = $("#fridgeAnalyzeScan");
+  if (!preview || !target || !applyButton || !analyzeButton) return;
 
+  const images = fridgeScanImages();
   const suggestions = Array.isArray(fridgeScan.suggestions) ? fridgeScan.suggestions : [];
   const uncertain = Array.isArray(fridgeScan.uncertain) ? fridgeScan.uncertain : [];
   const shopping = Array.isArray(fridgeScan.shopping) ? fridgeScan.shopping : [];
   const mealIdea = fridgeScan.mealIdea && typeof fridgeScan.mealIdea === "object" ? fridgeScan.mealIdea : null;
   const quality = fridgeScan.quality && typeof fridgeScan.quality === "object" ? fridgeScan.quality : null;
   const applyIds = scanApplyIds();
-  const hasImage = Boolean(fridgeScan.imageUrl);
+  const hasImage = images.length > 0;
   preview.className = `fridge-scan-preview ${hasImage ? "" : "empty"} ${fridgeScan.status}`;
   preview.innerHTML = hasImage
-    ? `<img src="${fridgeScan.imageUrl}" alt="Bild från kylskåpsscan"><span>${escapeHTML(fridgeScan.message)}</span>`
+    ? `
+      <div class="fridge-scan-gallery">
+        ${images.map((imageUrl, index) => `
+          <figure>
+            <img src="${imageUrl}" alt="Kylskåpsbild ${index + 1}">
+            <button type="button" aria-label="Ta bort bild ${index + 1}" data-scan-remove-image="${index}">×</button>
+            <figcaption>Bild ${index + 1}</figcaption>
+          </figure>
+        `).join("")}
+      </div>
+      <span>${escapeHTML(fridgeScan.message)}</span>
+    `
     : `<span>Ingen bild ännu</span>`;
 
+  analyzeButton.hidden = !hasImage || fridgeScan.status === "scanning";
+  analyzeButton.textContent = images.length > 1 ? `Analysera ${images.length} bilder` : "Analysera bild";
   applyButton.hidden = applyIds.length === 0 || fridgeScan.status === "scanning";
   applyButton.textContent = applyIds.length ? `Lägg till ${applyIds.length} säkra` : "Lägg till förslag";
   target.innerHTML = `
@@ -1830,9 +1980,33 @@ function renderFridgeScanPanel() {
       </article>
     ` : ""}
     ${fridgeScan.status === "idle" ? `
-      <p class="scan-empty">Ta en bild av kylskåpet. Appen analyserar råvaror, osäkerhet och bildkvalitet och skickar sedan bättre kontext till Köks-AI.</p>
+      <p class="scan-empty">Ta en eller flera bilder av kylskåpet. Appen väger ihop hyllor, dörrfack, osäkerhet och bildkvalitet innan Köks-AI får kontexten.</p>
     ` : ""}
   `;
+}
+
+function fridgeScanImages() {
+  const images = Array.isArray(fridgeScan.images) ? fridgeScan.images : [];
+  if (images.length) return images;
+  return fridgeScan.imageUrl ? [fridgeScan.imageUrl] : [];
+}
+
+function removeFridgeScanImage(index) {
+  const images = fridgeScanImages().filter((_, itemIndex) => itemIndex !== index);
+  fridgeScan = {
+    ...fridgeScan,
+    images,
+    imageUrl: images[images.length - 1] || "",
+    status: images.length ? "queued" : "idle",
+    suggestions: [],
+    uncertain: [],
+    quality: null,
+    mealIdea: null,
+    shopping: [],
+    message: images.length ? `${images.length} bild${images.length === 1 ? "" : "er"} redo` : "Kamera redo",
+    note: images.length ? "Lägg till fler hyllor eller analysera bildserien." : ""
+  };
+  renderFridgeBuilder();
 }
 
 function scanApplyIds() {
@@ -1946,6 +2120,7 @@ function saveScanShoppingItems(items) {
 
 function scanStatusTitle(status) {
   if (status === "scanning") return "Analyserar bild";
+  if (status === "queued") return "Bildserie redo";
   if (status === "ready") return "AI-förslag klara";
   if (status === "fallback") return "Lokala förslag klara";
   if (status === "error") return "Scan kunde inte läsas";
@@ -2111,6 +2286,9 @@ function appendKitchenAssistantReply(reply) {
 }
 
 async function requestKitchenAssistantReply(message, context) {
+  const kitchenImage = message.toLowerCase().includes("fotade") || message.toLowerCase().includes("fotad måltid")
+    ? mealScan.imageUrl || fridgeScan.imageUrl || ""
+    : fridgeScan.imageUrl || mealScan.imageUrl || "";
   const history = state.pantry.kitchenMessages
     .filter((item) => item.role === "user" || item.role === "assistant")
     .slice(-8)
@@ -2122,7 +2300,7 @@ async function requestKitchenAssistantReply(message, context) {
       message,
       history,
       context,
-      image: fridgeScan.imageUrl || ""
+      image: kitchenImage
     })
   });
   const data = await response.json().catch(() => ({}));
@@ -2217,6 +2395,12 @@ function buildKitchenContext() {
     selectedFoods: selected.map(kitchenFoodSummary),
     scanFoods: scanFoods.map(kitchenFoodSummary),
     scanQuality: fridgeScan.quality || null,
+    mealPhoto: mealScan.result ? {
+      dishName: mealScan.result.dishName,
+      confidence: mealScan.result.confidence,
+      totals: mealScan.result.totals,
+      verdict: mealScan.result.verdict && mealScan.result.verdict.title
+    } : null,
     feedback: state.pantry.scanFeedback || [],
     shoppingList: state.pantry.shoppingList || [],
     allowedFoodIds: pantryFoods.map((food) => food.id)
@@ -2303,8 +2487,196 @@ function foodNameById(id) {
   return food ? food.name : "";
 }
 
-async function handleFridgeScanFile(file) {
+async function handleMealScanFile(file) {
   if (!file.type.startsWith("image/")) {
+    mealScan = {
+      ...mealScan,
+      status: "error",
+      message: "Välj en bildfil.",
+      note: "Matkameran behöver en bild för att kunna uppskatta näringsvärde.",
+      result: null
+    };
+    renderMealScan();
+    return;
+  }
+
+  try {
+    const imageUrl = await resizeFridgeScanImage(file);
+    mealScan = {
+      status: "scanning",
+      imageUrl,
+      result: null,
+      source: "camera",
+      message: "Analyserar tallriken",
+      note: "AI uppskattar portion och näringsvärde från bilden."
+    };
+    renderMealScan();
+
+    const result = await requestMealNutritionScan(imageUrl);
+    mealScan = {
+      ...mealScan,
+      status: "ready",
+      source: result.source || "ai",
+      result,
+      message: `${Math.round(result.totals.kcal || 0)} kcal uppskattat`,
+      note: "Kontrollera portionssäkerheten. Fotoanalys är en kvalificerad uppskattning, inte en exakt vägning."
+    };
+  } catch (error) {
+    const result = localMealScanResult(error.message);
+    mealScan = {
+      ...mealScan,
+      status: "fallback",
+      source: "local",
+      result,
+      message: `${Math.round(result.totals.kcal || 0)} kcal lokal uppskattning`,
+      note: "Lokal fallback använder måltidsbyggaren när AI-vision inte är tillgänglig."
+    };
+  }
+
+  renderMealScan();
+}
+
+async function requestMealNutritionScan(imageUrl) {
+  const response = await fetch("/api/meal-scan", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      image: imageUrl,
+      detail: "high",
+      goal: state.pantry && state.pantry.goal || "fatloss",
+      profile: {
+        sex: state.profile.sex,
+        age: state.profile.age,
+        weight: state.profile.weight,
+        waist: state.profile.waist
+      }
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || "Matfoto-AI kunde inte svara.");
+  return normalizeMealScanResult(data);
+}
+
+function normalizeMealScanResult(data) {
+  const totals = normalizeMealScanMacros(data && data.totals);
+  return {
+    source: data && data.source || "openai",
+    dishName: String(data && data.dishName || "Fotad måltid").slice(0, 90),
+    confidence: clamp(Number(data && data.confidence) || 0.45, 0.2, 0.98),
+    portionQuality: normalizeMealScanQuality(data && data.portionQuality),
+    totals,
+    items: Array.isArray(data && data.items)
+      ? data.items.map(normalizeMealScanItem).filter((item) => item.name).slice(0, 8)
+      : [],
+    verdict: normalizeMealScanVerdict(data && data.verdict, totals),
+    notes: normalizeShoppingItems(data && data.notes),
+    caution: String(data && data.caution || "Näringsvärdet är en AI-uppskattning från bild, inte en exakt vägning.").slice(0, 220)
+  };
+}
+
+function normalizeMealScanItem(item) {
+  return {
+    name: String(item && item.name || "").trim().slice(0, 90),
+    grams: roundToTenth(item && item.grams),
+    kcal: roundToTenth(item && item.kcal),
+    protein: roundToTenth(item && item.protein),
+    carbs: roundToTenth(item && item.carbs),
+    fat: roundToTenth(item && item.fat),
+    fiber: roundToTenth(item && item.fiber),
+    confidence: clamp(Number(item && item.confidence) || 0.45, 0.2, 0.98)
+  };
+}
+
+function normalizeMealScanMacros(macros) {
+  return {
+    grams: roundToTenth(macros && macros.grams),
+    kcal: roundToTenth(macros && macros.kcal),
+    protein: roundToTenth(macros && macros.protein),
+    carbs: roundToTenth(macros && macros.carbs),
+    fat: roundToTenth(macros && macros.fat),
+    fiber: roundToTenth(macros && macros.fiber),
+    sugar: roundToTenth(macros && macros.sugar)
+  };
+}
+
+function normalizeMealScanQuality(quality) {
+  return {
+    score: clamp(Number(quality && quality.score) || 0.45, 0.2, 0.98),
+    visibleReference: String(quality && quality.visibleReference || "Ingen tydlig storleksreferens.").slice(0, 140),
+    shouldRetake: Boolean(quality && quality.shouldRetake),
+    advice: String(quality && quality.advice || "Ta bilden rakt ovanifrån med hela tallriken synlig.").slice(0, 180),
+    detailUsed: String(quality && quality.detailUsed || "high").slice(0, 20)
+  };
+}
+
+function normalizeMealScanVerdict(verdict, totals) {
+  const level = verdict && ["strong", "tune", "watch"].includes(verdict.level)
+    ? verdict.level
+    : totals.protein >= 30 && totals.fiber >= 8
+      ? "strong"
+      : totals.kcal > 850 || totals.fiber < 5
+        ? "watch"
+        : "tune";
+  return {
+    level,
+    title: String(verdict && verdict.title || (level === "strong" ? "Bra bukfettsmåltid" : "Går att skruva bättre")).slice(0, 90),
+    text: String(verdict && verdict.text || "AI väger protein, fiber, grön volym och energitäthet.").slice(0, 240),
+    actions: Array.isArray(verdict && verdict.actions)
+      ? verdict.actions.map((item) => String(item || "").trim()).filter(Boolean).map((item) => item.slice(0, 140)).slice(0, 4)
+      : ["Säkra 30-45 g protein.", "Lägg till 250-350 g grönsaker om tallriken saknar volym."]
+  };
+}
+
+function localMealScanResult(detail = "") {
+  const meal = buildFridgeMeal();
+  const totals = {
+    grams: meal.items.reduce((sum, item) => sum + item.grams, 0),
+    kcal: meal.macros.kcal,
+    protein: meal.macros.protein,
+    carbs: meal.macros.carbs,
+    fat: meal.macros.fat,
+    fiber: meal.macros.fiber,
+    sugar: Math.max(0, meal.macros.carbs * 0.18)
+  };
+  return normalizeMealScanResult({
+    source: "local",
+    dishName: "Lokal tallriksuppskattning",
+    confidence: 0.42,
+    portionQuality: {
+      score: 0.35,
+      visibleReference: "AI-vision saknas, därför används måltidsbyggarens valda råvaror som uppskattning.",
+      shouldRetake: true,
+      advice: "När OpenAI-nyckeln är aktiv: fota hela tallriken rakt ovanifrån för bättre portionssäkerhet."
+    },
+    totals,
+    items: meal.items.map((item) => ({
+      name: item.food.name,
+      grams: item.grams,
+      kcal: item.food.kcal * item.grams / 100,
+      protein: item.food.protein * item.grams / 100,
+      carbs: item.food.carbs * item.grams / 100,
+      fat: item.food.fat * item.grams / 100,
+      fiber: item.food.fiber * item.grams / 100,
+      confidence: item.suggested ? 0.35 : 0.55
+    })),
+    verdict: meal.verdict,
+    notes: ["Fallback utan AI-vision.", "Resultatet blir exaktare om råvaror väljs i byggaren eller om OpenAI-nyckeln fungerar."],
+    caution: detail ? `AI-fallback: ${detail}` : "Näringsvärdet är en lokal uppskattning, inte en exakt vägning."
+  });
+}
+
+function buildMealScanKitchenPrompt(scan) {
+  const totals = scan.totals || {};
+  return [
+    `Jag fotade en måltid: ${scan.dishName || "måltid"}.`,
+    `Uppskattning: ${Math.round(totals.kcal || 0)} kcal, ${Math.round(totals.protein || 0)} g protein, ${Math.round(totals.carbs || 0)} g kolhydrater, ${Math.round(totals.fat || 0)} g fett och ${Math.round(totals.fiber || 0)} g fiber.`,
+    "Hur gör jag den bättre för bukfett, mättnad och midjemål?"
+  ].join(" ");
+}
+
+async function handleFridgeScanFiles(files) {
+  const imageFiles = files.filter((file) => file && file.type.startsWith("image/")).slice(0, 4);
+  if (!imageFiles.length) {
     fridgeScan = {
       ...fridgeScan,
       status: "error",
@@ -2321,10 +2693,13 @@ async function handleFridgeScanFile(file) {
   }
 
   try {
-    const imageUrl = await resizeFridgeScanImage(file);
+    const resized = await Promise.all(imageFiles.map(resizeFridgeScanImage));
+    const images = Array.from(new Set([...fridgeScanImages(), ...resized])).slice(0, 4);
     fridgeScan = {
-      status: "scanning",
-      imageUrl,
+      ...fridgeScan,
+      status: "queued",
+      imageUrl: images[images.length - 1] || "",
+      images,
       suggestions: [],
       uncertain: [],
       quality: null,
@@ -2332,29 +2707,62 @@ async function handleFridgeScanFile(file) {
       shopping: [],
       detail: "high",
       source: "camera",
-      message: "Analyserar kylskåpet",
-      note: "Bild skickas till vision-analys om nyckel finns, annars körs lokal fallback."
+      message: `${images.length} bild${images.length === 1 ? "" : "er"} redo`,
+      note: "Lägg till fler hyllor eller analysera bildserien när du är klar."
     };
     renderFridgeScanPanel();
+  } catch (error) {
+    fridgeScan = {
+      ...fridgeScan,
+      status: "error",
+      message: "Bilderna kunde inte läsas",
+      note: error.message || "Testa att ta nya bilder."
+    };
+    renderFridgeScanPanel();
+  }
+}
 
-    const scanResult = await requestFridgeVisionSuggestions(imageUrl);
+async function analyzeFridgeScanImages() {
+  const images = fridgeScanImages();
+  if (!images.length || fridgeScan.status === "scanning") return;
+
+  fridgeScan = {
+    ...fridgeScan,
+    status: "scanning",
+    suggestions: [],
+    uncertain: [],
+    quality: null,
+    mealIdea: null,
+    shopping: [],
+    message: `Analyserar ${images.length} bild${images.length === 1 ? "" : "er"}`,
+    note: "Bildserien skickas till vision-analys om nyckel finns, annars körs lokal fallback."
+  };
+  renderFridgeScanPanel();
+
+  try {
+    const scanResult = await requestFridgeVisionSuggestions(images);
     const suggestionCount = scanResult.suggestions.length;
     const uncertainCount = scanResult.uncertain.length;
     fridgeScan = {
       ...fridgeScan,
       ...scanResult,
+      images,
+      imageUrl: images[images.length - 1] || "",
       status: "ready",
       source: scanResult.source || "ai",
       message: `${suggestionCount} säkra och ${uncertainCount} osäkra fynd`,
       note: scanResult.note || (suggestionCount
         ? "Bekräfta osäkra fynd och fråga Köks-AI vad du kan laga av dem."
-        : "AI hittade inga säkra råvaror. Testa en ljusare bild.")
+        : "AI hittade inga säkra råvaror. Testa ljusare bilder.")
     };
   } catch {
-    const colorHints = await extractFridgeColorHints(fridgeScan.imageUrl).catch(() => []);
+    const hintLists = await Promise.all(images.map((imageUrl) => extractFridgeColorHints(imageUrl).catch(() => [])));
+    const colorHints = Array.from(new Set(hintLists.flat()));
     const fallbackSuggestions = localFridgeScanSuggestions(colorHints);
     fridgeScan = {
       ...fridgeScan,
+      images,
+      imageUrl: images[images.length - 1] || "",
       status: "fallback",
       source: "local",
       suggestions: fallbackSuggestions,
@@ -2378,19 +2786,21 @@ async function handleFridgeScanFile(file) {
       shopping: ["Frysta wokgrönsaker", "Kvarg naturell", "Ägg", "Tonfisk eller tofu"],
       detail: "local",
       message: `${fallbackSuggestions.length} lokala förslag hittades`,
-      note: "Appen använder bildfärg och måltidsmål som fallback. Köks-AI kan ändå resonera på råvarorna."
+      note: "Appen använder färgsignaler från bildserien och måltidsmål som fallback. Köks-AI kan ändå resonera på råvarorna."
     };
   }
 
   renderFridgeBuilder();
 }
 
-async function requestFridgeVisionSuggestions(imageUrl) {
+async function requestFridgeVisionSuggestions(imageInput) {
+  const images = Array.isArray(imageInput) ? imageInput.filter(Boolean).slice(0, 4) : [imageInput].filter(Boolean);
   const response = await fetch("/api/fridge-scan", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      image: imageUrl,
+      image: images[0] || "",
+      images,
       goal: state.pantry.goal,
       profile: {
         sex: state.profile.sex,
@@ -2412,6 +2822,7 @@ async function requestFridgeVisionSuggestions(imageUrl) {
     mealIdea: normalizeFridgeMealIdea(data.mealIdea),
     shopping: normalizeShoppingItems(data.shopping),
     detail: data.detail || "high",
+    imageCount: Number(data.imageCount) || images.length,
     note: String(data.note || "").slice(0, 220)
   };
 }
@@ -3599,6 +4010,11 @@ function numberValue(selector, fallback = 0) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function roundToTenth(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.round(number * 10) / 10 : 0;
 }
 
 function formatTrend(value, unit) {

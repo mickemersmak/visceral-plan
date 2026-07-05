@@ -91,6 +91,7 @@ function buildKitchenPrompt(message, context, history) {
     "Prioritera protein, fiber, grön volym, rimlig energi, låg sockerlast och hållbara byten.",
     "Om bild finns: använd den som stöd men var ärlig med osäkerhet.",
     "Använd scanQuality och feedback för att inte överdriva osäkra bildfynd. Låt bekräftade fynd väga tyngre.",
+    "Om context.mealPhoto finns: använd den fotade måltidens kcal och makron som huvudunderlag för förbättringsförslag.",
     "Fyll shoppingPlan med konkreta inköp i gram, prioritet och varför. nextBestQuestion ska vara en tydlig nästa fråga.",
     "Välj add/remove endast från allowedFoodIds.",
     "Svara alltid med JSON enligt schema.",
@@ -197,6 +198,18 @@ function sanitizeContext(context) {
       score: numberOrNull(context.scanQuality.score),
       shouldRetake: Boolean(context.scanQuality.shouldRetake),
       advice: String(context.scanQuality.advice || "").slice(0, 160)
+    } : null,
+    mealPhoto: context.mealPhoto && typeof context.mealPhoto === "object" ? {
+      dishName: String(context.mealPhoto.dishName || "").slice(0, 90),
+      confidence: numberOrNull(context.mealPhoto.confidence),
+      totals: context.mealPhoto.totals && typeof context.mealPhoto.totals === "object" ? {
+        kcal: numberOrNull(context.mealPhoto.totals.kcal),
+        protein: numberOrNull(context.mealPhoto.totals.protein),
+        carbs: numberOrNull(context.mealPhoto.totals.carbs),
+        fat: numberOrNull(context.mealPhoto.totals.fat),
+        fiber: numberOrNull(context.mealPhoto.totals.fiber)
+      } : null,
+      verdict: String(context.mealPhoto.verdict || "").slice(0, 120)
     } : null,
     feedback: Array.isArray(context.feedback) ? context.feedback.slice(-20).map((item) => ({
       id: String(item.id || "").slice(0, 60),

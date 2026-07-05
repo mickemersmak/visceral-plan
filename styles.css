@@ -1246,6 +1246,236 @@ select:focus {
   margin-top: 20px;
 }
 
+.meal-scan-module {
+  margin-top: 20px;
+}
+
+.meal-scan-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(320px, 1.28fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.meal-scan-preview,
+.meal-scan-result {
+  min-width: 0;
+}
+
+.meal-scan-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  min-height: 320px;
+  border: 1px solid rgba(18, 63, 53, 0.14);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(18, 63, 53, 0.08), rgba(232, 197, 117, 0.13)),
+    #fffefa;
+  box-shadow: var(--shadow-soft);
+}
+
+.meal-scan-preview.empty {
+  min-height: 220px;
+}
+
+.meal-scan-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.meal-scan-preview span {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  border-radius: 999px;
+  padding: 9px 11px;
+  background: rgba(10, 18, 16, 0.76);
+  color: #fffefa;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-align: center;
+  backdrop-filter: blur(14px);
+}
+
+.meal-scan-preview.empty span {
+  position: static;
+  background: rgba(18, 63, 53, 0.08);
+  color: var(--green);
+}
+
+.meal-scan-result {
+  display: grid;
+  gap: 10px;
+}
+
+.meal-scan-status,
+.meal-scan-empty,
+.meal-scan-card {
+  border: 1px solid rgba(18, 63, 53, 0.12);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fffefa;
+}
+
+.meal-scan-status {
+  display: grid;
+  gap: 4px;
+  background:
+    linear-gradient(135deg, rgba(18, 63, 53, 0.07), rgba(232, 197, 117, 0.1)),
+    #fffefa;
+}
+
+.meal-scan-status span,
+.meal-scan-empty,
+.meal-scan-card p,
+.meal-scan-card small,
+.meal-scan-card li {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+.meal-scan-card {
+  display: grid;
+  gap: 12px;
+  box-shadow: var(--shadow-soft);
+}
+
+.meal-scan-card header,
+.meal-scan-items header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.meal-scan-card header span,
+.meal-scan-quality strong,
+.meal-scan-items header span,
+.meal-scan-notes span {
+  color: var(--gold-dark);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.meal-scan-card header strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--green);
+  font-size: 1.08rem;
+}
+
+.meal-scan-card header b {
+  display: grid;
+  place-items: center;
+  min-width: 52px;
+  min-height: 38px;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  color: var(--gold-dark);
+  font-size: 0.82rem;
+}
+
+.meal-scan-quality {
+  display: grid;
+  gap: 5px;
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(18, 63, 53, 0.06);
+}
+
+.meal-scan-quality.warn {
+  background: rgba(185, 87, 67, 0.08);
+}
+
+.meal-scan-macros {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.meal-scan-macros article {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(18, 63, 53, 0.1);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(18, 63, 53, 0.04);
+}
+
+.meal-scan-macros span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.meal-scan-macros strong {
+  color: var(--green);
+  font-size: 1rem;
+}
+
+.meal-scan-items {
+  display: grid;
+  gap: 7px;
+}
+
+.meal-scan-items article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border-top: 1px solid rgba(18, 63, 53, 0.08);
+  padding-top: 8px;
+}
+
+.meal-scan-items article b {
+  color: var(--green);
+}
+
+.meal-scan-verdict {
+  display: grid;
+  gap: 6px;
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(18, 63, 53, 0.06);
+}
+
+.meal-scan-verdict.strong {
+  background: rgba(36, 123, 102, 0.1);
+}
+
+.meal-scan-verdict.watch {
+  background: rgba(185, 87, 67, 0.08);
+}
+
+.meal-scan-verdict ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.meal-scan-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.meal-scan-notes span {
+  border-radius: 999px;
+  padding: 7px 9px;
+  background: rgba(18, 63, 53, 0.07);
+}
+
+.meal-scan-caution {
+  border-left: 3px solid rgba(185, 87, 67, 0.5);
+  padding-left: 8px;
+}
+
 .fridge-module {
   margin-top: 20px;
   overflow: hidden;
@@ -1511,7 +1741,7 @@ select:focus {
 
 .fridge-scan-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1550,6 +1780,59 @@ select:focus {
   height: 100%;
   max-height: 260px;
   object-fit: cover;
+}
+
+.fridge-scan-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+}
+
+.fridge-scan-gallery figure {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 254, 250, 0.13);
+  border-radius: 10px;
+  aspect-ratio: 1.05;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.fridge-scan-gallery img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+}
+
+.fridge-scan-gallery button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 254, 250, 0.28);
+  border-radius: 999px;
+  background: rgba(10, 18, 16, 0.72);
+  color: #fffefa;
+  font-size: 1rem;
+  font-weight: 950;
+}
+
+.fridge-scan-gallery figcaption {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  border-radius: 999px;
+  padding: 5px 7px;
+  background: rgba(10, 18, 16, 0.72);
+  color: rgba(255, 254, 250, 0.86);
+  font-size: 0.68rem;
+  font-weight: 900;
 }
 
 .fridge-scan-preview span {
@@ -3272,8 +3555,17 @@ textarea:focus {
   }
 
   .fridge-layout,
+  .meal-scan-layout,
   .fridge-chip-grid {
     grid-template-columns: 1fr;
+  }
+
+  .meal-scan-preview {
+    min-height: 220px;
+  }
+
+  .meal-scan-macros {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .fridge-scan-actions {
@@ -3455,6 +3747,10 @@ textarea:focus {
   }
 
   .fridge-macro-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .meal-scan-macros {
     grid-template-columns: 1fr;
   }
 

@@ -21,20 +21,20 @@ module.exports = async function handler(req, res) {
 
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
-    const image = typeof body.image === "string" ? body.image : "";
+    const images = sanitizeImages(body.images, body.image);
     const foods = Array.isArray(body.foods) ? body.foods.slice(0, 90) : [];
     const goal = typeof body.goal === "string" ? body.goal : "fatloss";
     const profile = body.profile && typeof body.profile === "object" ? body.profile : {};
     const feedback = Array.isArray(body.feedback) ? body.feedback.slice(-20) : [];
     const detail = sanitizeDetail(body.detail);
 
-    if (!image.startsWith("data:image/")) {
-      res.status(400).json({ message: "Bilden måste skickas som data-URL." });
+    if (!images.length) {
+      res.status(400).json({ message: "Minst en bild måste skickas som data-URL." });
       return;
     }
 
-    if (image.length > 6_500_000) {
-      res.status(413).json({ message: "Bilden är för stor. Ta en ny bild närmare kylskåpet." });
+    if (images.some((item) => item.length > 6_500_000) || images.join("").length > 16_000_000) {
+      res.status(413).json({ message: "Bildserien är för stor. Ta färre eller närmare bilder." });
       return;
     }
 
@@ -52,13 +52,13 @@ module.exports = async function handler(req, res) {
             content: [
               {
                 type: "input_text",
-                text: buildPrompt(goal, foods, profile, feedback)
+                text: buildPrompt(goal, foods, profile, feedback, images.length)
               },
-              {
+              ...images.map((imageUrl) => ({
                 type: "input_image",
-                image_url: image,
+                image_url: imageUrl,
                 detail
-              }
+              }))
             ]
           }
         ],
@@ -84,17 +84,16 @@ module.exports = async function handler(req, res) {
 
     const parsed = parseModelJSON(data);
     const allowed = new Set(foods.map((food) => food.id));
-    const suggestions = normalizeSuggestions(parsed.suggestions, allowed);
-    const uncertain = normalizeUncertain(parsed.uncertain, allowed);
 
     res.status(200).json({
       source: "openai",
-      suggestions,
-      uncertain,
+      suggestions: normalizeSuggestions(parsed.suggestions, allowed),
+      uncertain: normalizeUncertain(parsed.uncertain, allowed),
       quality: normalizeQuality(parsed.quality, detail),
       mealIdea: normalizeMealIdea(parsed.mealIdea, allowed),
       shopping: normalizeShopping(parsed.shopping),
       detail,
+      imageCount: images.length,
       note: String(parsed.note || "Kontrollera råvarorna innan du lägger till dem.").slice(0, 220)
     });
   } catch (error) {
@@ -104,6 +103,13 @@ module.exports = async function handler(req, res) {
     });
   }
 };
+
+function sanitizeImages(images, fallbackImage) {
+  const candidates = Array.isArray(images) ? images : [];
+  return Array.from(new Set([...candidates, fallbackImage]
+    .filter((item) => typeof item === "string" && item.startsWith("data:image/"))))
+    .slice(0, 4);
+}
 
 function fridgeScanSchema() {
   return {
@@ -184,17 +190,20 @@ function fridgeScanSchema() {
   };
 }
 
-function buildPrompt(goal, foods, profile, feedback) {
+function buildPrompt(goal, foods, profile, feedback, imageCount) {
   const catalog = foods.map((food) => `${food.id}: ${food.name} (${food.role}${food.category ? `, ${food.category}` : ""})`).join("\n");
   return [
     "Du är en svensk premiumscanner för kylskåp, måltider och bukfettsfokus.",
-    "Identifiera bara råvaror som syns tydligt eller rimligt i bilden. Hitta aldrig på id.",
+    "Du kan få flera bilder från samma kylskåp, till exempel olika hyllor eller dörrfack.",
+    "Slå ihop fynd från alla bilder, men duplicera inte samma råvara.",
+    "Identifiera bara råvaror som syns tydligt eller rimligt i bilderna. Hitta aldrig på id.",
     "Dela upp säkra fynd i suggestions och osäkra fynd i uncertain.",
     "Sätt needsConfirmation=true när råvaran delvis skyms, bara syns på förpackning, är lik flera alternativ eller confidence < 0.72.",
-    "Ge visualEvidence som beskriver exakt vad du ser: färg, form, förpackning, hylla eller placering.",
-    "Bedöm bildkvalitet: ljus, inramning, skymda objekt och om användaren bör ta om bilden.",
+    "Ge visualEvidence som beskriver exakt vad du ser: färg, form, förpackning, hylla, dörrfack, placering eller vilken bild i serien.",
+    "Bedöm bildkvalitet över hela serien: ljus, inramning, skymda objekt och om användaren bör ta om någon bild.",
     "Föreslå en enkel mealIdea och shoppingrad som kompletterar mot målet.",
     "Använd alltid metriska mått och svenska råvarunamn i text.",
+    `Antal bilder i serien: ${imageCount}.`,
     `Måltidsmål: ${goal}.`,
     `Profil: ${JSON.stringify({
       sex: profile.sex || "unspecified",
