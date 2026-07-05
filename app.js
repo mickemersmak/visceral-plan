@@ -115,7 +115,7 @@ const foodGuideGroups = [
       ["Havre, råg, korn", "Fullkorn med mycket fiber; bra bas när portionen är tydlig.", "40-80 g torrvikt"],
       ["Fisk, särskilt fet fisk", "Protein och omättade fetter; bra ersättning för chark och rött kött.", "120-180 g"],
       ["Naturell yoghurt, kvarg, kefir", "Proteinrikt och enkelt; välj osötat.", "150-250 g"],
-      ["Ägg", "Mättande protein, lätt att planera runt.", "1-3 st"],
+      ["Ägg", "Mättande protein, lätt att planera runt.", "50-180 g"],
       ["Tofu, tempeh, kyckling", "Magra proteiner som gör energiunderskott lättare.", "120-200 g"],
       ["Nötter och frön", "Näringsrikt men energitätt; bäst som kontrollerad mängd.", "15-30 g"],
       ["Potatis, quinoa, fullkornsris", "Bra kolhydratbas när den äts kokt och portionsstyrd.", "120-220 g kokt"]
@@ -125,11 +125,11 @@ const foodGuideGroups = [
     title: "Frukt",
     items: [
       ["Hallon, blåbär, jordgubbar", "Mycket smak, fiber och volym per energi.", "100-200 g"],
-      ["Äpple och päron", "Fiberrikt, bärbart och bra mot sötsug.", "1 frukt, 120-180 g"],
-      ["Apelsin, grapefrukt, clementin", "Vätska, C-vitamin och tydlig portionsstorlek.", "1-2 frukter"],
-      ["Kiwi", "Fiberrik frukt med mycket C-vitamin.", "1-2 st"],
+      ["Äpple och päron", "Fiberrikt, bärbart och bra mot sötsug.", "120-180 g"],
+      ["Apelsin, grapefrukt, clementin", "Vätska, C-vitamin och tydlig portionsstorlek.", "150-300 g"],
+      ["Kiwi", "Fiberrik frukt med mycket C-vitamin.", "75-150 g"],
       ["Plommon, persika, nektarin", "Bra vardagsfrukt när den äts hel.", "100-200 g"],
-      ["Banan", "Bra runt träning; något mer energität än bär/citrus.", "1 st, 100-130 g"],
+      ["Banan", "Bra runt träning; något mer energität än bär/citrus.", "100-130 g"],
       ["Mango och druvor", "Näringsrika men lättare att överäta; välj uppmätt portion.", "100-150 g"],
       ["Torkad frukt och juice", "Koncentrerad energi/fritt socker; använd sparsamt.", "0-30 g eller byt mot hel frukt"]
     ]
@@ -146,6 +146,51 @@ const foodGuideGroups = [
       ["Potatis och sötpotatis", "Bra mättnad, men räkna som kolhydratbas.", "120-220 g kokt"],
       ["Avokado", "Bra omättat fett men energitätt; bäst i mindre mängd.", "50-100 g"]
     ]
+  }
+];
+
+const swapGuide = [
+  {
+    id: "sweet-drink",
+    label: "Läsk, juice eller söt dryck",
+    better: "Kolsyrat vatten + citron, osötat te eller kaffe",
+    portion: "Byt 330 ml mot 330 ml utan socker",
+    why: "Du tar bort fritt socker utan att behöva ändra måltiden."
+  },
+  {
+    id: "evening-snack",
+    label: "Kvällschips eller snacks",
+    better: "200 g naturell yoghurt/kvarg + 100 g bär",
+    portion: "Lägg till kanel eller 10 g nötter om du behöver mer mättnad",
+    why: "Mer protein och volym, mindre energitäthet."
+  },
+  {
+    id: "white-bread",
+    label: "Vitt bröd eller söt frukost",
+    better: "Rågbröd/havre + ägg, yoghurt eller kvarg",
+    portion: "60-80 g fullkorn + 20-35 g protein",
+    why: "Fiber + protein gör frukosten mer stabil."
+  },
+  {
+    id: "large-pasta",
+    label: "Stor pasta-/risportion",
+    better: "Halvera kolhydraten och lägg till baljväxter/grönsaker",
+    portion: "120-180 g kokt fullkorn + 200-300 g grönsaker",
+    why: "Du behåller måltidskänslan men ökar volym och fiber."
+  },
+  {
+    id: "processed-meat",
+    label: "Chark, bacon eller fet snabbmat",
+    better: "Fisk, kyckling, tofu, ägg eller bönor",
+    portion: "120-180 g protein eller 150-250 g baljväxter",
+    why: "Mer mättnad och bättre fettprofil i vardagen."
+  },
+  {
+    id: "alcohol",
+    label: "Alkohol till maten",
+    better: "Alkoholfritt alternativ + planerad proteinrik måltid",
+    portion: "Välj 0 ml alkohol minst 4 dagar/vecka",
+    why: "Alkohol tillför energi och gör kvällsbeslut svårare."
   }
 ];
 
@@ -284,6 +329,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindProfile();
   bindLog();
   bindTimer();
+  bindSwapLab();
   renderAll();
   activateInitialTab();
 });
@@ -576,6 +622,13 @@ function bindTimer() {
   resetTimer();
 }
 
+function bindSwapLab() {
+  const select = $("#swapTrigger");
+  if (!select) return;
+  select.innerHTML = swapGuide.map((item) => `<option value="${item.id}">${item.label}</option>`).join("");
+  select.addEventListener("change", renderSmartFood);
+}
+
 function startTimer() {
   if (timer.running) return;
   timer.running = true;
@@ -624,15 +677,221 @@ function formatSeconds(total) {
 }
 
 function renderAll() {
+  renderCoach();
   renderMetrics();
   renderPriorities();
   renderPlan();
   renderNutrition();
+  renderSmartFood();
   renderFoodGuide();
   renderTraining();
   renderWeeklySummary();
   renderSources();
   loadLogForDate();
+}
+
+function getRecentEntries(days = 7) {
+  return Array.from({ length: days }, (_, offset) => {
+    const d = new Date();
+    d.setDate(d.getDate() - offset);
+    const key = dateKey(d);
+    return { key, entry: state.logs[key] };
+  }).filter((item) => item.entry);
+}
+
+function getTrend(values) {
+  return values.length >= 2 ? values[values.length - 1] - values[0] : 0;
+}
+
+function analyzeProgress() {
+  const p = state.profile;
+  const entries = getRecentEntries(7);
+  const whtr = p.waist / p.height;
+  const minutes = entries.reduce((sum, item) => sum + (item.entry.minutes || 0), 0);
+  const habitHits = entries.reduce((sum, item) => sum + Object.values(item.entry.habits || {}).filter(Boolean).length, 0);
+  const possibleHabits = Math.max(7, entries.length * 7);
+  const strengthDays = entries.filter((item) => item.entry.habits && item.entry.habits.strength).length;
+  const sleepDays = entries.filter((item) => item.entry.habits && item.entry.habits.sleep).length;
+  const stressDays = entries.filter((item) => item.entry.habits && item.entry.habits.stress).length;
+  const alcoholFreeDays = entries.filter((item) => item.entry.habits && item.entry.habits.alcohol).length;
+  const vegDays = entries.filter((item) => item.entry.habits && item.entry.habits.veg).length;
+  const proteinDays = entries.filter((item) => item.entry.habits && item.entry.habits.protein).length;
+  const sugarFreeDays = entries.filter((item) => item.entry.habits && item.entry.habits.sugarfree).length;
+  const waistTrend = getTrend(entries.map((item) => item.entry.waist).filter(Boolean));
+
+  const waistScore = whtr < 0.5 ? 28 : whtr < 0.55 ? 23 : whtr < 0.6 ? 18 : 12;
+  const movementScore = Math.min(22, Math.round((minutes / 150) * 22));
+  const strengthScore = Math.min(12, Math.round((strengthDays / 2) * 12));
+  const foodScore = Math.min(18, Math.round(((vegDays + proteinDays + sugarFreeDays) / Math.max(3, entries.length * 3)) * 18));
+  const recoveryScore = Math.min(10, Math.round(((sleepDays + stressDays + alcoholFreeDays) / Math.max(3, entries.length * 3)) * 10));
+  const loggingScore = Math.min(10, Math.round((entries.length / 5) * 10));
+  const score = clamp(waistScore + movementScore + strengthScore + foodScore + recoveryScore + loggingScore, 0, 100);
+
+  return {
+    entries,
+    score,
+    whtr,
+    minutes,
+    strengthDays,
+    sleepDays,
+    stressDays,
+    alcoholFreeDays,
+    vegDays,
+    proteinDays,
+    sugarFreeDays,
+    waistTrend,
+    habitHits,
+    possibleHabits
+  };
+}
+
+function renderCoach() {
+  const analysis = analyzeProgress();
+  const status = $("#coachStatus");
+  const score = analysis.score;
+  $("#metabolicScore").textContent = score;
+  $("#metabolicProgress").style.width = `${score}%`;
+
+  let label = "Bygg databas med 3-5 loggdagar.";
+  let className = "medium";
+  if (score >= 78) {
+    label = "Stark rutin. Behåll trycket och höj precisionen.";
+    className = "low";
+  } else if (score >= 55) {
+    label = "Bra bas. En svag länk bromsar resultatet.";
+    className = "medium";
+  } else {
+    label = "Hög hävstång: små dagliga beslut kan ge stor effekt.";
+    className = "high";
+  }
+  $("#metabolicLabel").textContent = label;
+  status.textContent = analysis.entries.length ? `${analysis.entries.length}/7 loggdagar` : "Startläge";
+  status.className = `status-badge ${className}`;
+
+  const action = getNextBestAction(analysis);
+  $("#nextAction").innerHTML = `
+    <span>Nästa bästa åtgärd</span>
+    <strong>${action.title}</strong>
+    <p>${action.text}</p>
+    <small>${action.reason}</small>
+  `;
+
+  const report = getCoachReport(analysis);
+  $("#coachReport").innerHTML = report.map(([title, text]) => `
+    <article>
+      <strong>${title}</strong>
+      <span>${text}</span>
+    </article>
+  `).join("");
+}
+
+function getNextBestAction(analysis) {
+  if (analysis.entries.length < 3) {
+    return {
+      title: "Logga 3 dagar utan att ändra allt",
+      text: "Registrera midja, vikt, rörelse och vanor i tre dagar. Appen blir smartare när den ser din baslinje.",
+      reason: "Bra coaching börjar med mönster, inte gissningar."
+    };
+  }
+  if (analysis.minutes < 150) {
+    const missing = Math.max(0, 150 - analysis.minutes);
+    return {
+      title: `Samla ${missing} min rörelse`,
+      text: "Dela upp det i 10-20 min promenad efter måltid. Det kräver mindre vilja än ett perfekt träningspass.",
+      reason: "Rörelsevolym är en av de tydligaste hävstängerna i veckan."
+    };
+  }
+  if (analysis.strengthDays < 2) {
+    return {
+      title: "Gör ett kort styrkepass",
+      text: "Välj helkroppspasset i träningsfliken. 25-35 min räcker för att skydda muskelmassa.",
+      reason: "Styrka gör viktnedgången mer metabolt robust."
+    };
+  }
+  if (analysis.proteinDays < 5 || analysis.vegDays < 5) {
+    return {
+      title: "Bygg nästa måltid med 3-block",
+      text: "120-180 g protein, 200-300 g grönsaker och 120-200 g potatis/baljväxt/fullkorn.",
+      reason: "Mättnad och fiber slår småförbud."
+    };
+  }
+  if (analysis.sugarFreeDays < 5) {
+    return {
+      title: "Byt flytande socker idag",
+      text: "Välj vatten, kaffe, te eller light/alkoholfritt om du behöver brygga över vanan.",
+      reason: "Flytande energi ger svag mättnad och är lätt att förbise."
+    };
+  }
+  if (analysis.sleepDays < 5) {
+    return {
+      title: "Sätt sömnfönster ikväll",
+      text: "Planera 7+ timmar och stäng matbeslut 2 timmar före läggning.",
+      reason: "Sömn gör hunger och impulser lättare att hantera."
+    };
+  }
+  return {
+    title: "Skärp nästa vecka med ett experiment",
+    text: "Behåll rutinen och välj ett experiment: 30 g mer fiber/dag, två styrkepass eller fyra alkoholfria dagar.",
+    reason: "När basen sitter ger ett smalt experiment bäst lärande."
+  };
+}
+
+function getCoachReport(analysis) {
+  const waistText = analysis.waistTrend > 0
+    ? `Midjan rör sig åt rätt håll: ${formatTrend(analysis.waistTrend, "cm")}.`
+    : analysis.waistTrend < 0
+      ? `Midjan har ökat ${formatTrend(analysis.waistTrend, "cm")}; säkra måltidsramen innan du jagar mer träning.`
+      : "Midjan är stabil eller saknar trenddata.";
+  const movementText = analysis.minutes >= 150
+    ? `Du har nått ${analysis.minutes} min rörelse senaste 7 dagarna.`
+    : `Du saknar ${150 - analysis.minutes} min till veckogolvet 150 min.`;
+  const foodText = (analysis.proteinDays + analysis.vegDays + analysis.sugarFreeDays) >= 15
+    ? "Kostvanorna bär planen. Nästa nivå är portionsprecision i gram."
+    : "Kostvanorna är den snabbaste vinsten: protein, grönt och sockerfri dryck.";
+  return [
+    ["Trend", waistText],
+    ["Volym", movementText],
+    ["Hävstång", foodText]
+  ];
+}
+
+function renderSmartFood() {
+  renderPlateBuilder();
+  renderSwapResult();
+}
+
+function renderPlateBuilder() {
+  const p = state.profile;
+  const proteinTarget = clamp(Math.round(p.weight * 1.6), 70, 190);
+  const mealProtein = Math.round(proteinTarget / 3);
+  const veg = p.waist / p.height >= 0.5 ? "250-350 g" : "200-300 g";
+  const carbs = p.foodMode === "dash" ? "120-180 g" : "120-220 g";
+  const fats = p.foodMode === "med" ? "10-20 g olivolja/nötter" : "10-15 g omättat fett";
+  $("#plateBuilder").innerHTML = `
+    <div class="plate-head">
+      <span>Din tallrik</span>
+      <strong>${mealProtein} g protein per huvudmål</strong>
+      <small>Dagligt riktmärke: cirka ${proteinTarget} g protein, plus minst 400 g frukt/grönt.</small>
+    </div>
+    <div class="plate-grid">
+      <article><b>1</b><strong>${veg}</strong><span>Grönsaker eller bär/frukt per huvudmål.</span></article>
+      <article><b>2</b><strong>120-180 g</strong><span>Fisk, kyckling, tofu, ägg, kvarg eller baljväxter.</span></article>
+      <article><b>3</b><strong>${carbs}</strong><span>Kokt potatis, bönor, linser, havre eller fullkorn.</span></article>
+      <article><b>4</b><strong>${fats}</strong><span>Fett som höjer smak utan att ta över energin.</span></article>
+    </div>
+  `;
+}
+
+function renderSwapResult() {
+  const select = $("#swapTrigger");
+  if (!select) return;
+  const selected = swapGuide.find((item) => item.id === select.value) || swapGuide[0];
+  $("#swapResult").innerHTML = `
+    <span>Bättre byte</span>
+    <strong>${selected.better}</strong>
+    <p>${selected.why}</p>
+    <small>${selected.portion}</small>
+  `;
 }
 
 function renderMetrics() {
@@ -862,6 +1121,10 @@ function syncProfileFields() {
 function numberValue(selector, fallback = 0) {
   const value = Number.parseFloat($(selector).value);
   return Number.isFinite(value) ? value : fallback;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function formatTrend(value, unit) {

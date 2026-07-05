@@ -99,7 +99,7 @@
             </div>
             <div class="protocol-note">
               <span>Kunskapsdjup</span>
-              <strong>8 verifierade källspår</strong>
+              <strong>9 verifierade källspår</strong>
               <small>Video, kliniska riktlinjer och folkhälsodata.</small>
             </div>
           </div>
@@ -125,6 +125,30 @@
         </section>
 
         <section id="dashboard" class="view is-active" role="tabpanel">
+          <section class="module coach-module" aria-labelledby="coach-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">Smart coach</p>
+                <h2 id="coach-title">Metabolt beslutsrum</h2>
+              </div>
+              <span id="coachStatus" class="status-badge low">Analyserar</span>
+            </div>
+            <div class="coach-layout">
+              <article class="coach-score" aria-label="Metabolt index">
+                <span>Metabolt index</span>
+                <strong id="metabolicScore">0</strong>
+                <small id="metabolicLabel">Logga några dagar för skarpare analys.</small>
+                <div class="progress-track" aria-hidden="true">
+                  <span id="metabolicProgress"></span>
+                </div>
+              </article>
+              <div class="coach-intel">
+                <div id="nextAction" class="next-action"></div>
+                <div id="coachReport" class="coach-report"></div>
+              </div>
+            </div>
+          </section>
+
           <div class="dashboard-grid">
             <section class="module profile-module" aria-labelledby="profile-title">
               <div class="module-heading">
@@ -302,6 +326,26 @@
               <div id="foodTargets" class="target-list"></div>
             </section>
           </div>
+
+          <section class="module smart-food-module" aria-labelledby="smart-food-title">
+            <div class="module-heading">
+              <div>
+                <p class="eyebrow">Matlab</p>
+                <h2 id="smart-food-title">Tallrik i gram och smarta byten</h2>
+              </div>
+              <span class="status-badge low">Beslutsstöd</span>
+            </div>
+            <div class="smart-food-grid">
+              <div id="plateBuilder" class="plate-builder"></div>
+              <div class="swap-lab">
+                <label>
+                  <span>Vad vill du byta?</span>
+                  <select id="swapTrigger"></select>
+                </label>
+                <div id="swapResult" class="swap-result"></div>
+              </div>
+            </div>
+          </section>
 
           <section class="module food-guide-module" aria-labelledby="food-guide-title">
             <div class="module-heading">

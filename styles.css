@@ -625,6 +625,118 @@ select:focus {
   background: linear-gradient(90deg, var(--green-2), var(--amber), var(--coral));
 }
 
+.coach-module {
+  margin-bottom: 20px;
+  background:
+    linear-gradient(135deg, rgba(15, 25, 22, 0.96), rgba(23, 72, 60, 0.92)),
+    var(--green);
+  color: #fffefa;
+}
+
+.coach-module::before {
+  background: linear-gradient(90deg, #f1d18a, var(--green-2), #fffefa);
+}
+
+.coach-module .eyebrow {
+  color: #f1d18a;
+}
+
+.coach-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.coach-score,
+.next-action,
+.coach-report article {
+  border: 1px solid rgba(255, 254, 250, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 254, 250, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.coach-score {
+  display: grid;
+  gap: 10px;
+  align-content: center;
+  padding: 18px;
+}
+
+.coach-score span,
+.coach-score small,
+.next-action span,
+.next-action small,
+.next-action p,
+.coach-report span {
+  color: rgba(255, 254, 250, 0.72);
+}
+
+.coach-score strong {
+  font-size: 4rem;
+  line-height: 1;
+  color: #f1d18a;
+  font-variant-numeric: tabular-nums;
+}
+
+.coach-score .progress-track {
+  background: rgba(255, 254, 250, 0.14);
+}
+
+.coach-intel {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.next-action {
+  padding: 18px;
+}
+
+.next-action span,
+.next-action strong,
+.next-action small {
+  display: block;
+}
+
+.next-action strong {
+  margin-top: 5px;
+  font-size: 1.35rem;
+}
+
+.next-action p {
+  margin: 10px 0;
+  line-height: 1.55;
+}
+
+.next-action small {
+  font-weight: 800;
+}
+
+.coach-report {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.coach-report article {
+  padding: 14px;
+}
+
+.coach-report strong,
+.coach-report span {
+  display: block;
+}
+
+.coach-report strong {
+  color: #f1d18a;
+}
+
+.coach-report span {
+  margin-top: 6px;
+  line-height: 1.45;
+}
+
 .priority-list,
 .target-list,
 .workout-list,
@@ -780,6 +892,111 @@ select:focus {
 
 .food-guide-module {
   margin-top: 20px;
+}
+
+.smart-food-module {
+  margin-top: 20px;
+}
+
+.smart-food-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+  gap: 14px;
+}
+
+.plate-builder,
+.swap-lab {
+  border: 1px solid rgba(23, 72, 60, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(239, 247, 243, 0.76));
+  box-shadow: 0 8px 22px rgba(16, 23, 20, 0.045);
+}
+
+.plate-head {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 13px;
+}
+
+.plate-head span,
+.plate-head small,
+.swap-result span,
+.swap-result p,
+.swap-result small {
+  color: var(--muted);
+}
+
+.plate-head strong {
+  font-size: 1.28rem;
+}
+
+.plate-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.plate-grid article {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(23, 72, 60, 0.1);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.plate-grid b {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--amber), #f1d18a);
+  color: #111815;
+}
+
+.plate-grid strong,
+.plate-grid span {
+  display: block;
+}
+
+.plate-grid span {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.swap-lab {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.swap-result {
+  border-left: 3px solid var(--green-2);
+  padding-left: 13px;
+}
+
+.swap-result span,
+.swap-result strong,
+.swap-result small {
+  display: block;
+}
+
+.swap-result strong {
+  margin-top: 5px;
+  font-size: 1.18rem;
+}
+
+.swap-result p {
+  margin: 9px 0;
+  line-height: 1.52;
+}
+
+.swap-result small {
+  color: var(--green);
+  font-weight: 800;
 }
 
 .guide-intro {
@@ -1262,6 +1479,27 @@ select:focus {
   .dashboard-grid.lower,
   .two-column {
     gap: 12px;
+  }
+
+  .coach-module {
+    margin-bottom: 12px;
+  }
+
+  .coach-layout,
+  .smart-food-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .coach-score strong {
+    font-size: 3.15rem;
+  }
+
+  .coach-report {
+    grid-template-columns: 1fr;
+  }
+
+  .plate-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .food-guide-module {
