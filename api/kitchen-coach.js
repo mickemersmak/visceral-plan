@@ -27,7 +27,8 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    const apiKey = normalizeApiKey(process.env.OPENAI_API_KEY);
+    if (!apiKey) {
       res.status(200).json(localKitchenReply(message, context, "local"));
       return;
     }
@@ -35,7 +36,7 @@ module.exports = async function handler(req, res) {
     const response = await fetch(OPENAI_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -89,6 +90,8 @@ function buildKitchenPrompt(message, context, history) {
     "Du får inte diagnostisera, lova snabb fettförlust eller ge medicinska råd. Vid medicinsk oro: hänvisa till vårdgivare.",
     "Prioritera protein, fiber, grön volym, rimlig energi, låg sockerlast och hållbara byten.",
     "Om bild finns: använd den som stöd men var ärlig med osäkerhet.",
+    "Använd scanQuality och feedback för att inte överdriva osäkra bildfynd. Låt bekräftade fynd väga tyngre.",
+    "Fyll shoppingPlan med konkreta inköp i gram, prioritet och varför. nextBestQuestion ska vara en tydlig nästa fråga.",
     "Välj add/remove endast från allowedFoodIds.",
     "Svara alltid med JSON enligt schema.",
     "",
@@ -135,9 +138,25 @@ function kitchenReplySchema() {
         maxItems: 3,
         items: { type: "string" }
       },
+      shoppingPlan: {
+        type: "array",
+        maxItems: 5,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            item: { type: "string" },
+            grams: { type: "number" },
+            why: { type: "string" },
+            priority: { type: "string" }
+          },
+          required: ["item", "grams", "why", "priority"]
+        }
+      },
+      nextBestQuestion: { type: "string" },
       caution: { type: "string" }
     },
-    required: ["reply", "mealName", "reasoning", "steps", "add", "remove", "shopping", "questions", "caution"]
+    required: ["reply", "mealName", "reasoning", "steps", "add", "remove", "shopping", "questions", "shoppingPlan", "nextBestQuestion", "caution"]
   };
 }
 
@@ -146,6 +165,9 @@ function sanitizeContext(context) {
   const selectedFoods = Array.isArray(context.selectedFoods) ? context.selectedFoods.slice(0, 50).map(sanitizeFood).filter(Boolean) : [];
   const scanFoods = Array.isArray(context.scanFoods) ? context.scanFoods.slice(0, 12).map(sanitizeFood).filter(Boolean) : [];
   const mealItems = Array.isArray(context.mealItems) ? context.mealItems.slice(0, 10).map(sanitizeMealItem).filter(Boolean) : [];
+  const shoppingList = Array.isArray(context.shoppingList)
+    ? context.shoppingList.map((item) => String(item || "").trim()).filter(Boolean).map((item) => item.slice(0, 90)).slice(-30)
+    : [];
   return {
     goal: String(context.goal || "fatloss").slice(0, 40),
     goalLabel: String(context.goalLabel || "Bukfett och mättnad").slice(0, 80),
@@ -171,6 +193,17 @@ function sanitizeContext(context) {
     mealItems,
     selectedFoods,
     scanFoods,
+    scanQuality: context.scanQuality && typeof context.scanQuality === "object" ? {
+      score: numberOrNull(context.scanQuality.score),
+      shouldRetake: Boolean(context.scanQuality.shouldRetake),
+      advice: String(context.scanQuality.advice || "").slice(0, 160)
+    } : null,
+    feedback: Array.isArray(context.feedback) ? context.feedback.slice(-20).map((item) => ({
+      id: String(item.id || "").slice(0, 60),
+      verdict: String(item.verdict || "").slice(0, 20),
+      source: String(item.source || "").slice(0, 30)
+    })).filter((item) => item.id && item.verdict) : [],
+    shoppingList,
     allowedFoodIds
   };
 }
@@ -183,7 +216,11 @@ function sanitizeFood(food) {
     role: String(food.role || "").slice(0, 40),
     kcal: numberOrNull(food.kcal),
     protein: numberOrNull(food.protein),
-    fiber: numberOrNull(food.fiber)
+    fiber: numberOrNull(food.fiber),
+    confidence: numberOrNull(food.confidence),
+    reason: String(food.reason || "").slice(0, 160),
+    visualEvidence: String(food.visualEvidence || "").slice(0, 160),
+    confirmed: Boolean(food.confirmed)
   };
 }
 
@@ -223,6 +260,8 @@ function normalizeKitchenReply(reply, context, source, fallbackDetail = "") {
     remove: cleanIds(reply && reply.remove, 4),
     shopping: cleanList(reply && reply.shopping, 6),
     questions: cleanList(reply && reply.questions, 3),
+    shoppingPlan: normalizeShoppingPlan(reply && reply.shoppingPlan),
+    nextBestQuestion: String(reply && reply.nextBestQuestion || "").slice(0, 160),
     caution: String(reply && reply.caution || fallbackDetail || "").slice(0, 220)
   };
 }
@@ -254,11 +293,16 @@ function localKitchenReply(message, context, source = "local", detail = "") {
     shopping.push("Frysta wokgrönsaker", "Kvarg naturell", "Ägg", "Tonfisk eller tofu");
     steps.push("Gör det snabbt: stek/fräs basen 8-10 min och toppa med protein samt 10-15 g fettkälla.");
   }
+  if (text.includes("inköp") || text.includes("handla") || text.includes("shopping")) {
+    shopping.push("Frysta wokgrönsaker", "Kvarg naturell", "Ägg", "Tonfisk eller tofu", "Bär eller äpplen");
+    steps.push("För tre dagar: köp en grön volymbas, två proteinbaser och en enkel frukt/bär-komplettering.");
+  }
   if (!steps.length) {
     steps.push("Behåll den valda basen, men kontrollera protein, grön volym och fettmängd i den ordningen.");
   }
 
   const uniqueAdd = Array.from(new Set(add)).slice(0, 5);
+  const uniqueShopping = Array.from(new Set(shopping)).slice(0, 5);
   const reply = meal.kcal
     ? `Jag skulle göra måltiden skarpare genom att först säkra protein och grön volym. Din nuvarande byggare ligger runt ${Math.round(meal.kcal)} kcal, ${Math.round(meal.protein || 0)} g protein och ${Math.round(meal.fiber || 0)} g fiber.`
     : "Jag kan resonera utifrån kylskåpet, men välj eller scanna några råvaror först så blir förslagen mer precisa.";
@@ -270,10 +314,28 @@ function localKitchenReply(message, context, source = "local", detail = "") {
     steps,
     add: uniqueAdd,
     remove: [],
-    shopping,
+    shopping: uniqueShopping,
+    shoppingPlan: uniqueShopping.map((item, index) => ({
+      item,
+      grams: index === 0 ? 400 : 250,
+      why: index === 0 ? "Ger snabb grön volym och fiber." : "Kompletterar protein eller mättnad.",
+      priority: index < 2 ? "hög" : "medium"
+    })),
+    nextBestQuestion: "Vill du att jag gör en 3-dagars plan från samma råvaror?",
     questions: ["Vill du ha den som frukost, lunchlåda eller middag?", "Ska den vara vegetarisk?", "Hur mycket tid har du?"],
     caution: detail ? `AI-fallback: ${detail}` : ""
   }, context, source, detail);
+}
+
+function normalizeShoppingPlan(items) {
+  return Array.isArray(items)
+    ? items.map((item) => ({
+      item: String(item && item.item || "").trim().slice(0, 90),
+      grams: numberOrNull(item && item.grams) || 0,
+      why: String(item && item.why || "").trim().slice(0, 140),
+      priority: String(item && item.priority || "medium").trim().slice(0, 30)
+    })).filter((item) => item.item).slice(0, 5)
+    : [];
 }
 
 function parseModelJSON(data) {
@@ -289,6 +351,11 @@ function parseModelJSON(data) {
 function numberOrNull(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+}
+
+function normalizeApiKey(value) {
+  const key = String(value || "").trim().replace(/^["']|["']$/g, "");
+  return key.startsWith("sk-") ? key : "";
 }
 
 function setSecurityHeaders(res) {

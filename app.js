@@ -74,7 +74,9 @@ const defaultState = {
   pantry: {
     goal: "fatloss",
     selected: ["egg", "kvarg", "broccoli", "potato", "olive-oil"],
-    kitchenMessages: []
+    kitchenMessages: [],
+    scanFeedback: [],
+    shoppingList: []
   }
 };
 
@@ -612,6 +614,11 @@ let fridgeScan = {
   status: "idle",
   imageUrl: "",
   suggestions: [],
+  uncertain: [],
+  quality: null,
+  mealIdea: null,
+  shopping: [],
+  detail: "high",
   source: "idle",
   message: "Kamera redo",
   note: ""
@@ -915,7 +922,10 @@ function mergeState(base, next) {
     pantry: {
       ...base.pantry,
       ...(next.pantry || {}),
-      selected: Array.isArray(next.pantry && next.pantry.selected) ? next.pantry.selected : base.pantry.selected
+      selected: Array.isArray(next.pantry && next.pantry.selected) ? next.pantry.selected : base.pantry.selected,
+      kitchenMessages: Array.isArray(next.pantry && next.pantry.kitchenMessages) ? next.pantry.kitchenMessages : base.pantry.kitchenMessages,
+      scanFeedback: Array.isArray(next.pantry && next.pantry.scanFeedback) ? next.pantry.scanFeedback : base.pantry.scanFeedback,
+      shoppingList: Array.isArray(next.pantry && next.pantry.shoppingList) ? next.pantry.shoppingList : base.pantry.shoppingList
     },
     member: {
       ...base.member,
@@ -1104,6 +1114,44 @@ function bindFridgeBuilder() {
     event.target.value = "";
   });
   applyButton?.addEventListener("click", applyFridgeScanSuggestions);
+
+  $("#fridgeScanSuggestions")?.addEventListener("click", (event) => {
+    const confirmButton = event.target.closest("[data-scan-confirm]");
+    if (confirmButton) {
+      confirmFridgeScanItem(confirmButton.dataset.scanConfirm);
+      return;
+    }
+
+    const wrongButton = event.target.closest("[data-scan-wrong]");
+    if (wrongButton) {
+      rejectFridgeScanItem(wrongButton.dataset.scanWrong);
+      return;
+    }
+
+    const feedbackButton = event.target.closest("[data-scan-feedback]");
+    if (feedbackButton) {
+      markFridgeScanSuggestion(feedbackButton.dataset.scanFeedback, feedbackButton.dataset.scanVerdict || "right");
+      return;
+    }
+
+    const addButton = event.target.closest("[data-scan-add]");
+    if (addButton) {
+      const ids = addButton.dataset.scanAdd.split(",").filter((id) => pantryFoods.some((food) => food.id === id));
+      addFridgeIds(ids, "AI-måltiden lades till i byggaren.");
+      return;
+    }
+
+    const shoppingButton = event.target.closest("[data-scan-shopping]");
+    if (shoppingButton) {
+      saveScanShoppingItems(fridgeScan.shopping || []);
+      return;
+    }
+
+    const askButton = event.target.closest("[data-scan-ask]");
+    if (askButton && !kitchenAiLoading) {
+      askKitchenAssistant(askButton.dataset.scanAsk || "Vad kan jag laga av de scannade råvarorna?");
+    }
+  });
 }
 
 function bindKitchenAssistant() {
@@ -1603,6 +1651,8 @@ function ensurePantryState() {
   if (!state.pantry) state.pantry = structuredClone(defaultState.pantry);
   if (!Array.isArray(state.pantry.selected)) state.pantry.selected = [...defaultState.pantry.selected];
   if (!Array.isArray(state.pantry.kitchenMessages)) state.pantry.kitchenMessages = [];
+  if (!Array.isArray(state.pantry.scanFeedback)) state.pantry.scanFeedback = [];
+  if (!Array.isArray(state.pantry.shoppingList)) state.pantry.shoppingList = [];
   if (!state.pantry.goal) state.pantry.goal = defaultState.pantry.goal;
 }
 
@@ -1665,36 +1715,233 @@ function renderFridgeScanPanel() {
   const applyButton = $("#fridgeApplyScan");
   if (!preview || !target || !applyButton) return;
 
+  const suggestions = Array.isArray(fridgeScan.suggestions) ? fridgeScan.suggestions : [];
+  const uncertain = Array.isArray(fridgeScan.uncertain) ? fridgeScan.uncertain : [];
+  const shopping = Array.isArray(fridgeScan.shopping) ? fridgeScan.shopping : [];
+  const mealIdea = fridgeScan.mealIdea && typeof fridgeScan.mealIdea === "object" ? fridgeScan.mealIdea : null;
+  const quality = fridgeScan.quality && typeof fridgeScan.quality === "object" ? fridgeScan.quality : null;
+  const applyIds = scanApplyIds();
   const hasImage = Boolean(fridgeScan.imageUrl);
   preview.className = `fridge-scan-preview ${hasImage ? "" : "empty"} ${fridgeScan.status}`;
   preview.innerHTML = hasImage
     ? `<img src="${fridgeScan.imageUrl}" alt="Bild från kylskåpsscan"><span>${escapeHTML(fridgeScan.message)}</span>`
     : `<span>Ingen bild ännu</span>`;
 
-  applyButton.hidden = fridgeScan.suggestions.length === 0 || fridgeScan.status === "scanning";
+  applyButton.hidden = applyIds.length === 0 || fridgeScan.status === "scanning";
+  applyButton.textContent = applyIds.length ? `Lägg till ${applyIds.length} säkra` : "Lägg till förslag";
   target.innerHTML = `
     <div class="scan-status-row ${fridgeScan.status}">
       <strong>${scanStatusTitle(fridgeScan.status)}</strong>
       <span>${escapeHTML(fridgeScan.note || fridgeScan.message)}</span>
     </div>
-    ${fridgeScan.suggestions.length ? `
+    ${quality ? `
+      <article class="scan-quality-card ${quality.shouldRetake ? "warn" : "good"}">
+        <div>
+          <span>Bildprecision</span>
+          <strong>${Math.round((quality.score || 0) * 100)}%</strong>
+          <small>${escapeHTML(quality.shouldRetake ? "Ta gärna om bilden för bättre träff." : "Tillräckligt bra för förslag.")}</small>
+        </div>
+        <p>${escapeHTML(quality.advice || "Ta en rak bild med bra ljus.")}</p>
+        <ul>
+          <li>${escapeHTML(quality.lighting || "Ljus ej bedömt")}</li>
+          <li>${escapeHTML(quality.framing || "Inramning ej bedömd")}</li>
+          <li>${escapeHTML(quality.occlusion || "Skymda objekt ej bedömda")}</li>
+        </ul>
+      </article>
+    ` : ""}
+    ${mealIdea && (mealIdea.title || mealIdea.text) ? `
+      <article class="scan-meal-idea">
+        <span>AI-måltid från bilden</span>
+        <strong>${escapeHTML(mealIdea.title || "Smart kylskåpsmåltid")}</strong>
+        <p>${escapeHTML(mealIdea.text || "Lägg till scannade råvaror och låt Köks-AI räkna gram.")}</p>
+        <div class="scan-action-row">
+          ${Array.isArray(mealIdea.addIds) && mealIdea.addIds.length ? `<button type="button" data-scan-add="${escapeHTML(mealIdea.addIds.join(","))}">Bygg måltiden</button>` : ""}
+          <button type="button" data-scan-ask="${escapeHTML(`Resonera fram bästa måltiden utifrån scanningen: ${mealIdea.title || ""}`)}">Fråga Köks-AI</button>
+        </div>
+      </article>
+    ` : ""}
+    ${suggestions.length ? `
       <div class="scan-suggestion-grid">
-        ${fridgeScan.suggestions.map((suggestion) => {
+        ${suggestions.map((suggestion) => {
           const food = pantryFoods.find((item) => item.id === suggestion.id);
           if (!food) return "";
+          const confidence = Math.round((suggestion.confidence || 0.6) * 100);
+          const needsCheck = suggestion.needsConfirmation && !suggestion.confirmed && suggestion.feedback !== "right";
+          const status = suggestion.feedback === "wrong"
+            ? "Markerad fel"
+            : suggestion.confirmed || suggestion.feedback === "right"
+              ? "Bekräftad"
+              : needsCheck
+                ? "Kontrollera"
+                : "Säker";
           return `
-            <article>
-              <div>
+            <article class="${suggestion.feedback === "wrong" ? "is-rejected" : ""}">
+              <div class="scan-card-main">
                 <strong>${food.name}</strong>
                 <small>${escapeHTML(suggestion.reason || "Passar måltidsmålet.")}</small>
+                ${suggestion.visualEvidence ? `<em>${escapeHTML(suggestion.visualEvidence)}</em>` : ""}
               </div>
-              <b>${Math.round((suggestion.confidence || 0.6) * 100)}%</b>
+              <div class="scan-card-meta">
+                <b>${confidence}%</b>
+                <span>${status}</span>
+              </div>
+              <div class="scan-card-actions">
+                ${needsCheck ? `<button type="button" data-scan-confirm="${escapeHTML(food.id)}">Bekräfta</button>` : ""}
+                <button type="button" data-scan-feedback="${escapeHTML(food.id)}" data-scan-verdict="right">Rätt</button>
+                <button type="button" data-scan-wrong="${escapeHTML(food.id)}">Fel</button>
+              </div>
             </article>
           `;
         }).join("")}
       </div>
     ` : ""}
+    ${uncertain.length ? `
+      <div class="scan-uncertain-list">
+        <span>AI behöver din bekräftelse</span>
+        ${uncertain.map((item) => {
+          const food = pantryFoods.find((entry) => entry.id === item.id);
+          if (!food || item.feedback === "wrong") return "";
+          const alternatives = Array.from(new Set([item.id, ...(Array.isArray(item.alternatives) ? item.alternatives : [])]))
+            .filter((id) => pantryFoods.some((entry) => entry.id === id))
+            .slice(0, 4);
+          return `
+            <article>
+              <div>
+                <strong>${escapeHTML(item.question || `Är detta ${food.name}?`)}</strong>
+                <small>${escapeHTML(item.reason || "Osäker träff i bilden.")}</small>
+              </div>
+              <div class="scan-action-row">
+                ${alternatives.map((id) => `<button type="button" data-scan-confirm="${escapeHTML(id)}">${escapeHTML(foodNameById(id))}</button>`).join("")}
+                <button type="button" data-scan-wrong="${escapeHTML(item.id)}">Inte den</button>
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    ` : ""}
+    ${shopping.length ? `
+      <article class="scan-shopping-card">
+        <div>
+          <span>Smart inköpskomplettering</span>
+          <strong>${shopping.map(escapeHTML).join(" · ")}</strong>
+          ${state.pantry.shoppingList.length ? `<small>Sparat i listan: ${state.pantry.shoppingList.length} val</small>` : ""}
+        </div>
+        <button type="button" data-scan-shopping="true">Spara inköp</button>
+      </article>
+    ` : ""}
+    ${fridgeScan.status === "idle" ? `
+      <p class="scan-empty">Ta en bild av kylskåpet. Appen analyserar råvaror, osäkerhet och bildkvalitet och skickar sedan bättre kontext till Köks-AI.</p>
+    ` : ""}
   `;
+}
+
+function scanApplyIds() {
+  const suggestions = Array.isArray(fridgeScan.suggestions) ? fridgeScan.suggestions : [];
+  return suggestions
+    .filter((suggestion) => {
+      if (!pantryFoods.some((food) => food.id === suggestion.id)) return false;
+      if (suggestion.feedback === "wrong") return false;
+      if (suggestion.confirmed || suggestion.feedback === "right") return true;
+      return !suggestion.needsConfirmation && Number(suggestion.confidence || 0) >= 0.72;
+    })
+    .map((suggestion) => suggestion.id);
+}
+
+function confirmFridgeScanItem(id) {
+  const food = pantryFoods.find((item) => item.id === id);
+  if (!food) return;
+  let found = false;
+  fridgeScan = {
+    ...fridgeScan,
+    suggestions: normalizeFridgeScanSuggestions([
+      ...(fridgeScan.suggestions || []).map((suggestion) => {
+        if (suggestion.id !== id) return suggestion;
+        found = true;
+        return { ...suggestion, confirmed: true, needsConfirmation: false, feedback: "right" };
+      }),
+      ...(!found ? [{
+        id,
+        confidence: 0.76,
+        reason: "Bekräftad av användaren från osäkert scan-fynd.",
+        visualEvidence: "Användaren valde råvaran i scan-panelen.",
+        needsConfirmation: false,
+        confirmed: true,
+        feedback: "right"
+      }] : [])
+    ]),
+    uncertain: (fridgeScan.uncertain || []).map((item) => item.id === id ? { ...item, confirmed: true, feedback: "right" } : item),
+    message: `${food.name} bekräftad`,
+    note: "AI-feedbacken sparas och används vid nästa scan."
+  };
+  recordScanFeedback(id, "right", "user-confirmed");
+  saveState();
+  renderFridgeBuilder();
+}
+
+function rejectFridgeScanItem(id) {
+  if (!pantryFoods.some((food) => food.id === id)) return;
+  fridgeScan = {
+    ...fridgeScan,
+    suggestions: (fridgeScan.suggestions || []).map((suggestion) => (
+      suggestion.id === id ? { ...suggestion, confirmed: false, feedback: "wrong" } : suggestion
+    )),
+    uncertain: (fridgeScan.uncertain || []).map((item) => item.id === id ? { ...item, confirmed: false, feedback: "wrong" } : item),
+    message: `${foodNameById(id)} markerad som fel`,
+    note: "Bra. Den korrigeringen följer med nästa AI-analys."
+  };
+  recordScanFeedback(id, "wrong", "user-rejected");
+  saveState();
+  renderFridgeBuilder();
+}
+
+function markFridgeScanSuggestion(id, verdict) {
+  if (verdict === "wrong") {
+    rejectFridgeScanItem(id);
+    return;
+  }
+  confirmFridgeScanItem(id);
+}
+
+function recordScanFeedback(id, verdict, source) {
+  ensurePantryState();
+  const item = {
+    id,
+    verdict,
+    source,
+    createdAt: new Date().toISOString()
+  };
+  state.pantry.scanFeedback = [...state.pantry.scanFeedback.filter((entry) => !(entry.id === id && entry.verdict === verdict)), item].slice(-30);
+}
+
+function addFridgeIds(ids, message = "Råvarorna lades till i byggaren.") {
+  const cleanIds = Array.from(new Set(ids)).filter((id) => pantryFoods.some((food) => food.id === id));
+  if (!cleanIds.length) return;
+  ensurePantryState();
+  state.pantry.selected = Array.from(new Set([...state.pantry.selected, ...cleanIds]));
+  fridgeScan = {
+    ...fridgeScan,
+    message,
+    note: "Måltidsbyggaren räknar om direkt med nya gram och makron."
+  };
+  saveState();
+  renderFridgeBuilder();
+}
+
+function saveScanShoppingItems(items) {
+  const cleanItems = (Array.isArray(items) ? items : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  if (!cleanItems.length) return;
+  ensurePantryState();
+  state.pantry.shoppingList = Array.from(new Set([...state.pantry.shoppingList, ...cleanItems])).slice(-30);
+  fridgeScan = {
+    ...fridgeScan,
+    message: `${cleanItems.length} inköpsval sparades`,
+    note: "Inköpsraden följer med som kontext till Köks-AI."
+  };
+  saveState();
+  renderFridgeBuilder();
 }
 
 function scanStatusTitle(status) {
@@ -1743,6 +1990,8 @@ function introKitchenMessage() {
     steps: ["Fråga vad du kan laga.", "Be mig göra måltiden mer proteinrik.", "Be mig hitta vad som saknas."],
     add: [],
     shopping: [],
+    shoppingPlan: [],
+    nextBestQuestion: "Vill du att jag gör en komplett måltid i gram?",
     questions: ["Vill du ha frukost, lunchlåda eller middag?"]
   };
 }
@@ -1778,6 +2027,24 @@ function renderKitchenMessage(message) {
             <p>${message.shopping.map(escapeHTML).join(" · ")}</p>
           </div>
         ` : ""}
+        ${Array.isArray(message.shoppingPlan) && message.shoppingPlan.length ? `
+          <div class="kitchen-shopping-plan">
+            <span>Inköpsplan i gram</span>
+            ${message.shoppingPlan.map((item) => `
+              <article>
+                <strong>${escapeHTML(item.item)}</strong>
+                <b>${Math.round(item.grams || 0)} g</b>
+                <small>${escapeHTML(item.priority || "medium")} · ${escapeHTML(item.why || "Kompletterar måltiden.")}</small>
+              </article>
+            `).join("")}
+          </div>
+        ` : ""}
+        ${message.nextBestQuestion ? `
+          <div class="kitchen-next-question">
+            <button type="button" data-kitchen-prompt="${escapeHTML(message.nextBestQuestion)}">${escapeHTML(message.nextBestQuestion)}</button>
+          </div>
+        ` : ""}
+        ${message.caution ? `<small class="kitchen-caution">${escapeHTML(message.caution)}</small>` : ""}
         ${Array.isArray(message.questions) && message.questions.length ? `
           <div class="kitchen-followups">
             ${message.questions.map((question) => `<button type="button" data-kitchen-prompt="${escapeHTML(question)}">${escapeHTML(question)}</button>`).join("")}
@@ -1834,6 +2101,8 @@ function appendKitchenAssistantReply(reply) {
     add: Array.isArray(reply.add) ? reply.add.slice(0, 6) : [],
     remove: Array.isArray(reply.remove) ? reply.remove.slice(0, 4) : [],
     shopping: Array.isArray(reply.shopping) ? reply.shopping.slice(0, 6) : [],
+    shoppingPlan: normalizeKitchenShoppingPlan(reply.shoppingPlan),
+    nextBestQuestion: String(reply.nextBestQuestion || "").slice(0, 160),
     questions: Array.isArray(reply.questions) ? reply.questions.slice(0, 3) : [],
     caution: reply.caution || "",
     createdAt: new Date().toISOString()
@@ -1878,9 +2147,23 @@ function normalizeKitchenAssistantReply(reply, context) {
     add: cleanIds(reply.add, 6),
     remove: cleanIds(reply.remove, 4),
     shopping: cleanList(reply.shopping, 6),
+    shoppingPlan: normalizeKitchenShoppingPlan(reply.shoppingPlan),
+    nextBestQuestion: String(reply.nextBestQuestion || "").slice(0, 160),
     questions: cleanList(reply.questions, 3),
     caution: String(reply.caution || "").slice(0, 220)
   };
+}
+
+function normalizeKitchenShoppingPlan(items) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      item: String(item && item.item || "").trim().slice(0, 90),
+      grams: clamp(Number(item && item.grams) || 0, 0, 2000),
+      why: String(item && item.why || "").trim().slice(0, 140),
+      priority: String(item && item.priority || "medium").trim().slice(0, 30)
+    }))
+    .filter((item) => item.item)
+    .slice(0, 5);
 }
 
 function buildKitchenContext() {
@@ -1889,13 +2172,16 @@ function buildKitchenContext() {
   const selected = state.pantry.selected
     .map((id) => pantryFoods.find((food) => food.id === id))
     .filter(Boolean);
-  const scanFoods = fridgeScan.suggestions
+  const scanFoods = (fridgeScan.suggestions || [])
+    .filter((suggestion) => suggestion.feedback !== "wrong")
     .map((suggestion) => {
       const food = pantryFoods.find((item) => item.id === suggestion.id);
       return food ? {
         ...food,
         confidence: suggestion.confidence,
-        reason: suggestion.reason
+        reason: suggestion.reason,
+        visualEvidence: suggestion.visualEvidence,
+        confirmed: Boolean(suggestion.confirmed || suggestion.feedback === "right")
       } : null;
     })
     .filter(Boolean);
@@ -1930,6 +2216,9 @@ function buildKitchenContext() {
     })),
     selectedFoods: selected.map(kitchenFoodSummary),
     scanFoods: scanFoods.map(kitchenFoodSummary),
+    scanQuality: fridgeScan.quality || null,
+    feedback: state.pantry.scanFeedback || [],
+    shoppingList: state.pantry.shoppingList || [],
     allowedFoodIds: pantryFoods.map((food) => food.id)
   };
 }
@@ -1941,7 +2230,11 @@ function kitchenFoodSummary(food) {
     role: food.role,
     kcal: food.kcal,
     protein: food.protein,
-    fiber: food.fiber
+    fiber: food.fiber,
+    confidence: food.confidence,
+    reason: food.reason,
+    visualEvidence: food.visualEvidence,
+    confirmed: food.confirmed
   };
 }
 
@@ -1972,9 +2265,15 @@ function localKitchenAssistantReply(message, context, detail = "") {
     steps.push("Gör den som panna/skål: värm basen 8-10 min, lägg protein ovanpå och avsluta med 10-15 g fettkälla.");
     shopping.push("Frysta wokgrönsaker", "Kvarg naturell", "Ägg", "Tonfisk eller tofu");
   }
+  if (text.includes("inköp") || text.includes("handla") || text.includes("shopping")) {
+    shopping.push("Frysta wokgrönsaker", "Kvarg naturell", "Ägg", "Tonfisk eller tofu", "Bär eller äpplen");
+    steps.push("För tre dagar: köp en grön volymbas, två proteinbaser och en enkel frukt/bär-komplettering.");
+  }
   if (!steps.length) {
     steps.push("Behåll basen, men justera i ordningen protein, grön volym, fiber, fettmängd.");
   }
+
+  const uniqueShopping = Array.from(new Set(shopping)).slice(0, 5);
 
   return normalizeKitchenAssistantReply({
     source: "local",
@@ -1986,7 +2285,14 @@ function localKitchenAssistantReply(message, context, detail = "") {
     steps,
     add: Array.from(new Set(add)).slice(0, 5),
     remove: [],
-    shopping,
+    shopping: uniqueShopping,
+    shoppingPlan: uniqueShopping.map((item, index) => ({
+      item,
+      grams: index === 0 ? 400 : 250,
+      why: index === 0 ? "Ger snabb grön volym och fiber." : "Kompletterar protein eller mättnad.",
+      priority: index < 2 ? "hög" : "medium"
+    })),
+    nextBestQuestion: "Vill du att jag gör en 3-dagars plan från samma råvaror?",
     questions: ["Vill du göra den vegetarisk?", "Ska den passa lunchlåda?", "Vill du minska kolhydraterna?"],
     caution: ""
   }, context);
@@ -2004,7 +2310,11 @@ async function handleFridgeScanFile(file) {
       status: "error",
       message: "Välj en bildfil.",
       note: "Kameran behöver leverera en bild för att scannen ska fungera.",
-      suggestions: []
+      suggestions: [],
+      uncertain: [],
+      quality: null,
+      mealIdea: null,
+      shopping: []
     };
     renderFridgeScanPanel();
     return;
@@ -2016,22 +2326,29 @@ async function handleFridgeScanFile(file) {
       status: "scanning",
       imageUrl,
       suggestions: [],
+      uncertain: [],
+      quality: null,
+      mealIdea: null,
+      shopping: [],
+      detail: "high",
       source: "camera",
       message: "Analyserar kylskåpet",
       note: "Bild skickas till vision-analys om nyckel finns, annars körs lokal fallback."
     };
     renderFridgeScanPanel();
 
-    const apiSuggestions = await requestFridgeVisionSuggestions(imageUrl);
+    const scanResult = await requestFridgeVisionSuggestions(imageUrl);
+    const suggestionCount = scanResult.suggestions.length;
+    const uncertainCount = scanResult.uncertain.length;
     fridgeScan = {
       ...fridgeScan,
+      ...scanResult,
       status: "ready",
-      source: "ai",
-      suggestions: apiSuggestions,
-      message: `${apiSuggestions.length} förslag hittades`,
-      note: apiSuggestions.length
-        ? "Kontrollera förslagen och fråga Köks-AI vad du kan laga av dem."
-        : "AI hittade inga säkra råvaror. Testa en ljusare bild."
+      source: scanResult.source || "ai",
+      message: `${suggestionCount} säkra och ${uncertainCount} osäkra fynd`,
+      note: scanResult.note || (suggestionCount
+        ? "Bekräfta osäkra fynd och fråga Köks-AI vad du kan laga av dem."
+        : "AI hittade inga säkra råvaror. Testa en ljusare bild.")
     };
   } catch {
     const colorHints = await extractFridgeColorHints(fridgeScan.imageUrl).catch(() => []);
@@ -2041,6 +2358,25 @@ async function handleFridgeScanFile(file) {
       status: "fallback",
       source: "local",
       suggestions: fallbackSuggestions,
+      uncertain: [],
+      quality: {
+        score: colorHints.length ? 0.55 : 0.42,
+        lighting: "Lokal fallback kan inte bedöma ljus exakt.",
+        framing: "Bilden lästes lokalt via färgsignaler.",
+        occlusion: "Skymda objekt kan inte bedömas utan AI-vision.",
+        shouldRetake: !colorHints.length,
+        advice: colorHints.length
+          ? "Kontrollera förslagen manuellt och be Köks-AI resonera vidare."
+          : "Ta en ljusare, rakare bild eller lägg till råvaror manuellt.",
+        detailUsed: "local"
+      },
+      mealIdea: {
+        title: "Lokal midjetallrik",
+        text: "Bygg en bas med protein, 250-350 g grönt och en kontrollerad kolhydrat- eller fettkälla.",
+        addIds: fallbackSuggestions.slice(0, 5).map((suggestion) => suggestion.id)
+      },
+      shopping: ["Frysta wokgrönsaker", "Kvarg naturell", "Ägg", "Tonfisk eller tofu"],
+      detail: "local",
       message: `${fallbackSuggestions.length} lokala förslag hittades`,
       note: "Appen använder bildfärg och måltidsmål som fallback. Köks-AI kan ändå resonera på råvarorna."
     };
@@ -2061,33 +2397,33 @@ async function requestFridgeVisionSuggestions(imageUrl) {
         weight: state.profile.weight,
         waist: state.profile.waist
       },
+      feedback: state.pantry.scanFeedback || [],
+      detail: "high",
       foods: pantryFoods.map(({ id, name, category, role }) => ({ id, name, category, role }))
     })
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message || "Vision unavailable");
-  const suggestions = normalizeFridgeScanSuggestions(data.suggestions || data.items || []);
-  if (!suggestions.length) throw new Error("No suggestions");
-  return suggestions;
+  return {
+    source: data.source || "openai",
+    suggestions: normalizeFridgeScanSuggestions(data.suggestions || data.items || []),
+    uncertain: normalizeFridgeScanUncertain(data.uncertain || []),
+    quality: normalizeFridgeScanQuality(data.quality, data.detail || "high"),
+    mealIdea: normalizeFridgeMealIdea(data.mealIdea),
+    shopping: normalizeShoppingItems(data.shopping),
+    detail: data.detail || "high",
+    note: String(data.note || "").slice(0, 220)
+  };
 }
 
 function applyFridgeScanSuggestions() {
-  ensurePantryState();
-  const ids = fridgeScan.suggestions.map((suggestion) => suggestion.id).filter((id) => pantryFoods.some((food) => food.id === id));
-  if (!ids.length) return;
-  state.pantry.selected = Array.from(new Set([...state.pantry.selected, ...ids]));
-  fridgeScan = {
-    ...fridgeScan,
-    message: `${ids.length} råvaror lades till`,
-    note: "Måltidsbyggaren räknar om direkt med de nya valen."
-  };
-  saveState();
-  renderFridgeBuilder();
+  const ids = scanApplyIds();
+  addFridgeIds(ids, `${ids.length} säkra råvaror lades till`);
 }
 
 function normalizeFridgeScanSuggestions(rawSuggestions) {
   const seen = new Set();
-  return rawSuggestions
+  return (Array.isArray(rawSuggestions) ? rawSuggestions : [])
     .map((suggestion) => {
       const id = matchPantryFoodId(suggestion.id || suggestion.name || suggestion.label);
       if (!id || seen.has(id)) return null;
@@ -2095,12 +2431,74 @@ function normalizeFridgeScanSuggestions(rawSuggestions) {
       return {
         id,
         confidence: clamp(Number(suggestion.confidence) || 0.65, 0.35, 0.98),
-        reason: suggestion.reason || suggestion.why || "Identifierad från kylskåpsbilden."
+        reason: String(suggestion.reason || suggestion.why || "Identifierad från kylskåpsbilden.").slice(0, 160),
+        visualEvidence: String(suggestion.visualEvidence || suggestion.evidence || "").slice(0, 160),
+        needsConfirmation: Boolean(suggestion.needsConfirmation) || Number(suggestion.confidence || 0) < 0.72,
+        confirmed: Boolean(suggestion.confirmed),
+        feedback: ["right", "wrong"].includes(suggestion.feedback) ? suggestion.feedback : ""
       };
     })
     .filter(Boolean)
     .sort((a, b) => b.confidence - a.confidence)
-    .slice(0, 8);
+    .slice(0, 10);
+}
+
+function normalizeFridgeScanUncertain(rawItems) {
+  const seen = new Set();
+  return (Array.isArray(rawItems) ? rawItems : [])
+    .map((item) => {
+      const id = matchPantryFoodId(item.id || item.name || item.label);
+      if (!id || seen.has(id)) return null;
+      seen.add(id);
+      const alternatives = Array.isArray(item.alternatives)
+        ? item.alternatives.map(matchPantryFoodId).filter(Boolean)
+        : [];
+      return {
+        id,
+        confidence: clamp(Number(item.confidence) || 0.45, 0.2, 0.72),
+        question: String(item.question || `Är detta ${foodNameById(id)}?`).slice(0, 160),
+        alternatives: Array.from(new Set(alternatives)).filter((value) => value !== id).slice(0, 3),
+        reason: String(item.reason || "Osäker träff i bilden.").slice(0, 160),
+        confirmed: Boolean(item.confirmed),
+        feedback: ["right", "wrong"].includes(item.feedback) ? item.feedback : ""
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.confidence - a.confidence)
+    .slice(0, 5);
+}
+
+function normalizeFridgeScanQuality(rawQuality, fallbackDetail = "high") {
+  const quality = rawQuality && typeof rawQuality === "object" ? rawQuality : {};
+  return {
+    score: clamp(Number(quality.score) || 0.58, 0.25, 0.98),
+    lighting: String(quality.lighting || "Bildljus ej bedömt.").slice(0, 90),
+    framing: String(quality.framing || "Inramning ej bedömd.").slice(0, 90),
+    occlusion: String(quality.occlusion || "Skymda objekt ej bedömda.").slice(0, 90),
+    shouldRetake: Boolean(quality.shouldRetake),
+    advice: String(quality.advice || "Ta en rak bild med öppen kylskåpsdörr och bra ljus.").slice(0, 180),
+    detailUsed: String(quality.detailUsed || fallbackDetail || "high").slice(0, 20)
+  };
+}
+
+function normalizeFridgeMealIdea(rawIdea) {
+  const idea = rawIdea && typeof rawIdea === "object" ? rawIdea : {};
+  const addIds = Array.isArray(idea.addIds)
+    ? idea.addIds.map(matchPantryFoodId).filter((id) => pantryFoods.some((food) => food.id === id)).slice(0, 5)
+    : [];
+  return {
+    title: String(idea.title || "Smart kylskåpsmåltid").slice(0, 90),
+    text: String(idea.text || "Lägg till scannade råvaror och låt Köks-AI skruva gram och balans.").slice(0, 220),
+    addIds
+  };
+}
+
+function normalizeShoppingItems(items) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .map((item) => item.slice(0, 90))
+    .slice(0, 6);
 }
 
 function matchPantryFoodId(value) {
@@ -2188,7 +2586,13 @@ function localFridgeScanSuggestions(colorHints = []) {
     confidence: clamp(0.82 - index * 0.04, 0.52, 0.82),
     reason: colorHints.includes(id)
       ? "Bildsignal matchar färg och form i kylskåpet."
-      : "Smart komplettering för valt måltidsmål."
+      : "Smart komplettering för valt måltidsmål.",
+    visualEvidence: colorHints.includes(id)
+      ? "Lokal färgsignal från bilden, behöver manuell kontroll."
+      : "Föreslagen från mål och vanliga kylskåpsråvaror.",
+    needsConfirmation: true,
+    confirmed: false,
+    feedback: ""
   }));
 }
 

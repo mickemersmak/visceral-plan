@@ -18,8 +18,8 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Könsspecifika vägar för män, kvinnor och neutral profil med fokus som bukmått, cykel, perimenopaus, återstart, styrka, stress och kondition.
 - Rankad livsmedelsguide med metriska portionsförslag för livsmedel, frukt och grönsaker.
 - Kylskåpsbyggare som räknar ut en komplett måltid från valda råvaror hemma.
-- Mobilkamerascan av kylskåp med AI-förslag via Vercel API och lokal fallback när AI-nyckel saknas.
-- Köks-AI som kan resonera med användaren om scannade råvaror, valda livsmedel, måltidsmål, protein, fiber, lunchlådor och smarta kompletteringar.
+- Mobilkamerascan av kylskåp med AI-förslag, bildkvalitet, osäkra fynd, användarfeedback och lokal fallback när AI-nyckel saknas.
+- Köks-AI som kan resonera med användaren om scannade råvaror, valda livsmedel, måltidsmål, protein, fiber, lunchlådor, smarta kompletteringar och inköpsplan i gram.
 - Utökad råvarubank med protein, mejeri, baljväxter, grönsaker, frukt, frysvaror, kolhydratbaser och fettkällor.
 - Metabolt index som väger bukmått, rörelse, styrka, kostvanor, återhämtning och loggföljsamhet.
 - Visceral Score 2.0 med nedbrytning av buksignal, rörelse, styrka, kost, återhämtning och loggning.
@@ -49,7 +49,9 @@ PWA-funktioner som service worker och installation testas bäst via den deployad
 
 ## AI-vision och köks-AI
 
-Kylskåpsscannen och köks-AI:n fungerar med smart lokal fallback utan nyckel. För riktig bildanalys och friare AI-resonemang i produktion: lägg till `OPENAI_API_KEY` i Vercel. Valfritt kan `OPENAI_FRIDGE_MODEL` och `OPENAI_KITCHEN_MODEL` sättas för att byta modell.
+Kylskåpsscannen och köks-AI:n fungerar med smart lokal fallback utan nyckel. Med `OPENAI_API_KEY` aktivt i Vercel får scannen AI Quality v2: den bedömer bildkvalitet, separerar säkra och osäkra fynd, visar visuell evidens, tar emot rätt/fel-feedback och skickar bättre kontext till Köks-AI. Köks-AI kan därefter skapa måltidsförslag, resonera om vad som saknas och bygga en inköpsplan i gram.
+
+För riktig bildanalys och friare AI-resonemang i produktion: lägg till en giltig `OPENAI_API_KEY` i Vercel. Valfritt kan `OPENAI_FRIDGE_MODEL` och `OPENAI_KITCHEN_MODEL` sättas för att byta modell.
 
 ## Databas och admin
 

@@ -1610,34 +1610,178 @@ select:focus {
 
 .scan-suggestion-grid article {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
-  align-items: center;
+  align-items: start;
   border: 1px solid rgba(255, 254, 250, 0.13);
   border-radius: 10px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.08);
 }
 
+.scan-suggestion-grid article.is-rejected {
+  opacity: 0.62;
+  border-color: rgba(185, 87, 67, 0.42);
+}
+
 .scan-suggestion-grid strong,
-.scan-suggestion-grid small {
+.scan-suggestion-grid small,
+.scan-suggestion-grid em {
   display: block;
 }
 
-.scan-suggestion-grid small {
+.scan-suggestion-grid small,
+.scan-suggestion-grid em {
   margin-top: 3px;
   color: rgba(255, 254, 250, 0.68);
   line-height: 1.34;
 }
 
-.scan-suggestion-grid b {
+.scan-suggestion-grid em {
+  color: rgba(255, 254, 250, 0.55);
+  font-size: 0.76rem;
+  font-style: normal;
+}
+
+.scan-card-meta {
+  display: grid;
+  gap: 5px;
+  justify-items: end;
+}
+
+.scan-card-meta b {
   display: grid;
   place-items: center;
   min-height: 34px;
+  min-width: 48px;
   border-radius: 999px;
   background: rgba(232, 197, 117, 0.2);
   color: var(--gold);
   font-size: 0.78rem;
+}
+
+.scan-card-meta span {
+  color: rgba(255, 254, 250, 0.7);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.scan-card-actions,
+.scan-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.scan-card-actions {
+  grid-column: 1 / -1;
+}
+
+.scan-card-actions button,
+.scan-action-row button,
+.scan-shopping-card button {
+  border: 1px solid rgba(255, 254, 250, 0.2);
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fffefa;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.scan-quality-card,
+.scan-meal-idea,
+.scan-shopping-card,
+.scan-uncertain-list article,
+.scan-empty {
+  border: 1px solid rgba(255, 254, 250, 0.13);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.scan-quality-card {
+  display: grid;
+  gap: 8px;
+}
+
+.scan-quality-card.good {
+  border-color: rgba(232, 197, 117, 0.28);
+}
+
+.scan-quality-card.warn {
+  border-color: rgba(185, 87, 67, 0.48);
+}
+
+.scan-quality-card div,
+.scan-shopping-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.scan-quality-card span,
+.scan-meal-idea span,
+.scan-shopping-card span,
+.scan-uncertain-list > span {
+  color: var(--gold);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.scan-quality-card strong {
+  color: #fffefa;
+  font-size: 1.35rem;
+}
+
+.scan-quality-card small,
+.scan-quality-card p,
+.scan-quality-card li,
+.scan-meal-idea p,
+.scan-shopping-card small,
+.scan-empty,
+.scan-uncertain-list small {
+  margin: 0;
+  color: rgba(255, 254, 250, 0.7);
+  line-height: 1.38;
+}
+
+.scan-quality-card ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.78rem;
+}
+
+.scan-meal-idea {
+  display: grid;
+  gap: 7px;
+  background:
+    linear-gradient(135deg, rgba(232, 197, 117, 0.16), rgba(255, 255, 255, 0.07));
+}
+
+.scan-meal-idea strong,
+.scan-shopping-card strong,
+.scan-uncertain-list strong {
+  color: #fffefa;
+}
+
+.scan-uncertain-list {
+  display: grid;
+  gap: 8px;
+}
+
+.scan-uncertain-list article {
+  display: grid;
+  gap: 8px;
+}
+
+.scan-shopping-card button {
+  white-space: nowrap;
 }
 
 .kitchen-ai-panel {
@@ -1762,7 +1906,8 @@ select:focus {
 }
 
 .kitchen-add-list,
-.kitchen-shopping {
+.kitchen-shopping,
+.kitchen-shopping-plan {
   display: grid;
   gap: 5px;
   border-radius: 10px;
@@ -1771,7 +1916,8 @@ select:focus {
 }
 
 .kitchen-add-list span,
-.kitchen-shopping span {
+.kitchen-shopping span,
+.kitchen-shopping-plan span {
   color: var(--gold-dark);
   font-size: 0.72rem;
   font-weight: 950;
@@ -1782,6 +1928,46 @@ select:focus {
   justify-self: start;
   min-height: 34px;
   padding: 7px 10px;
+}
+
+.kitchen-shopping-plan article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 8px;
+  align-items: start;
+  border-top: 1px solid rgba(18, 63, 53, 0.08);
+  padding-top: 7px;
+}
+
+.kitchen-shopping-plan article:first-of-type {
+  border-top: 0;
+  padding-top: 2px;
+}
+
+.kitchen-shopping-plan b {
+  color: var(--green);
+  font-size: 0.82rem;
+}
+
+.kitchen-shopping-plan small {
+  grid-column: 1 / -1;
+}
+
+.kitchen-next-question button {
+  width: 100%;
+  border: 1px solid rgba(195, 154, 76, 0.32);
+  border-radius: 999px;
+  padding: 9px 10px;
+  background: rgba(245, 233, 204, 0.72);
+  color: var(--green);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-align: left;
+}
+
+.kitchen-caution {
+  border-left: 3px solid rgba(185, 87, 67, 0.5);
+  padding-left: 8px;
 }
 
 .kitchen-followups,
@@ -3096,6 +3282,22 @@ textarea:focus {
 
   .fridge-scan-preview {
     min-height: 154px;
+  }
+
+  .scan-quality-card div,
+  .scan-shopping-card,
+  .scan-suggestion-grid article {
+    grid-template-columns: 1fr;
+  }
+
+  .scan-card-meta {
+    justify-items: start;
+  }
+
+  .scan-card-actions button,
+  .scan-action-row button,
+  .scan-shopping-card button {
+    min-height: 38px;
   }
 
   .kitchen-ai-form {
