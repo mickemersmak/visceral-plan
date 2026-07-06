@@ -1,8 +1,8 @@
 const OPENAI_URL = "https://api.openai.com/v1/responses";
-const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
+const GEMINI_GENERATE_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const DEFAULT_OPENAI_MODEL = "gpt-5.5";
-const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 
 async function requestOpenAIJSON({ apiKey, model, prompt, images = [], detail = "high", schemaName, schema }) {
   if (!apiKey) {
@@ -69,27 +69,24 @@ async function requestGeminiJSON({ apiKey, model, prompt, images = [], schema })
   }
 
   try {
-    const imageParts = images.map(dataUrlToGeminiImage);
-    const input = imageParts.length
-      ? [{ type: "text", text: prompt }, ...imageParts]
-      : prompt;
-
-    const response = await fetch(GEMINI_URL, {
+    const response = await fetch(geminiGenerateUrl(model, apiKey), {
       method: "POST",
       headers: {
-        "x-goog-api-key": apiKey,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model,
-        input,
-        response_format: {
-          type: "text",
-          mime_type: "application/json",
-          schema
-        },
-        generation_config: {
-          thinking_level: "minimal"
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: prompt },
+              ...images.map(dataUrlToGeminiInlinePart)
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: sanitizeGeminiSchema(schema)
         }
       })
     });
@@ -115,6 +112,51 @@ async function requestGeminiJSON({ apiKey, model, prompt, images = [], schema })
   }
 }
 
+async function requestGeminiText({ apiKey, model, prompt, images = [] }) {
+  if (!apiKey) {
+    return { ok: false, provider: "gemini", status: 0, message: "GEMINI_API_KEY saknas." };
+  }
+
+  try {
+    const response = await fetch(geminiGenerateUrl(model, apiKey), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: prompt },
+              ...images.map(dataUrlToGeminiInlinePart)
+            ]
+          }
+        ]
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      return {
+        ok: false,
+        provider: "gemini",
+        status: response.status,
+        message: data.error && data.error.message ? data.error.message : "Gemini error"
+      };
+    }
+
+    return { ok: true, provider: "gemini", text: findOutputText(data), raw: data };
+  } catch (error) {
+    return {
+      ok: false,
+      provider: "gemini",
+      status: 0,
+      message: error && error.message ? error.message : "Gemini request failed"
+    };
+  }
+}
+
 function dataUrlToGeminiImage(dataUrl) {
   const match = String(dataUrl || "").match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!match) throw new Error("Gemini kräver bild som base64 data-URL.");
@@ -123,6 +165,32 @@ function dataUrlToGeminiImage(dataUrl) {
     data: match[2],
     mime_type: match[1]
   };
+}
+
+function dataUrlToGeminiInlinePart(dataUrl) {
+  const match = String(dataUrl || "").match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) throw new Error("Gemini kräver bild som base64 data-URL.");
+  return {
+    inlineData: {
+      mimeType: match[1],
+      data: match[2]
+    }
+  };
+}
+
+function geminiGenerateUrl(model, apiKey) {
+  return `${GEMINI_GENERATE_BASE_URL}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+}
+
+function sanitizeGeminiSchema(value) {
+  if (Array.isArray(value)) return value.map(sanitizeGeminiSchema);
+  if (!value || typeof value !== "object") return value;
+  const next = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (key === "additionalProperties") continue;
+    next[key] = sanitizeGeminiSchema(item);
+  }
+  return next;
 }
 
 function parseProviderJSON(data) {
@@ -147,6 +215,12 @@ function findOutputText(data) {
     .map((part) => part.text || "")
     .find(Boolean);
   if (geminiText) return geminiText;
+
+  const interactionText = (data.output || [])
+    .flatMap((item) => item.content && item.content.parts || item.parts || item.content || [])
+    .map((part) => part.text || part.output_text || "")
+    .find(Boolean);
+  if (interactionText) return interactionText;
 
   const outputText = (data.output || [])
     .map((item) => item.text || item.output_text || "")
@@ -210,5 +284,6 @@ module.exports = {
   getOpenAIKey,
   providerFailureDetail,
   requestGeminiJSON,
+  requestGeminiText,
   requestOpenAIJSON
 };
