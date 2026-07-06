@@ -18,6 +18,7 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Könsspecifika vägar för män, kvinnor och neutral profil med fokus som bukmått, cykel, perimenopaus, återstart, styrka, stress och kondition.
 - Rankad livsmedelsguide med metriska portionsförslag för livsmedel, frukt och grönsaker.
 - Kylskåpsbyggare som räknar ut en komplett måltid från valda råvaror hemma.
+- Receptmotor med 100 smarta recept som rankas efter råvaror hemma, kamerafynd, mål, protein, fiber, tid och saknade ingredienser.
 - Mobilkamerascan av kylskåp med flera bilder, OpenAI/Gemini-förslag, bildkvalitet, osäkra fynd, användarfeedback och tolerant råvarumatchning när AI:n ser namn, förpackning eller kategori.
 - Matfoto-AI som uppskattar näringsvärde från en fotad måltid: kcal, gram, protein, kolhydrater, fett, fiber, komponenter, portionssäkerhet och förbättringsförslag.
 - Köks-AI som kan resonera med användaren om scannade råvaror, fotade måltider, valda livsmedel, måltidsmål, protein, fiber, lunchlådor, smarta kompletteringar och inköpsplan i gram.
@@ -50,7 +51,7 @@ PWA-funktioner som service worker och installation testas bäst via den deployad
 
 ## AI-vision och köks-AI
 
-Kylskåpsscannen, Matfoto-AI och köks-AI:n fungerar med smart lokal fallback utan nyckel. Med `OPENAI_API_KEY` aktivt i Vercel får scannen AI Quality v2 via OpenAI. Med `GEMINI_API_KEY` aktivt får samma flöden Gemini som fallback eller testmotor: flera kylskåpsbilder, bildkvalitet, säkra/osäkra fynd, matfoto med kcal/makro och friare Köks-AI-resonemang. Matfoto-AI kan uppskatta näringsvärde från en tallriksbild och skicka kcal/makro-underlaget vidare till Köks-AI. Köks-AI kan därefter skapa måltidsförslag, resonera om vad som saknas och bygga en inköpsplan i gram.
+Kylskåpsscannen, Matfoto-AI och köks-AI:n fungerar med smart lokal fallback utan nyckel. Med `OPENAI_API_KEY` aktivt i Vercel får scannen AI Quality v2 via OpenAI. Med `GEMINI_API_KEY` aktivt får samma flöden Gemini som fallback eller testmotor: flera kylskåpsbilder, bildkvalitet, säkra/osäkra fynd, matfoto med kcal/makro och friare Köks-AI-resonemang. Matfoto-AI kan uppskatta näringsvärde från en tallriksbild och skicka kcal/makro-underlaget vidare till Köks-AI. Köks-AI kan därefter skapa måltidsförslag, resonera om vad som saknas och bygga en inköpsplan i gram. Receptmotorn arbetar ovanpå samma råvarubank och visar de bästa recepten först, inklusive gram, kcal, protein, kolhydrater, fett, fiber, saknade ingredienser och knapp för att skicka receptet till Köks-AI.
 
 Kylskåpsscannen mappar även vanliga svenska kylskåpsord och förpackningstext till appens råvaru-id, till exempel mjölk, ost, skinka, kalkonpålägg, skyr, proteinpudding, sallad, lök, citron, blåbär och jordgubbar. Osäkra kategoriträffar läggs hellre som kontrollerbara förslag än att försvinna helt.
 

@@ -74,6 +74,7 @@ const defaultState = {
   pantry: {
     goal: "fatloss",
     selected: ["egg", "kvarg", "broccoli", "potato", "olive-oil"],
+    recipeFilter: "best",
     kitchenMessages: [],
     scanFeedback: [],
     shoppingList: []
@@ -440,6 +441,420 @@ const pantryFoods = [
   { id: "pear", name: "Päron", category: "fruit", role: "fruit", kcal: 57, protein: 0.4, carbs: 15, fat: 0.1, fiber: 3, defaultGrams: 170 },
   { id: "grapes", name: "Vindruvor", category: "fruit", role: "fruit", kcal: 69, protein: 0.7, carbs: 18, fat: 0.2, fiber: 1, defaultGrams: 120 }
 ];
+
+const recipeFilterOptions = [
+  { id: "best", label: "Bäst match" },
+  { id: "quick", label: "Snabbt" },
+  { id: "high-protein", label: "Högt protein" },
+  { id: "vegetarian", label: "Vegetariskt" },
+  { id: "lowcarb", label: "Låg kolhydrat" },
+  { id: "meal-prep", label: "Lunchlåda" }
+];
+
+const recipeFamilies = [
+  {
+    id: "midjebowl",
+    type: "Midjeskål",
+    minutes: 18,
+    tags: ["fatloss", "high-protein", "meal-prep"],
+    names: [
+      "Midjeskål med {protein}, {veg} och {carb}",
+      "Krispig proteinbowl med {protein} och {fat}",
+      "Mättnadsbowl med {protein}, {veg} och citron",
+      "Premium bowl med {protein}, {carb} och grönt",
+      "Fiberbowl med {protein}, {veg} och {fat}"
+    ],
+    proteins: ["chicken", "tuna", "tofu", "egg", "turkey"],
+    vegs: ["broccoli", "cabbage", "pepper", "spinach", "cauliflower"],
+    carbs: ["quinoa", "potato", "brownrice", "rye-bread", "sweetpotato"],
+    fats: ["olive-oil", "avocado", "hummus", "pumpkin-seeds", "almonds"],
+    extras: ["lemon", "cucumber", "tomato", "onion", "garlic"],
+    method: "Blanda varm bas med krispigt grönt och toppa med syra.",
+    why: "Protein, fiber och tydliga gram gör den lätt att följa när midjan är måttet."
+  },
+  {
+    id: "omelett",
+    type: "Omelett",
+    minutes: 14,
+    tags: ["quick", "high-protein", "lowcarb"],
+    names: [
+      "Omelett med {protein}, {veg} och {fat}",
+      "Snabb proteinpanna med {protein} och {veg}",
+      "Grön omelett med {protein} och tomat",
+      "Mättande äggpanna med {veg} och {fat}",
+      "Frukostomelett med {protein} och extra grönt"
+    ],
+    proteins: ["egg", "ham", "turkey-slices", "cottage", "tofu"],
+    vegs: ["mushroom", "spinach", "tomato", "pepper", "onion"],
+    carbs: ["rye-bread", "potato", null, null, "sweetpotato"],
+    fats: ["butter", "cheese", "feta", "olive-oil", "avocado"],
+    extras: ["cucumber", "lettuce", "lemon", "garlic", "tomato"],
+    method: "Stek allt lugnt så proteinet sätter sig och grönsakerna behåller struktur.",
+    why: "Snabbt, varmt och proteinrikt utan att bli en tung energimåltid."
+  },
+  {
+    id: "lunchbox",
+    type: "Lunchlåda",
+    minutes: 24,
+    tags: ["meal-prep", "high-protein", "fatloss"],
+    names: [
+      "Lunchlåda med {protein}, {carb} och {veg}",
+      "Tre-dagarslåda med {protein} och grön bas",
+      "Stabil arbetslunch med {protein} och {fat}",
+      "Mättande matlåda med {protein}, {veg} och {carb}",
+      "Coachlåda med {protein} och extra fiber"
+    ],
+    proteins: ["chicken", "salmon", "ground-chicken", "ground-beef", "tempeh"],
+    vegs: ["frozen-veg", "zucchini", "broccoli", "carrot", "cabbage"],
+    carbs: ["potato", "wholegrain-pasta", "brownrice", "quinoa", "sweetpotato"],
+    fats: ["olive-oil", "hummus", "avocado", "pumpkin-seeds", "feta"],
+    extras: ["onion", "garlic", "lemon", "tomato", "pepper"],
+    method: "Bygg i låda med protein först, sedan kolhydratbas och minst två gröna val.",
+    why: "Förberedd mat minskar beslutströtthet och gör portionskontrollen enklare."
+  },
+  {
+    id: "salad",
+    type: "Sallad",
+    minutes: 12,
+    tags: ["quick", "fatloss", "meal-prep"],
+    names: [
+      "Krispig sallad med {protein}, {veg} och {fat}",
+      "Mättnadssallad med {protein} och {carb}",
+      "Fräsch lunchsallad med {protein} och citron",
+      "Proteinrik sallad med {veg}, {protein} och {fat}",
+      "Kylskåpssallad med {protein} och extra fiber"
+    ],
+    proteins: ["tuna", "shrimp", "chicken", "feta", "edamame"],
+    vegs: ["lettuce", "cucumber", "tomato", "pepper", "spinach"],
+    carbs: ["quinoa", "rye-bread", "potato", "chickpeas", "brownrice"],
+    fats: ["avocado", "olive-oil", "hummus", "pumpkin-seeds", "almonds"],
+    extras: ["lemon", "onion", "cabbage", "carrot", "garlic"],
+    method: "Skär grovt, väg energitäta delar och låt syran bära smaken.",
+    why: "Stor volym på få kalorier, men fortfarande med protein och fett som mättar."
+  },
+  {
+    id: "soup",
+    type: "Soppa",
+    minutes: 26,
+    tags: ["meal-prep", "fatloss", "fiber"],
+    names: [
+      "Mättande soppa med {protein}, {veg} och {carb}",
+      "Krämig grön soppa med {protein} och {fat}",
+      "Fibergryta i soppskål med {protein} och {veg}",
+      "Värmande lunchsoppa med {protein} och citron",
+      "Lätt kvällssoppa med {protein}, {veg} och kål"
+    ],
+    proteins: ["cod", "chicken", "lentils", "blackbeans", "tofu"],
+    vegs: ["cauliflower", "broccoli", "carrot", "onion", "cabbage"],
+    carbs: ["potato", "quinoa", "sweetpotato", null, "brownrice"],
+    fats: ["cream-cheese", "olive-oil", "hummus", "feta", "avocado"],
+    extras: ["garlic", "lemon", "spinach", "tomato", "pepper"],
+    method: "Koka grön bas mjuk, lägg i protein och avsluta med syra eller liten fettkälla.",
+    why: "Vätska, fiber och protein ger hög mättnad per kalori."
+  },
+  {
+    id: "wok",
+    type: "Wok",
+    minutes: 17,
+    tags: ["quick", "high-protein", "training"],
+    names: [
+      "Snabb wok med {protein}, {veg} och {carb}",
+      "Efter-passet-wok med {protein} och {carb}",
+      "Grön wok med {protein}, {veg} och {fat}",
+      "Kylskåpswok med {protein} och frysta grönsaker",
+      "Proteinwok med {protein}, {veg} och citron"
+    ],
+    proteins: ["shrimp", "chicken", "tofu", "tempeh", "ground-chicken"],
+    vegs: ["frozen-veg", "broccoli", "pepper", "mushroom", "zucchini"],
+    carbs: ["brownrice", "quinoa", "wholegrain-pasta", "potato", "sweetpotato"],
+    fats: ["olive-oil", "pumpkin-seeds", "hummus", "avocado", "almonds"],
+    extras: ["garlic", "onion", "lemon", "spinach", "cabbage"],
+    method: "Hetta upp snabbt, håll grönsakerna spänstiga och väg oljan.",
+    why: "Bra när du vill ha mycket mat, tydliga gram och låg friktion."
+  },
+  {
+    id: "dairybowl",
+    type: "Skål",
+    minutes: 6,
+    tags: ["quick", "high-protein", "breakfast"],
+    names: [
+      "Proteinskål med {protein}, {veg} och {fat}",
+      "Kvällsskål med {protein}, {carb} och bär",
+      "Frukostskål med {protein}, {veg} och krisp",
+      "Mättande mejeriskål med {protein} och {fat}",
+      "Söt men smart skål med {protein}, {veg} och fiber"
+    ],
+    proteins: ["kvarg", "skyr", "yogurt", "cottage", "protein-pudding"],
+    vegs: ["berries", "blueberries", "strawberries", "apple", "banana"],
+    carbs: ["oats", "rye-bread", "pear", "orange", "grapes"],
+    fats: ["almonds", "pumpkin-seeds", "hummus", null, "avocado"],
+    extras: ["milk", "berries", "blueberries", "strawberries", "apple"],
+    method: "Rör ihop mejeribas, toppa med frukt eller bär och mät nötter/frön.",
+    why: "Ett kontrollerat sött alternativ med protein före snabba kalorier."
+  },
+  {
+    id: "breakfast",
+    type: "Frukost",
+    minutes: 10,
+    tags: ["quick", "high-protein", "breakfast"],
+    names: [
+      "Premiumfrukost med {protein}, {carb} och {fat}",
+      "Mättnadsfrukost med {protein} och {veg}",
+      "Stark start med {protein}, {veg} och fiber",
+      "Snabb frukosttallrik med {protein} och {carb}",
+      "Frukost för midjan med {protein}, {veg} och {fat}"
+    ],
+    proteins: ["egg", "skyr", "cottage", "kvarg", "yogurt"],
+    vegs: ["tomato", "spinach", "berries", "blueberries", "apple"],
+    carbs: ["rye-bread", "oats", "banana", "pear", "orange"],
+    fats: ["avocado", "almonds", "butter", "pumpkin-seeds", "cheese"],
+    extras: ["cucumber", "milk", "lemon", "strawberries", "grapes"],
+    method: "Bygg en liten tallrik med protein först och låt kolhydraten vara mättande.",
+    why: "En jämn start gör nästa beslut enklare, särskilt om kvällen brukar bli svår."
+  },
+  {
+    id: "lowcarbplate",
+    type: "Lågkolhydrat",
+    minutes: 16,
+    tags: ["lowcarb", "high-protein", "fatloss"],
+    names: [
+      "Lågkolhydrattallrik med {protein}, {veg} och {fat}",
+      "Grön proteintallrik med {protein} och {veg}",
+      "Blomkålsbas med {protein} och {fat}",
+      "Mättande lågkolhydrat med {protein} och kål",
+      "Kvällstallrik med {protein}, {veg} och kontrollerat fett"
+    ],
+    proteins: ["cod", "turkey", "chicken", "tofu", "shrimp"],
+    vegs: ["cauliflower", "zucchini", "broccoli", "cabbage", "spinach"],
+    carbs: [null, null, null, null, "rye-bread"],
+    fats: ["olive-oil", "avocado", "feta", "hummus", "pumpkin-seeds"],
+    extras: ["lemon", "cucumber", "tomato", "garlic", "pepper"],
+    method: "Byt stärkelserik bas mot mer grönt och håll fettkällan mätt men uppmätt.",
+    why: "Passar dagar när du vill hålla kolhydraterna lägre utan att tappa volym."
+  },
+  {
+    id: "vegetarian",
+    type: "Vegetariskt",
+    minutes: 20,
+    tags: ["vegetarian", "fiber", "meal-prep"],
+    names: [
+      "Vegetarisk bowl med {protein}, {veg} och {carb}",
+      "Baljväxttallrik med {protein} och {fat}",
+      "Grön lunch med {protein}, {veg} och quinoa",
+      "Fiberstark vegomåltid med {protein} och kål",
+      "Vegetarisk premiumlåda med {protein}, {carb} och {veg}"
+    ],
+    proteins: ["tofu", "tempeh", "lentils", "chickpeas", "blackbeans"],
+    vegs: ["broccoli", "spinach", "pepper", "zucchini", "cabbage"],
+    carbs: ["quinoa", "potato", "brownrice", "sweetpotato", "rye-bread"],
+    fats: ["hummus", "avocado", "olive-oil", "pumpkin-seeds", "almonds"],
+    extras: ["lemon", "onion", "garlic", "tomato", "cucumber"],
+    method: "Kombinera baljväxt eller tofu med grönt, syra och en liten fettkälla.",
+    why: "Ger protein och fiber utan att bygga måltiden på bara pasta eller bröd."
+  },
+  {
+    id: "fish",
+    type: "Fisk",
+    minutes: 18,
+    tags: ["high-protein", "fatloss", "quick"],
+    names: [
+      "Fisktallrik med {protein}, {veg} och {carb}",
+      "Nordisk fiskbowl med {protein} och {fat}",
+      "Snabb fisklunch med {protein}, {veg} och citron",
+      "Lätt middag med {protein}, {veg} och potatis",
+      "Proteinrik fiskrätt med {protein} och extra grönt"
+    ],
+    proteins: ["salmon", "cod", "tuna", "shrimp", "egg"],
+    vegs: ["tomato", "cucumber", "broccoli", "cauliflower", "lettuce"],
+    carbs: ["potato", "quinoa", "rye-bread", "brownrice", "sweetpotato"],
+    fats: ["avocado", "olive-oil", "feta", "hummus", "pumpkin-seeds"],
+    extras: ["lemon", "spinach", "cabbage", "pepper", "onion"],
+    method: "Håll fisken enkel, väg kolhydratbasen och låt grönsakerna fylla tallriken.",
+    why: "Fisk ger mycket protein och gör det lätt att hålla måltiden ren och tydlig."
+  },
+  {
+    id: "ryeplate",
+    type: "Rågbröd",
+    minutes: 8,
+    tags: ["quick", "breakfast", "fatloss"],
+    names: [
+      "Rågbrödsmål med {protein}, {veg} och {fat}",
+      "Snabb smörgåstallrik med {protein} och grönsaker",
+      "Proteinmacka med {protein}, {veg} och kontroll",
+      "Kall lunch med {protein}, {carb} och extra grönt",
+      "Mättande rågbröd med {protein} och {fat}"
+    ],
+    proteins: ["ham", "turkey-slices", "cottage", "egg", "tuna"],
+    vegs: ["cucumber", "tomato", "lettuce", "pepper", "onion"],
+    carbs: ["rye-bread", "rye-bread", "rye-bread", "rye-bread", "rye-bread"],
+    fats: ["cheese", "avocado", "cream-cheese", "hummus", "feta"],
+    extras: ["lemon", "spinach", "cabbage", "carrot", "berries"],
+    method: "Bygg öppet med mycket protein och grön volym ovanpå brödet.",
+    why: "Ett bättre akutval än snabbmat när du behöver något kallt och snabbt."
+  },
+  {
+    id: "mince",
+    type: "Färs",
+    minutes: 22,
+    tags: ["high-protein", "meal-prep", "training"],
+    names: [
+      "Färsgryta med {protein}, {veg} och {carb}",
+      "Proteinrik panna med {protein} och {veg}",
+      "Matlådefärs med {protein}, {carb} och kål",
+      "Snabb köttfri färsstil med {protein} och grönt",
+      "Mättande färsbowl med {protein}, {veg} och {fat}"
+    ],
+    proteins: ["ground-chicken", "ground-beef", "turkey", "chicken", "tempeh"],
+    vegs: ["zucchini", "mushroom", "onion", "pepper", "cabbage"],
+    carbs: ["potato", "wholegrain-pasta", "brownrice", "quinoa", "sweetpotato"],
+    fats: ["olive-oil", "cream-cheese", "cheese", "avocado", "hummus"],
+    extras: ["garlic", "tomato", "spinach", "lemon", "carrot"],
+    method: "Stek protein och grönsaker tillsammans, väg fettet och håll basen tydlig.",
+    why: "Färsrätter blir lätt energitäta; den här motorn styr mängderna."
+  },
+  {
+    id: "emergency",
+    type: "Akutval",
+    minutes: 5,
+    tags: ["quick", "high-protein", "fatloss"],
+    names: [
+      "Akutskål med {protein}, {veg} och {fat}",
+      "Fem-minutersmål med {protein} och {carb}",
+      "Smart nödval med {protein}, {veg} och krisp",
+      "Proteinräddare med {protein}, {carb} och fiber",
+      "Kvällsval med {protein}, {veg} och kontrollerat fett"
+    ],
+    proteins: ["protein-pudding", "skyr", "kvarg", "cottage", "tuna"],
+    vegs: ["berries", "banana", "apple", "orange", "pear"],
+    carbs: ["oats", "rye-bread", "grapes", "blueberries", "strawberries"],
+    fats: ["almonds", "pumpkin-seeds", "hummus", "avocado", null],
+    extras: ["milk", "cucumber", "tomato", "lemon", "berries"],
+    method: "Välj det som kräver minst matlagning men fortfarande ger protein först.",
+    why: "När tiden är kort vinner ett bra nödval över ett perfekt recept som inte blir av."
+  },
+  {
+    id: "tray",
+    type: "Ugnsplåt",
+    minutes: 30,
+    tags: ["meal-prep", "high-protein", "fatloss"],
+    names: [
+      "Ugnsplåt med {protein}, {veg} och {carb}",
+      "Plåtmat med {protein}, {veg} och citron",
+      "Matlådesplåt med {protein}, {carb} och grönt",
+      "Grön plåt med {protein}, {veg} och {fat}",
+      "Mättnadsplåt med {protein}, {carb} och kål"
+    ],
+    proteins: ["chicken", "salmon", "cod", "tofu", "ground-chicken"],
+    vegs: ["broccoli", "cauliflower", "carrot", "zucchini", "onion"],
+    carbs: ["potato", "sweetpotato", "quinoa", "brownrice", "wholegrain-pasta"],
+    fats: ["olive-oil", "feta", "avocado", "hummus", "pumpkin-seeds"],
+    extras: ["garlic", "lemon", "pepper", "cabbage", "spinach"],
+    method: "Rosta protein, bas och grönt tillsammans och dela upp i gram efteråt.",
+    why: "Perfekt för flera portioner utan att varje måltid kräver nytt beslut."
+  },
+  {
+    id: "pasta",
+    type: "Pasta",
+    minutes: 19,
+    tags: ["training", "meal-prep", "high-protein"],
+    names: [
+      "Fullkornspasta med {protein}, {veg} och {fat}",
+      "Träningspasta med {protein} och extra grönt",
+      "Krämig proteinpasta med {protein}, {veg} och kontroll",
+      "Snabb pastalåda med {protein} och {veg}",
+      "Smart pastatallrik med {protein}, {carb} och fiber"
+    ],
+    proteins: ["tuna", "chicken", "ground-chicken", "shrimp", "tofu"],
+    vegs: ["tomato", "zucchini", "spinach", "mushroom", "onion"],
+    carbs: ["wholegrain-pasta", "wholegrain-pasta", "wholegrain-pasta", "wholegrain-pasta", "wholegrain-pasta"],
+    fats: ["olive-oil", "cream-cheese", "mozzarella", "feta", "hummus"],
+    extras: ["garlic", "lemon", "pepper", "cabbage", "broccoli"],
+    method: "Låt pastan vara mätt bas, men gör protein och grönt till majoriteten visuellt.",
+    why: "Gör kolhydratrik mat mer metabolt smart genom protein och fiber."
+  },
+  {
+    id: "potato",
+    type: "Potatis",
+    minutes: 20,
+    tags: ["fatloss", "meal-prep", "fiber"],
+    names: [
+      "Potatistallrik med {protein}, {veg} och {fat}",
+      "Mättande potatisbas med {protein} och kål",
+      "Nordisk bowl med {protein}, {carb} och grönt",
+      "Lätt middag med {protein}, potatis och {veg}",
+      "Proteinrik potatislåda med {protein} och {fat}"
+    ],
+    proteins: ["egg", "chicken", "cod", "turkey", "blackbeans"],
+    vegs: ["cabbage", "broccoli", "cucumber", "tomato", "lettuce"],
+    carbs: ["potato", "potato", "potato", "potato", "potato"],
+    fats: ["hummus", "avocado", "olive-oil", "feta", "pumpkin-seeds"],
+    extras: ["lemon", "onion", "garlic", "carrot", "spinach"],
+    method: "Håll potatisen kokt eller ugnsrostad och låt proteinet styra portionen.",
+    why: "Potatis ger stark mättnad när fettmängden hålls uppmätt."
+  },
+  {
+    id: "mediterranean",
+    type: "Medelhav",
+    minutes: 16,
+    tags: ["fatloss", "meal-prep", "fiber"],
+    names: [
+      "Medelhavsskål med {protein}, {veg} och {fat}",
+      "Citronbowl med {protein}, {carb} och grönt",
+      "Fräsch tallrik med {protein}, {veg} och hummus",
+      "Premiumsallad med {protein}, {carb} och olivolja",
+      "Mättande medelhavslunch med {protein} och {veg}"
+    ],
+    proteins: ["chicken", "tuna", "shrimp", "tofu", "feta"],
+    vegs: ["tomato", "cucumber", "pepper", "lettuce", "onion"],
+    carbs: ["quinoa", "chickpeas", "brownrice", "rye-bread", "potato"],
+    fats: ["olive-oil", "avocado", "hummus", "pumpkin-seeds", "almonds"],
+    extras: ["lemon", "spinach", "cabbage", "garlic", "berries"],
+    method: "Bygg kallt eller ljummet med syra, grön volym och kontrollerad olivolja.",
+    why: "Smakrikt utan att behöva stora mängder fett eller socker."
+  },
+  {
+    id: "fiberstew",
+    type: "Fibergryta",
+    minutes: 28,
+    tags: ["vegetarian", "fiber", "meal-prep"],
+    names: [
+      "Fibergryta med {protein}, {veg} och {carb}",
+      "Baljväxtgryta med {protein} och extra grönt",
+      "Mättande vegogryta med {protein}, {veg} och {fat}",
+      "Bukfettssmart gryta med {protein}, kål och tomat",
+      "Lunchgryta med {protein}, {carb} och fiber"
+    ],
+    proteins: ["lentils", "blackbeans", "chickpeas", "edamame", "tempeh"],
+    vegs: ["cabbage", "carrot", "tomato", "onion", "spinach"],
+    carbs: ["potato", "quinoa", "brownrice", "sweetpotato", "rye-bread"],
+    fats: ["olive-oil", "hummus", "avocado", "pumpkin-seeds", "feta"],
+    extras: ["garlic", "lemon", "pepper", "zucchini", "broccoli"],
+    method: "Låt baljväxter och grönt sjuda ihop och toppa med uppmätt fettkälla.",
+    why: "Hög fiber gör måltiden långsam, mättande och bättre för blodsockerkontroll."
+  },
+  {
+    id: "recovery",
+    type: "Återhämtning",
+    minutes: 13,
+    tags: ["training", "high-protein", "quick"],
+    names: [
+      "Återhämtningsmål med {protein}, {carb} och {veg}",
+      "Efter träning med {protein}, {carb} och {fat}",
+      "Snabb återstart med {protein}, {veg} och fiber",
+      "Protein plus kolhydrat med {protein} och {carb}",
+      "Träningsskål med {protein}, {carb} och grönt"
+    ],
+    proteins: ["chicken", "egg", "skyr", "salmon", "turkey"],
+    vegs: ["broccoli", "spinach", "pepper", "tomato", "cucumber"],
+    carbs: ["banana", "oats", "potato", "brownrice", "quinoa"],
+    fats: ["almonds", "pumpkin-seeds", "avocado", "olive-oil", "hummus"],
+    extras: ["milk", "berries", "lemon", "cabbage", "garlic"],
+    method: "Para protein med lagom kolhydrat och lägg grönt för mättnad och mikronäring.",
+    why: "Gör träningsdagar starkare utan att släppa midjemålet."
+  }
+];
+
+const recipeTemplates = buildRecipeTemplates();
 
 const swapGuide = [
   {
@@ -954,6 +1369,7 @@ function mergeState(base, next) {
       ...base.pantry,
       ...(next.pantry || {}),
       selected: Array.isArray(next.pantry && next.pantry.selected) ? next.pantry.selected : base.pantry.selected,
+      recipeFilter: typeof (next.pantry && next.pantry.recipeFilter) === "string" ? next.pantry.recipeFilter : base.pantry.recipeFilter,
       kitchenMessages: Array.isArray(next.pantry && next.pantry.kitchenMessages) ? next.pantry.kitchenMessages : base.pantry.kitchenMessages,
       scanFeedback: Array.isArray(next.pantry && next.pantry.scanFeedback) ? next.pantry.scanFeedback : base.pantry.scanFeedback,
       shoppingList: Array.isArray(next.pantry && next.pantry.shoppingList) ? next.pantry.shoppingList : base.pantry.shoppingList
@@ -1207,6 +1623,29 @@ function bindFridgeBuilder() {
     const askButton = event.target.closest("[data-scan-ask]");
     if (askButton && !kitchenAiLoading) {
       askKitchenAssistant(askButton.dataset.scanAsk || "Vad kan jag laga av de scannade råvarorna?");
+    }
+  });
+
+  $("#recipeEngine")?.addEventListener("click", (event) => {
+    const filterButton = event.target.closest("[data-recipe-filter]");
+    if (filterButton) {
+      ensurePantryState();
+      state.pantry.recipeFilter = filterButton.dataset.recipeFilter || "best";
+      saveState();
+      renderRecipeEngine();
+      return;
+    }
+
+    const addButton = event.target.closest("[data-recipe-add]");
+    if (addButton) {
+      const ids = addButton.dataset.recipeAdd.split(",").filter((id) => pantryFoods.some((food) => food.id === id));
+      addFridgeIds(ids, "Receptets råvaror lades till i byggaren.");
+      return;
+    }
+
+    const askButton = event.target.closest("[data-recipe-ask]");
+    if (askButton && !kitchenAiLoading) {
+      askKitchenAssistant(askButton.dataset.recipeAsk || "Gör detta recept ännu bättre för bukfett och mättnad.");
     }
   });
 }
@@ -1810,6 +2249,7 @@ function ensurePantryState() {
   if (!Array.isArray(state.pantry.scanFeedback)) state.pantry.scanFeedback = [];
   if (!Array.isArray(state.pantry.shoppingList)) state.pantry.shoppingList = [];
   if (!state.pantry.goal) state.pantry.goal = defaultState.pantry.goal;
+  if (!state.pantry.recipeFilter) state.pantry.recipeFilter = defaultState.pantry.recipeFilter;
 }
 
 function renderFridgeBuilder() {
@@ -1822,6 +2262,7 @@ function renderFridgeBuilder() {
   renderKitchenAssistant();
   renderFridgeFoodBank();
   renderFridgeMeal();
+  renderRecipeEngine();
 }
 
 function renderFridgeFoodBank() {
@@ -2507,6 +2948,344 @@ function localKitchenAssistantReply(message, context, detail = "") {
 function foodNameById(id) {
   const food = pantryFoods.find((item) => item.id === id);
   return food ? food.name : "";
+}
+
+function pantryFoodById(id) {
+  return pantryFoods.find((item) => item.id === id) || null;
+}
+
+function buildRecipeTemplates() {
+  const recipes = [];
+  recipeFamilies.forEach((family, familyIndex) => {
+    for (let variantIndex = 0; variantIndex < 5; variantIndex += 1) {
+      const proteinId = pickRecipeId(family.proteins, variantIndex, familyIndex);
+      const vegId = pickRecipeId(family.vegs, variantIndex, familyIndex);
+      const secondVegId = pickRecipeId(family.vegs, variantIndex + 2, familyIndex);
+      const carbId = pickRecipeId(family.carbs, variantIndex, familyIndex);
+      const fatId = pickRecipeId(family.fats, variantIndex, familyIndex);
+      const extraId = pickRecipeId(family.extras, variantIndex + 1, familyIndex);
+      const ingredients = uniqueRecipeIngredients([
+        recipeIngredient(proteinId, "protein", family, variantIndex),
+        recipeIngredient(vegId, "veg", family, variantIndex),
+        recipeIngredient(secondVegId, "veg", family, variantIndex + 1),
+        recipeIngredient(carbId, "carb", family, variantIndex),
+        recipeIngredient(fatId, "fat", family, variantIndex),
+        recipeIngredient(extraId, "extra", family, variantIndex)
+      ].filter(Boolean));
+      const title = recipeTitle(family, variantIndex, { proteinId, vegId, carbId, fatId });
+      const minutes = Math.max(5, family.minutes + ((variantIndex % 3) - 1) * 2);
+
+      recipes.push({
+        id: `${family.id}-${variantIndex + 1}`,
+        title,
+        type: family.type,
+        minutes,
+        difficulty: minutes <= 10 ? "Mycket enkel" : minutes <= 18 ? "Enkel" : "Planerad",
+        tags: Array.from(new Set([...(family.tags || []), minutes <= 18 ? "quick" : "planned"])),
+        ingredients,
+        method: family.method,
+        why: family.why,
+        steps: recipeSteps(family, ingredients, minutes)
+      });
+    }
+  });
+  return recipes.slice(0, 100);
+}
+
+function pickRecipeId(list, index, offset = 0) {
+  if (!Array.isArray(list) || !list.length) return null;
+  const value = list[(index + offset) % list.length];
+  return value && pantryFoodById(value) ? value : null;
+}
+
+function recipeIngredient(id, role, family, index) {
+  const food = pantryFoodById(id);
+  if (!food) return null;
+  return {
+    id,
+    grams: recipeGramsForFood(food, role, family, index),
+    role
+  };
+}
+
+function recipeGramsForFood(food, role, family, index) {
+  let grams = food.defaultGrams || 100;
+  if (role === "protein") {
+    if (food.role === "dairy") grams = Math.max(180, grams);
+    if (food.role === "legume") grams = Math.max(170, grams);
+    if (["ham", "turkey-slices"].includes(food.id)) grams = 90;
+    if (food.id === "egg") grams = 120 + (index % 2) * 60;
+  }
+  if (role === "veg") grams = Math.min(Math.max(100, grams), 230);
+  if (role === "carb") {
+    grams = Math.min(Math.max(70, grams), 190);
+    if ((family.tags || []).includes("lowcarb")) grams = Math.round(grams * 0.55);
+    if ((family.tags || []).includes("training")) grams = Math.round(grams * 1.15);
+  }
+  if (role === "fat") {
+    const caps = {
+      "olive-oil": 10,
+      butter: 8,
+      almonds: 18,
+      "pumpkin-seeds": 15,
+      avocado: 65,
+      hummus: 55,
+      cheese: 25,
+      feta: 35,
+      mozzarella: 45,
+      "cream-cheese": 25
+    };
+    grams = Math.min(grams, caps[food.id] || 45);
+  }
+  if (role === "extra") {
+    if (food.role === "flavor") grams = Math.min(grams, food.id === "garlic" ? 5 : 35);
+    if (food.role === "fruit") grams = Math.min(grams, 110);
+    if (food.role === "veg") grams = Math.min(grams, 90);
+    if (food.role === "dairy") grams = Math.min(grams, 120);
+  }
+  return Math.max(5, Math.round(grams / 5) * 5);
+}
+
+function uniqueRecipeIngredients(ingredients) {
+  const byId = new Map();
+  ingredients.forEach((ingredient) => {
+    if (!ingredient || !pantryFoodById(ingredient.id)) return;
+    const previous = byId.get(ingredient.id);
+    if (!previous) {
+      byId.set(ingredient.id, ingredient);
+      return;
+    }
+    byId.set(ingredient.id, {
+      ...previous,
+      grams: Math.max(previous.grams, ingredient.grams),
+      role: previous.role === "protein" ? previous.role : ingredient.role
+    });
+  });
+  return Array.from(byId.values());
+}
+
+function recipeTitle(family, variantIndex, ids) {
+  const pattern = family.names[variantIndex % family.names.length];
+  return pattern
+    .replace("{protein}", recipeShortFoodName(ids.proteinId))
+    .replace("{veg}", recipeShortFoodName(ids.vegId))
+    .replace("{carb}", recipeShortFoodName(ids.carbId))
+    .replace("{fat}", recipeShortFoodName(ids.fatId));
+}
+
+function recipeShortFoodName(id) {
+  const name = foodNameById(id);
+  return name
+    .replace(" kokta", "")
+    .replace(" kokt", "")
+    .replace(" naturell", "")
+    .replace(" i vatten", "")
+    .replace(" frysta", "")
+    .replace("Kycklingfilé", "kyckling")
+    .replace("Fullkornsris", "ris")
+    .replace("Fullkornspasta", "pasta")
+    .replace("Keso/cottage cheese", "keso")
+    .toLowerCase();
+}
+
+function recipeSteps(family, ingredients, minutes) {
+  const protein = ingredients.find((item) => item.role === "protein");
+  const vegCount = ingredients.filter((item) => item.role === "veg").length;
+  const carb = ingredients.find((item) => item.role === "carb");
+  const proteinName = protein ? foodNameById(protein.id).toLowerCase() : "proteinet";
+  const carbText = carb ? ` och ${foodNameById(carb.id).toLowerCase()}` : "";
+  return [
+    `Väg upp ${proteinName}${carbText} enligt gramlistan.`,
+    `${family.method} Sikta på ${vegCount >= 2 ? "två gröna byggstenar" : "minst en grön byggsten"}.`,
+    `Smaka av, dela upp portionen och spara rester om tillagningen tar över ${minutes > 18 ? "18" : "10"} minuter.`
+  ];
+}
+
+function availablePantryIds() {
+  ensurePantryState();
+  const selectedIds = Array.isArray(state.pantry.selected) ? state.pantry.selected : [];
+  const scanIds = (fridgeScan.suggestions || [])
+    .filter((suggestion) => suggestion && suggestion.feedback !== "wrong" && suggestion.rejected !== true)
+    .map((suggestion) => matchPantryFoodId(suggestion.id || suggestion.name || suggestion.label))
+    .filter(Boolean);
+  return new Set([...selectedIds, ...scanIds].filter((id) => pantryFoodById(id)));
+}
+
+function rankRecipeTemplates(filter = "best") {
+  ensurePantryState();
+  const available = availablePantryIds();
+  const goal = state.pantry.goal || "fatloss";
+  return recipeTemplates
+    .map((recipe) => scoreRecipe(recipe, available, goal))
+    .filter((item) => recipeMatchesFilter(item, filter))
+    .sort((a, b) => (
+      b.score - a.score ||
+      a.missingIds.length - b.missingIds.length ||
+      b.macros.protein - a.macros.protein ||
+      a.recipe.minutes - b.recipe.minutes
+    ));
+}
+
+function scoreRecipe(recipe, available, goal) {
+  const ingredientIds = recipe.ingredients.map((item) => item.id);
+  const matchIds = ingredientIds.filter((id) => available.has(id));
+  const missingIds = ingredientIds.filter((id) => !available.has(id));
+  const macros = calculateRecipeMacros(recipe);
+  const proteinDensity = macros.kcal ? (macros.protein * 100) / macros.kcal : 0;
+  const vegetarian = isVegetarianRecipe(recipe);
+  let score = 50;
+  score += matchIds.length * 18;
+  score -= missingIds.length * 7;
+  score += Math.min(macros.protein, 55) * 0.7;
+  score += Math.min(macros.fiber, 20) * 2.2;
+  score += proteinDensity * 16;
+  score += recipe.minutes <= 12 ? 9 : recipe.minutes <= 18 ? 5 : 0;
+  score -= Math.max(0, macros.kcal - 780) * 0.035;
+
+  if (goal === "fatloss") {
+    score += macros.protein >= 32 ? 12 : -6;
+    score += macros.fiber >= 9 ? 8 : -3;
+    score -= Math.max(0, macros.fat - 32) * 0.45;
+  }
+  if (goal === "training") {
+    score += macros.carbs >= 35 ? 12 : -4;
+    score += macros.protein >= 30 ? 10 : -5;
+  }
+  if (goal === "lowcarb") {
+    score += macros.carbs <= 28 ? 18 : macros.carbs <= 40 ? 8 : -16;
+  }
+  if (goal === "vegetarian") {
+    score += vegetarian ? 24 : -34;
+  }
+
+  return {
+    recipe,
+    macros,
+    matchIds,
+    missingIds,
+    score,
+    matchRatio: ingredientIds.length ? matchIds.length / ingredientIds.length : 0,
+    vegetarian
+  };
+}
+
+function recipeMatchesFilter(item, filter) {
+  if (filter === "quick") return item.recipe.minutes <= 18;
+  if (filter === "high-protein") return item.macros.protein >= 32;
+  if (filter === "vegetarian") return item.vegetarian;
+  if (filter === "lowcarb") return item.macros.carbs <= 35 || item.recipe.tags.includes("lowcarb");
+  if (filter === "meal-prep") return item.recipe.tags.includes("meal-prep") || item.recipe.minutes >= 20;
+  return true;
+}
+
+function calculateRecipeMacros(recipe) {
+  return calculateFridgeMacros(recipe.ingredients
+    .map((ingredient) => ({
+      food: pantryFoodById(ingredient.id),
+      grams: ingredient.grams
+    }))
+    .filter((item) => item.food));
+}
+
+function isVegetarianRecipe(recipe) {
+  const animalIds = new Set(["chicken", "salmon", "tuna", "cod", "turkey", "shrimp", "ham", "turkey-slices", "ground-beef", "ground-chicken", "falukorv"]);
+  return recipe.ingredients.every((ingredient) => !animalIds.has(ingredient.id));
+}
+
+function renderRecipeEngine() {
+  const target = $("#recipeEngine");
+  if (!target) return;
+  ensurePantryState();
+  const filter = recipeFilterOptions.some((option) => option.id === state.pantry.recipeFilter) ? state.pantry.recipeFilter : "best";
+  const ranked = rankRecipeTemplates(filter);
+  const closeMatches = rankRecipeTemplates("best").filter((item) => item.missingIds.length <= 2).length;
+  const selectedCount = availablePantryIds().size;
+  const visible = ranked.slice(0, 8);
+
+  target.innerHTML = `
+    <div class="recipe-engine-head">
+      <div>
+        <span>Receptmotor</span>
+        <h3 id="recipe-engine-title">100 smarta recept från ditt kylskåp</h3>
+        <p>Rankar efter vad du har hemma, mål, protein, fiber, tid och saknade ingredienser.</p>
+      </div>
+      <b>${recipeTemplates.length} recept</b>
+    </div>
+    <div class="recipe-engine-stats" aria-label="Receptmotor status">
+      <article>
+        <span>Hemma nu</span>
+        <strong>${selectedCount}</strong>
+      </article>
+      <article>
+        <span>Passar nära</span>
+        <strong>${closeMatches}</strong>
+      </article>
+      <article>
+        <span>Visas</span>
+        <strong>${visible.length}</strong>
+      </article>
+    </div>
+    <div class="recipe-filter-row" aria-label="Filtrera recept">
+      ${recipeFilterOptions.map((option) => `
+        <button type="button" class="${filter === option.id ? "is-active" : ""}" data-recipe-filter="${option.id}">
+          ${option.label}
+        </button>
+      `).join("")}
+    </div>
+    <div class="recipe-card-grid">
+      ${visible.map(renderRecipeCard).join("")}
+    </div>
+  `;
+}
+
+function renderRecipeCard(item) {
+  const { recipe, macros, matchIds, missingIds } = item;
+  const ingredientIds = recipe.ingredients.map((ingredient) => ingredient.id);
+  const homeNames = matchIds.map(foodNameById).filter(Boolean);
+  const missingNames = missingIds.map(foodNameById).filter(Boolean).slice(0, 4);
+  const askPrompt = recipeAiPrompt(recipe, macros, missingIds);
+  const level = missingIds.length === 0 ? "complete" : missingIds.length <= 2 ? "close" : "shop";
+
+  return `
+    <article class="recipe-card ${level}">
+      <header>
+        <div>
+          <span>${escapeHTML(recipe.type)}</span>
+          <strong>${escapeHTML(recipe.title)}</strong>
+        </div>
+        <b>${matchIds.length}/${ingredientIds.length} hemma</b>
+      </header>
+      <div class="recipe-meta-row">
+        <span>${recipe.minutes} min</span>
+        <span>${Math.round(macros.kcal)} kcal</span>
+        <span>${Math.round(macros.protein)} g protein</span>
+        <span>${Math.round(macros.fiber)} g fiber</span>
+      </div>
+      <p class="recipe-why">${escapeHTML(recipe.why)}</p>
+      <div class="recipe-ingredient-lines">
+        <p><strong>Gram:</strong> ${recipe.ingredients.map((ingredient) => `${escapeHTML(foodNameById(ingredient.id))} ${ingredient.grams} g`).join(", ")}</p>
+        <p><strong>Hemma:</strong> ${homeNames.length ? escapeHTML(homeNames.slice(0, 5).join(", ")) : "Inga matchade ännu"}</p>
+        <p><strong>Saknas:</strong> ${missingNames.length ? escapeHTML(missingNames.join(", ")) : "Inget saknas"}</p>
+      </div>
+      <ol>
+        ${recipe.steps.map((step) => `<li>${escapeHTML(step)}</li>`).join("")}
+      </ol>
+      <div class="recipe-actions">
+        <button class="ghost-button" type="button" data-recipe-add="${ingredientIds.map(escapeHTML).join(",")}">Lägg råvaror</button>
+        <button class="primary-button" type="button" data-recipe-ask="${escapeHTML(askPrompt)}">Fråga Köks-AI</button>
+      </div>
+    </article>
+  `;
+}
+
+function recipeAiPrompt(recipe, macros, missingIds) {
+  const missing = missingIds.map(foodNameById).filter(Boolean);
+  const goalCopy = fridgeGoalCopy[state.pantry.goal || "fatloss"] || fridgeGoalCopy.fatloss;
+  return [
+    `Gör receptet "${recipe.title}" ännu bättre för ${goalCopy.kicker.toLowerCase()}.`,
+    `Makro cirka ${Math.round(macros.kcal)} kcal, ${Math.round(macros.protein)} g protein, ${Math.round(macros.carbs)} g kolhydrater, ${Math.round(macros.fat)} g fett och ${Math.round(macros.fiber)} g fiber.`,
+    missing.length ? `Saknas hemma: ${missing.join(", ")}. Föreslå ersättningar från mina valda eller scannade råvaror.` : "Alla huvudingredienser finns hemma. Ge exakt tillagning i gram."
+  ].join(" ");
 }
 
 async function handleMealScanFile(file) {

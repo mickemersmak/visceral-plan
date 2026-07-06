@@ -14,7 +14,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="assets/icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=21">
+    <link rel="stylesheet" href="styles.css?v=22">
   </head>
   <body>
     <div class="app-shell">
@@ -480,7 +480,10 @@
                 </section>
                 <div id="fridgeFoodBank" class="fridge-food-bank"></div>
               </div>
-              <div id="fridgeMealResult" class="fridge-meal-result"></div>
+              <div class="fridge-side-panel">
+                <div id="fridgeMealResult" class="fridge-meal-result"></div>
+                <section id="recipeEngine" class="recipe-engine-panel" aria-labelledby="recipe-engine-title"></section>
+              </div>
             </div>
           </section>
 
@@ -754,6 +757,6 @@
       </main>
     </div>
 
-    <script src="app.js?v=21"></script>
+    <script src="app.js?v=22"></script>
   </body>
 </html>
