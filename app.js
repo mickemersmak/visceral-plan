@@ -1643,6 +1643,24 @@ function bindFridgeBuilder() {
       return;
     }
 
+    const shopButton = event.target.closest("[data-recipe-shop]");
+    if (shopButton) {
+      saveRecipeShoppingList(shopButton.dataset.recipeShop);
+      return;
+    }
+
+    const clearShoppingButton = event.target.closest("[data-recipe-shopping-clear]");
+    if (clearShoppingButton) {
+      clearRecipeShoppingList();
+      return;
+    }
+
+    const askShoppingButton = event.target.closest("[data-recipe-shopping-ask]");
+    if (askShoppingButton && !kitchenAiLoading) {
+      askKitchenAssistant(recipeShoppingPrompt());
+      return;
+    }
+
     const askButton = event.target.closest("[data-recipe-ask]");
     if (askButton && !kitchenAiLoading) {
       askKitchenAssistant(askButton.dataset.recipeAsk || "Gör detta recept ännu bättre för bukfett och mättnad.");
@@ -2580,6 +2598,74 @@ function saveScanShoppingItems(items) {
   renderFridgeBuilder();
 }
 
+function saveRecipeShoppingList(recipeId) {
+  ensurePantryState();
+  const recipe = recipeTemplates.find((item) => item.id === recipeId);
+  if (!recipe) return;
+  const shoppingItems = recipeShoppingItems(recipe);
+  if (!shoppingItems.length) {
+    fridgeScan = {
+      ...fridgeScan,
+      message: "Alla receptets råvaror finns redan",
+      note: "Du kan lägga råvarorna i byggaren eller fråga Köks-AI om tillagning."
+    };
+    renderFridgeBuilder();
+    return;
+  }
+
+  const formattedItems = shoppingItems.map((item) => `${item.name} ${item.grams} g - ${recipe.title}`);
+  state.pantry.shoppingList = mergeShoppingList(state.pantry.shoppingList, formattedItems).slice(-40);
+  fridgeScan = {
+    ...fridgeScan,
+    message: `${shoppingItems.length} saknade varor lades i inköpslistan`,
+    note: `${recipe.title}: ${shoppingItems.map((item) => item.name).join(", ")}.`
+  };
+  saveState();
+  renderFridgeBuilder();
+}
+
+function recipeShoppingItems(recipe) {
+  const available = availablePantryIds();
+  return recipe.ingredients
+    .filter((ingredient) => !available.has(ingredient.id))
+    .map((ingredient) => ({
+      ...ingredient,
+      name: foodNameById(ingredient.id)
+    }))
+    .filter((item) => item.name);
+}
+
+function mergeShoppingList(current, additions) {
+  const byKey = new Map();
+  [...(Array.isArray(current) ? current : []), ...(Array.isArray(additions) ? additions : [])]
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .forEach((item) => {
+      byKey.set(normalizeScanText(item), item);
+    });
+  return Array.from(byKey.values());
+}
+
+function clearRecipeShoppingList() {
+  ensurePantryState();
+  state.pantry.shoppingList = [];
+  fridgeScan = {
+    ...fridgeScan,
+    message: "Inköpslistan rensades",
+    note: "Skapa en ny lista från ett recept som saknar råvaror."
+  };
+  saveState();
+  renderFridgeBuilder();
+}
+
+function recipeShoppingPrompt() {
+  ensurePantryState();
+  const list = (state.pantry.shoppingList || []).slice(-12);
+  return list.length
+    ? `Gör en smart inköpsplan i gram av min sparade receptlista: ${list.join(" · ")}. Prioritera bukfett, protein, fiber, budget och måltider som går att laga på 20 minuter.`
+    : "Gör en smart inköpslista i gram för tre dagar utifrån recepten och råvarorna jag har hemma.";
+}
+
 function scanStatusTitle(status) {
   if (status === "scanning") return "Analyserar bild";
   if (status === "queued") return "Bildserie redo";
@@ -3201,6 +3287,7 @@ function renderRecipeEngine() {
   const closeMatches = rankRecipeTemplates("best").filter((item) => item.missingIds.length <= 2).length;
   const selectedCount = availablePantryIds().size;
   const visible = ranked.slice(0, 8);
+  const shoppingList = Array.isArray(state.pantry.shoppingList) ? state.pantry.shoppingList : [];
 
   target.innerHTML = `
     <div class="recipe-engine-head">
@@ -3232,8 +3319,42 @@ function renderRecipeEngine() {
         </button>
       `).join("")}
     </div>
+    ${renderRecipeShoppingList(shoppingList)}
     <div class="recipe-card-grid">
       ${visible.map(renderRecipeCard).join("")}
+    </div>
+  `;
+}
+
+function renderRecipeShoppingList(items) {
+  const latest = (Array.isArray(items) ? items : []).slice(-8).reverse();
+  if (!latest.length) {
+    return `
+      <div class="recipe-shopping-panel empty">
+        <div>
+          <span>Inköpsfunktion</span>
+          <strong>Välj ett recept och skapa lista på det som saknas.</strong>
+        </div>
+        <small>Listan sparas i appen och följer med till Köks-AI som kontext.</small>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="recipe-shopping-panel">
+      <div class="recipe-shopping-head">
+        <div>
+          <span>Inköpslista från recept</span>
+          <strong>${items.length} sparade varor</strong>
+        </div>
+        <div>
+          <button type="button" data-recipe-shopping-ask="true">Fråga Köks-AI</button>
+          <button type="button" data-recipe-shopping-clear="true">Rensa</button>
+        </div>
+      </div>
+      <ul>
+        ${latest.map((item) => `<li>${escapeHTML(item)}</li>`).join("")}
+      </ul>
     </div>
   `;
 }
@@ -3272,6 +3393,11 @@ function renderRecipeCard(item) {
       </ol>
       <div class="recipe-actions">
         <button class="ghost-button" type="button" data-recipe-add="${ingredientIds.map(escapeHTML).join(",")}">Lägg råvaror</button>
+        ${missingIds.length ? `
+          <button class="ghost-button recipe-shop-button" type="button" data-recipe-shop="${escapeHTML(recipe.id)}">Skapa inköp</button>
+        ` : `
+          <button class="ghost-button recipe-shop-button" type="button" disabled>Allt finns</button>
+        `}
         <button class="primary-button" type="button" data-recipe-ask="${escapeHTML(askPrompt)}">Fråga Köks-AI</button>
       </div>
     </article>

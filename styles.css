@@ -2681,6 +2681,86 @@ select:focus {
   box-shadow: 0 12px 26px rgba(18, 63, 53, 0.2);
 }
 
+.recipe-shopping-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(195, 154, 76, 0.28);
+  border-radius: 12px;
+  padding: 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 248, 232, 0.92), rgba(255, 254, 250, 0.96));
+}
+
+.recipe-shopping-panel.empty {
+  border-color: rgba(18, 63, 53, 0.1);
+  background: rgba(255, 254, 250, 0.78);
+}
+
+.recipe-shopping-panel span,
+.recipe-shopping-panel strong,
+.recipe-shopping-panel small {
+  display: block;
+}
+
+.recipe-shopping-panel span {
+  color: var(--gold-dark);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.recipe-shopping-panel strong {
+  margin-top: 3px;
+  color: var(--green);
+  line-height: 1.22;
+}
+
+.recipe-shopping-panel small {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.recipe-shopping-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.recipe-shopping-head div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.recipe-shopping-head button {
+  border: 1px solid rgba(18, 63, 53, 0.14);
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: rgba(255, 254, 250, 0.86);
+  color: var(--green);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.recipe-shopping-panel ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recipe-shopping-panel li {
+  border-radius: 9px;
+  padding: 8px 9px;
+  background: rgba(18, 63, 53, 0.06);
+  color: var(--ink);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
 .recipe-card-grid {
   display: grid;
   gap: 10px;
@@ -2801,7 +2881,7 @@ select:focus {
 
 .recipe-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -2811,6 +2891,18 @@ select:focus {
   justify-content: center;
   padding: 9px 10px;
   font-size: 0.78rem;
+}
+
+.recipe-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+  box-shadow: none;
+}
+
+.recipe-shop-button {
+  border-color: rgba(195, 154, 76, 0.4);
+  color: var(--green);
 }
 
 .guide-intro {
@@ -3861,6 +3953,7 @@ textarea:focus {
   }
 
   .recipe-engine-head,
+  .recipe-shopping-head,
   .recipe-card header,
   .recipe-actions {
     grid-template-columns: 1fr;
@@ -3873,6 +3966,10 @@ textarea:focus {
   .recipe-engine-head b,
   .recipe-card header b {
     width: fit-content;
+  }
+
+  .recipe-shopping-head div:last-child {
+    justify-content: flex-start;
   }
 
   .recipe-engine-stats {
