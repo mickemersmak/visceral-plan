@@ -854,6 +854,44 @@ const recipeFamilies = [
   }
 ];
 
+const recipeStyleProfiles = [
+  {
+    id: "citrus",
+    label: "Citron, vitlök och krispigt grönt",
+    titleWord: "Citronlyft",
+    finish: "Avsluta med citron, svartpeppar och en liten mängd uppmätt fettkälla.",
+    chefNote: "Syra och krisp gör att portionen känns större utan att energin drar iväg."
+  },
+  {
+    id: "green",
+    label: "Grön örtig känsla med varm bas",
+    titleWord: "Grön",
+    finish: "Vänd ner det gröna sist så färg, tuggmotstånd och volym finns kvar.",
+    chefNote: "Låt grönsakerna vara lätt spänstiga; överkokt grönt ger sämre mättnadskänsla."
+  },
+  {
+    id: "creamy",
+    label: "Krämigt, salt och mättande",
+    titleWord: "Krämig",
+    finish: "Rör ut den krämiga delen med lite vatten eller citron så den täcker maten tunt.",
+    chefNote: "Krämighet ska bära smaken, inte bli huvudkalorin. Väg ost, hummus och avokado."
+  },
+  {
+    id: "roasted",
+    label: "Rostad yta, mild sötma och hög mättnad",
+    titleWord: "Rostad",
+    finish: "Låt varma delar vila en minut innan du toppar med kallt, syrligt eller krispigt.",
+    chefNote: "Kontrast mellan varmt och kallt gör måltiden mer restaurangkänsla med samma råvaror."
+  },
+  {
+    id: "nordic",
+    label: "Nordisk, ren och proteinfokuserad",
+    titleWord: "Nordisk",
+    finish: "Servera rent med tydlig gramportion, extra grönt och en enkel syrlig topp.",
+    chefNote: "Håll receptet enkelt när målet är bukfett: protein först, fett kontrollerat, fiber synligt."
+  }
+];
+
 const recipeTemplates = buildRecipeTemplates();
 
 const swapGuide = [
@@ -3051,6 +3089,7 @@ function buildRecipeTemplates() {
       const fatId = pickRecipeId(family.fats, variantIndex, familyIndex);
       const extraId = pickRecipeId(family.extras, variantIndex + 1, familyIndex);
       const ingredients = uniqueRecipeIngredients([
+        ...essentialRecipeIngredients(family, variantIndex),
         recipeIngredient(proteinId, "protein", family, variantIndex),
         recipeIngredient(vegId, "veg", family, variantIndex),
         recipeIngredient(secondVegId, "veg", family, variantIndex + 1),
@@ -3058,20 +3097,23 @@ function buildRecipeTemplates() {
         recipeIngredient(fatId, "fat", family, variantIndex),
         recipeIngredient(extraId, "extra", family, variantIndex)
       ].filter(Boolean));
-      const title = recipeTitle(family, variantIndex, { proteinId, vegId, carbId, fatId });
       const minutes = Math.max(5, family.minutes + ((variantIndex % 3) - 1) * 2);
+      const profile = recipeProfessionalProfile(family, variantIndex, { proteinId, vegId, carbId, fatId }, ingredients, minutes);
 
       recipes.push({
         id: `${family.id}-${variantIndex + 1}`,
-        title,
+        title: profile.title,
         type: family.type,
         minutes,
         difficulty: minutes <= 10 ? "Mycket enkel" : minutes <= 18 ? "Enkel" : "Planerad",
         tags: Array.from(new Set([...(family.tags || []), minutes <= 18 ? "quick" : "planned"])),
         ingredients,
-        method: family.method,
-        why: family.why,
-        steps: recipeSteps(family, ingredients, minutes)
+        method: profile.method,
+        flavor: profile.flavor,
+        prep: profile.prep,
+        chefNote: profile.chefNote,
+        why: profile.why,
+        steps: profile.steps
       });
     }
   });
@@ -3082,6 +3124,22 @@ function pickRecipeId(list, index, offset = 0) {
   if (!Array.isArray(list) || !list.length) return null;
   const value = list[(index + offset) % list.length];
   return value && pantryFoodById(value) ? value : null;
+}
+
+function essentialRecipeIngredients(family, variantIndex) {
+  const essentials = {
+    omelett: ["egg"],
+    pasta: ["wholegrain-pasta"],
+    ryeplate: ["rye-bread"],
+    potato: ["potato"]
+  };
+  return (essentials[family.id] || [])
+    .map((id) => {
+      const food = pantryFoodById(id);
+      if (!food) return null;
+      return recipeIngredient(id, food.role === "carb" ? "carb" : "protein", family, variantIndex);
+    })
+    .filter(Boolean);
 }
 
 function recipeIngredient(id, role, family, index) {
@@ -3150,13 +3208,70 @@ function uniqueRecipeIngredients(ingredients) {
   return Array.from(byId.values());
 }
 
-function recipeTitle(family, variantIndex, ids) {
-  const pattern = family.names[variantIndex % family.names.length];
-  return pattern
-    .replace("{protein}", recipeShortFoodName(ids.proteinId))
-    .replace("{veg}", recipeShortFoodName(ids.vegId))
-    .replace("{carb}", recipeShortFoodName(ids.carbId))
-    .replace("{fat}", recipeShortFoodName(ids.fatId));
+function recipeProfessionalProfile(family, variantIndex, ids, ingredients, minutes) {
+  const style = recipeStyleProfiles[variantIndex % recipeStyleProfiles.length];
+  const parts = recipeParts(ingredients);
+  return {
+    title: recipeTitle(family, variantIndex, ids, ingredients, style),
+    method: recipeMethodLine(family, parts, style),
+    flavor: recipeFlavorLine(family, parts, style),
+    prep: recipePrepLine(family, parts),
+    chefNote: recipeChefNote(family, parts, style),
+    why: recipeWhyLine(family, style),
+    steps: recipeSteps(family, ingredients, minutes, style)
+  };
+}
+
+function recipeParts(ingredients) {
+  const withFood = ingredients
+    .map((ingredient) => ({ ...ingredient, food: pantryFoodById(ingredient.id) }))
+    .filter((ingredient) => ingredient.food);
+  return {
+    all: withFood,
+    proteins: withFood.filter((ingredient) => ingredient.role === "protein" || ingredient.food.role === "protein" || ingredient.food.role === "dairy" || ingredient.food.role === "legume"),
+    protein: withFood.find((ingredient) => ingredient.role === "protein" || ingredient.food.role === "protein" || ingredient.food.role === "dairy" || ingredient.food.role === "legume"),
+    vegs: withFood.filter((ingredient) => ingredient.role === "veg" || ingredient.food.role === "veg"),
+    carb: withFood.find((ingredient) => ingredient.role === "carb" || ingredient.food.role === "carb"),
+    fat: withFood.find((ingredient) => ingredient.role === "fat" || ingredient.food.role === "fat"),
+    extra: withFood.find((ingredient) => ingredient.role === "extra" || ingredient.food.role === "flavor" || ingredient.food.role === "fruit"),
+    fruits: withFood.filter((ingredient) => ingredient.food.role === "fruit"),
+    dairy: withFood.find((ingredient) => ingredient.food.role === "dairy"),
+    egg: withFood.find((ingredient) => ingredient.id === "egg")
+  };
+}
+
+function recipeTitle(family, variantIndex, ids, ingredients, style) {
+  const parts = recipeParts(ingredients);
+  const protein = recipeHeroProteinName(family, parts, ids.proteinId);
+  const veg = recipeShortFoodName(ids.vegId) || recipeNames(parts.vegs, "grönt");
+  const carb = recipeShortFoodName(ids.carbId);
+  const fat = recipeShortFoodName(ids.fatId);
+  const prefix = style.titleWord;
+
+  const titles = {
+    midjebowl: `${prefix} bowl med ${protein}, ${carb || veg} och ${veg}`,
+    omelett: `${prefix} omelett med ${recipeOmelettHero(parts, protein)}, ${veg} och ${fat || "grön topp"}`,
+    lunchbox: `${prefix} matlåda med ${protein}, ${carb || veg} och ${veg}`,
+    salad: `${prefix} sallad med ${protein}, ${veg} och ${fat || "krisp"}`,
+    soup: `${prefix} soppa med ${protein}, ${veg} och ${carb || "grön bas"}`,
+    wok: `${prefix} wok med ${protein}, ${veg} och ${carb || "grönt"}`,
+    dairybowl: `${prefix} proteinskål med ${protein}, ${veg} och ${carb || "krisp"}`,
+    breakfast: `${prefix} frukost med ${protein}, ${carb || veg} och ${fat || "grönt"}`,
+    lowcarbplate: `${prefix} lågkolhydrattallrik med ${protein}, ${veg} och ${fat || "syrlig topp"}`,
+    vegetarian: `${prefix} vegobowl med ${protein}, ${carb || veg} och ${veg}`,
+    fish: `${prefix} fiskrätt med ${protein}, ${veg} och ${carb || fat || "citron"}`,
+    ryeplate: `${prefix} rågbröd med ${protein}, ${veg} och ${fat || "grön topp"}`,
+    mince: `${prefix} panna med ${protein}, ${veg} och ${carb || "grönt"}`,
+    emergency: `${prefix} femminutersmål med ${protein}, ${veg} och ${carb || fat || "krisp"}`,
+    tray: `${prefix} ugnsplåt med ${protein}, ${carb || veg} och ${veg}`,
+    pasta: `${prefix} fullkornspasta med ${protein}, ${veg} och ${fat || "grönt"}`,
+    potato: `${prefix} potatistallrik med ${protein}, ${veg} och ${fat || "syrlig topp"}`,
+    mediterranean: `${prefix} medelhavstallrik med ${protein}, ${veg} och ${fat || "citron"}`,
+    fiberstew: `${prefix} fibergryta med ${protein}, ${veg} och ${carb || "grön bas"}`,
+    recovery: `${prefix} återhämtningsmål med ${protein}, ${carb || veg} och ${veg}`
+  };
+
+  return titles[family.id] || `${prefix} ${family.type.toLowerCase()} med ${protein}, ${veg} och ${carb || fat || "grönt"}`;
 }
 
 function recipeShortFoodName(id) {
@@ -3174,16 +3289,175 @@ function recipeShortFoodName(id) {
     .toLowerCase();
 }
 
-function recipeSteps(family, ingredients, minutes) {
-  const protein = ingredients.find((item) => item.role === "protein");
-  const vegCount = ingredients.filter((item) => item.role === "veg").length;
-  const carb = ingredients.find((item) => item.role === "carb");
-  const proteinName = protein ? foodNameById(protein.id).toLowerCase() : "proteinet";
-  const carbText = carb ? ` och ${foodNameById(carb.id).toLowerCase()}` : "";
+function recipeHeroProteinName(family, parts, fallbackId) {
+  if (family.id === "omelett") {
+    const extraProtein = parts.proteins.find((ingredient) => ingredient.id !== "egg");
+    return extraProtein ? recipeIngredientName(extraProtein) : "ägg";
+  }
+  if (["dairybowl", "emergency"].includes(family.id)) {
+    return recipeIngredientName(parts.dairy || parts.protein) || recipeShortFoodName(fallbackId) || "protein";
+  }
+  return recipeIngredientName(parts.protein) || recipeShortFoodName(fallbackId) || "protein";
+}
+
+function recipeOmelettHero(parts, fallback) {
+  const extraProtein = parts.proteins.find((ingredient) => ingredient.id !== "egg");
+  return extraProtein ? `${recipeIngredientName(extraProtein)} och ägg` : fallback;
+}
+
+function recipeIngredientName(ingredient) {
+  return ingredient && ingredient.food ? recipeShortFoodName(ingredient.id) : "";
+}
+
+function recipeNames(items, fallback = "råvarorna") {
+  const names = (Array.isArray(items) ? items : [])
+    .map(recipeIngredientName)
+    .filter(Boolean);
+  if (!names.length) return fallback;
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(", ")} och ${names[names.length - 1]}`;
+}
+
+function recipePrepLine(family, parts) {
+  const protein = recipeNames(parts.proteins.slice(0, 2), "proteinet");
+  const veg = recipeNames(parts.vegs, "grönsakerna");
+  const carb = recipeIngredientName(parts.carb);
+  if (["dairybowl", "emergency"].includes(family.id)) {
+    return `Väg ${protein}, skär ${recipeNames(parts.fruits, "frukt eller bär")} och håll ${recipeIngredientName(parts.fat) || "topping"} separat till servering.`;
+  }
+  if (family.id === "omelett") {
+    return `Vispa äggen lätt, skiva ${veg} tunt och väg eventuell fyllning innan pannan blir varm.`;
+  }
+  if (family.id === "salad" || family.id === "mediterranean") {
+    return `Skär ${veg} i tydliga bitar, låt ${protein} rinna av om det behövs och väg ${recipeIngredientName(parts.fat) || "fettkällan"}.`;
+  }
+  if (family.id === "soup" || family.id === "fiberstew") {
+    return `Hacka ${veg} fint nog för jämn koktid och förbered ${protein}${carb ? ` samt ${carb}` : ""}.`;
+  }
+  return `Väg ${protein}${carb ? ` och ${carb}` : ""}, skär ${veg} och håll fettkällan uppmätt från start.`;
+}
+
+function recipeMethodLine(family, parts, style) {
+  const protein = recipeNames(parts.proteins.slice(0, 2), "proteinet");
+  const veg = recipeNames(parts.vegs, "grönsakerna");
+  const carb = recipeIngredientName(parts.carb);
+  const lines = {
+    omelett: `Låg värme, äggbas och tunnskurna grönsaker ger en saftig omelett med ${protein}.`,
+    soup: `Bygg smak i kastrull, sjud ${veg} mjukt och lägg i ${protein} sent så texturen håller.`,
+    fiberstew: `Sjud baljväxtbasen tills den blir fyllig och låt ${veg} ge både sötma och fiber.`,
+    tray: `Rosta allt i jämn storlek så ${protein}${carb ? ` och ${carb}` : ""} blir klart samtidigt.`,
+    wok: `Använd hög värme och kort tid så ${veg} behåller spänst medan ${protein} blir varmt.`,
+    pasta: `Vänd pastan med grönsaker och protein i pannan, inte i en tung sås.`,
+    salad: `Blanda kallt, men bygg som en rätt: protein, grön volym, krisp och uppmätt fett.`,
+    dairybowl: `Rör mejeribasen slät och bygg kontrast med frukt, bär och krispig topping.`
+  };
+  return lines[family.id] || `${family.method} ${style.finish}`;
+}
+
+function recipeFlavorLine(family, parts, style) {
+  const fat = recipeIngredientName(parts.fat);
+  const extra = recipeIngredientName(parts.extra);
+  const accents = [style.label, fat, extra].filter(Boolean);
+  return accents.slice(0, 3).join(" · ");
+}
+
+function recipeChefNote(family, parts, style) {
+  if (family.id === "omelett") return "Ta pannan från värmen när ytan fortfarande är lätt glansig; restvärmen gör omeletten saftig.";
+  if (family.id === "wok") return "Stek hellre i två snabba omgångar än att fylla pannan; då blir grönsakerna krispiga.";
+  if (family.id === "salad") return "Salta eller syra grönsakerna lätt före montering så salladen smakar lagat, inte bara blandat.";
+  if (family.id === "dairybowl") return "Lägg krispet sist så skålen känns mer som dessert men fortfarande är kontrollerad.";
+  if (family.id === "tray") return "Sprid ut allt på plåten; trängsel ger kokt yta i stället för rostad smak.";
+  if (family.id === "soup" || family.id === "fiberstew") return "Mixa bara en liten del om du vill ha krämighet; behåll bitar för mättnad.";
+  return style.chefNote;
+}
+
+function recipeWhyLine(family, style) {
+  const anchors = {
+    lowcarbplate: "Protein och mycket grön volym gör den användbar när kolhydraterna ska hållas lägre.",
+    recovery: "Kombinationen av protein och kontrollerad kolhydrat gör den stark efter träning utan att släppa midjemålet.",
+    vegetarian: "Baljväxt, tofu eller mejeri säkrar protein samtidigt som fiber håller måltiden långsam.",
+    emergency: "Ett riktigt nödrecept ska vara snabbt, mättande och tillräckligt gott för att slå impulsköp.",
+    lunchbox: "Receptet är byggt för att hålla smak och struktur även efter kylskåp och uppvärmning."
+  };
+  return anchors[family.id] || `${family.why} ${style.chefNote}`;
+}
+
+function recipeSteps(family, ingredients, minutes, style) {
+  const parts = recipeParts(ingredients);
+  const protein = recipeNames(parts.proteins.slice(0, 2), "proteinet");
+  const veg = recipeNames(parts.vegs, "grönsakerna");
+  const carb = recipeIngredientName(parts.carb);
+  const fat = recipeIngredientName(parts.fat) || "fettkällan";
+  const extra = recipeIngredientName(parts.extra);
+
+  if (["dairybowl", "emergency"].includes(family.id) && (parts.dairy || parts.protein)) {
+    return [
+      `Rör ${protein} slätt i en skål och späd med lite mjölk eller vatten om konsistensen är för fast.`,
+      `Skär ${recipeNames(parts.fruits, veg)} och lägg ovanpå i ett jämnt lager.`,
+      `Toppa med ${carb || fat}${extra ? ` och ${extra}` : ""}; håll nötter, frön eller avokado till den uppmätta mängden.`,
+      `${style.finish} Servera direkt så krispet finns kvar.`
+    ];
+  }
+
+  if (family.id === "omelett") {
+    return [
+      `Vispa äggbasen lätt och förbered ${veg}; låt fyllningen vara färdig innan du börjar steka.`,
+      `Fräs ${veg} i lite av ${fat} i 2-3 minuter tills vätskan släpper.`,
+      `Sänk värmen, häll i äggbasen och fördela ${protein}; låt sätta sig 4-6 minuter utan att stressa.`,
+      `${style.finish} Vik eller servera öppen med ${carb || "extra grönt"} vid sidan.`
+    ];
+  }
+
+  if (family.id === "soup" || family.id === "fiberstew") {
+    return [
+      `Fräs lök, vitlök eller de hårdaste grönsakerna först om de finns i receptet.`,
+      `Tillsätt ${veg}${carb ? ` och ${carb}` : ""}, täck med vatten och sjud tills bitarna är mjuka men inte sönderkokta.`,
+      `Lägg i ${protein} mot slutet och låt allt bli varmt; mosa eller mixa en liten del för fylligare känsla.`,
+      `${style.finish} Smaka av och dela upp i portion om receptet ska bli lunchlåda.`
+    ];
+  }
+
+  if (family.id === "tray") {
+    return [
+      `Sätt ugnen på 220 grader och skär ${veg}${carb ? ` och ${carb}` : ""} i jämn storlek.`,
+      `Lägg ${protein} och grönsaker på plåt, ringla över den uppmätta mängden ${fat} och rosta ${Math.max(18, minutes - 8)} minuter.`,
+      `Vänd en gång när ytan börjar få färg och kontrollera att proteinet är genomvarmt.`,
+      `${style.finish} Låt plåten vila kort före servering.`
+    ];
+  }
+
+  if (family.id === "wok") {
+    return [
+      `Hetta upp pannan ordentligt och ha ${protein}, ${veg}${carb ? ` och ${carb}` : ""} färdigt bredvid spisen.`,
+      `Stek ${protein} först och lyft ur om det riskerar att bli torrt.`,
+      `Woka ${veg} snabbt, vänd tillbaka proteinet och låt ${carb || "basen"} bli varmt.`,
+      `${style.finish} Servera direkt; wok tappar kvalitet om den får stå för länge.`
+    ];
+  }
+
+  if (family.id === "salad" || family.id === "mediterranean" || family.id === "ryeplate") {
+    return [
+      `Skär ${veg} och torka av blöta råvaror så receptet inte blir vattnigt.`,
+      `Fördela ${protein}${carb ? ` och ${carb}` : ""} som bas och bygg grönsakerna runt.`,
+      `Rör ${fat}${extra ? ` med ${extra}` : ""} till en tunn topping eller lägg den i små klickar.`,
+      `${style.finish} Servera direkt eller packa topping separat om det ska bli matlåda.`
+    ];
+  }
+
+  if (family.id === "pasta") {
+    return [
+      `Värm eller koka ${carb || "pastan"} och spara lite kokvatten om du har det.`,
+      `Stek ${protein} med ${veg} tills grönsakerna mjuknar men fortfarande har tuggmotstånd.`,
+      `Vänd ner pastan och använd ${fat} tunt så allt binds utan att bli tungt.`,
+      `${style.finish} Låt tallriken vila 1 minut innan servering.`
+    ];
+  }
+
   return [
-    `Väg upp ${proteinName}${carbText} enligt gramlistan.`,
-    `${family.method} Sikta på ${vegCount >= 2 ? "två gröna byggstenar" : "minst en grön byggsten"}.`,
-    `Smaka av, dela upp portionen och spara rester om tillagningen tar över ${minutes > 18 ? "18" : "10"} minuter.`
+    `Förbered mise en place: ${recipePrepLine(family, parts)}`,
+    `Tillaga ${protein}${carb ? ` med ${carb}` : ""} och låt ${veg} bli varmt men fortfarande spänstigt.`,
+    `Montera i ordningen protein, grön volym, bas och ${fat}; då blir portionen visuellt större.`,
+    `${style.finish} Klart på cirka ${minutes} minuter.`
   ];
 }
 
@@ -3383,8 +3657,14 @@ function renderRecipeCard(item) {
         <span>${Math.round(macros.fiber)} g fiber</span>
       </div>
       <p class="recipe-why">${escapeHTML(recipe.why)}</p>
+      <div class="recipe-pro-note">
+        <span>Smakprofil</span>
+        <strong>${escapeHTML(recipe.flavor || "Ren, proteinrik och mättande")}</strong>
+        <small>${escapeHTML(recipe.chefNote || "Väg fettkällan och låt grönsakerna ge volym.")}</small>
+      </div>
       <div class="recipe-ingredient-lines">
         <p><strong>Gram:</strong> ${recipe.ingredients.map((ingredient) => `${escapeHTML(foodNameById(ingredient.id))} ${ingredient.grams} g`).join(", ")}</p>
+        <p><strong>Förbered:</strong> ${escapeHTML(recipe.prep || "Väg råvarorna innan du börjar laga.")}</p>
         <p><strong>Hemma:</strong> ${homeNames.length ? escapeHTML(homeNames.slice(0, 5).join(", ")) : "Inga matchade ännu"}</p>
         <p><strong>Saknas:</strong> ${missingNames.length ? escapeHTML(missingNames.join(", ")) : "Inget saknas"}</p>
       </div>
@@ -3410,6 +3690,8 @@ function recipeAiPrompt(recipe, macros, missingIds) {
   return [
     `Gör receptet "${recipe.title}" ännu bättre för ${goalCopy.kicker.toLowerCase()}.`,
     `Makro cirka ${Math.round(macros.kcal)} kcal, ${Math.round(macros.protein)} g protein, ${Math.round(macros.carbs)} g kolhydrater, ${Math.round(macros.fat)} g fett och ${Math.round(macros.fiber)} g fiber.`,
+    `Smakprofil: ${recipe.flavor || "protein, fiber och kontrollerad energi"}. Kocktips: ${recipe.chefNote || "håll fettkällan uppmätt"}.`,
+    `Receptsteg: ${(recipe.steps || []).join(" / ")}`,
     missing.length ? `Saknas hemma: ${missing.join(", ")}. Föreslå ersättningar från mina valda eller scannade råvaror.` : "Alla huvudingredienser finns hemma. Ge exakt tillagning i gram."
   ].join(" ");
 }
