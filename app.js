@@ -3494,8 +3494,9 @@ function scoreRecipe(recipe, available, goal) {
   const proteinDensity = macros.kcal ? (macros.protein * 100) / macros.kcal : 0;
   const vegetarian = isVegetarianRecipe(recipe);
   let score = 50;
-  score += matchIds.length * 18;
-  score -= missingIds.length * 7;
+  score += matchIds.length * 30;
+  score += (ingredientIds.length ? (matchIds.length / ingredientIds.length) : 0) * 70;
+  score -= missingIds.length * 13;
   score += Math.min(macros.protein, 55) * 0.7;
   score += Math.min(macros.fiber, 20) * 2.2;
   score += proteinDensity * 16;
@@ -3560,15 +3561,17 @@ function renderRecipeEngine() {
   const ranked = rankRecipeTemplates(filter);
   const closeMatches = rankRecipeTemplates("best").filter((item) => item.missingIds.length <= 2).length;
   const selectedCount = availablePantryIds().size;
-  const visible = ranked.slice(0, 8);
+  const visible = ranked.slice(0, 9);
+  const hero = visible[0] || null;
+  const cardItems = hero ? visible.slice(1, 9) : visible;
   const shoppingList = Array.isArray(state.pantry.shoppingList) ? state.pantry.shoppingList : [];
 
   target.innerHTML = `
     <div class="recipe-engine-head">
       <div>
-        <span>Receptmotor</span>
-        <h3 id="recipe-engine-title">100 smarta recept från ditt kylskåp</h3>
-        <p>Rankar efter vad du har hemma, mål, protein, fiber, tid och saknade ingredienser.</p>
+        <span>Receptstudio</span>
+        <h3 id="recipe-engine-title">Kockstyrda recept från ditt kylskåp</h3>
+        <p>Rankar 100 recept efter hemma-råvaror, mål, protein, fiber, tid, teknik och vad som saknas.</p>
       </div>
       <b>${recipeTemplates.length} recept</b>
     </div>
@@ -3583,7 +3586,7 @@ function renderRecipeEngine() {
       </article>
       <article>
         <span>Visas</span>
-        <strong>${visible.length}</strong>
+        <strong>${hero ? cardItems.length + 1 : cardItems.length}</strong>
       </article>
     </div>
     <div class="recipe-filter-row" aria-label="Filtrera recept">
@@ -3593,10 +3596,67 @@ function renderRecipeEngine() {
         </button>
       `).join("")}
     </div>
+    ${renderRecipeStudioHero(hero)}
     ${renderRecipeShoppingList(shoppingList)}
     <div class="recipe-card-grid">
-      ${visible.map(renderRecipeCard).join("")}
+      ${cardItems.map(renderRecipeCard).join("")}
     </div>
+  `;
+}
+
+function renderRecipeStudioHero(item) {
+  if (!item) {
+    return `
+      <section class="recipe-studio-hero empty">
+        <span>Chefens val</span>
+        <strong>Välj eller scanna råvaror för att få en premiumrekommendation.</strong>
+      </section>
+    `;
+  }
+  const { recipe, macros, matchIds, missingIds } = item;
+  const ingredientIds = recipe.ingredients.map((ingredient) => ingredient.id);
+  const percent = recipeMatchPercent(item);
+  const askPrompt = recipeAiPrompt(recipe, macros, missingIds);
+  const verdict = recipePremiumVerdict(item);
+  const missing = missingIds.map(foodNameById).filter(Boolean).slice(0, 3);
+  const home = matchIds.map(foodNameById).filter(Boolean).slice(0, 4);
+
+  return `
+    <section class="recipe-studio-hero ${missingIds.length ? "needs-shop" : "ready"}">
+      <div class="recipe-hero-copy">
+        <span>Chefens val</span>
+        <h4>${escapeHTML(recipe.title)}</h4>
+        <p>${escapeHTML(verdict)}</p>
+      </div>
+      <div class="recipe-hero-meter" aria-label="Receptmatchning">
+        <div>
+          <span>Match</span>
+          <strong>${percent}%</strong>
+        </div>
+        <i><em style="width: ${percent}%"></em></i>
+      </div>
+      <div class="recipe-hero-proof">
+        <article>
+          <span>Kan lagas nu</span>
+          <strong>${home.length ? escapeHTML(home.join(", ")) : "Välj råvaror"}</strong>
+        </article>
+        <article>
+          <span>${missing.length ? "Handla" : "Status"}</span>
+          <strong>${missing.length ? escapeHTML(missing.join(", ")) : "Allt finns hemma"}</strong>
+        </article>
+        <article>
+          <span>Profil</span>
+          <strong>${recipe.minutes} min · ${Math.round(macros.protein)} g protein · ${Math.round(macros.fiber)} g fiber</strong>
+        </article>
+      </div>
+      <div class="recipe-hero-actions ${missingIds.length ? "" : "two-actions"}">
+        <button class="ghost-button" type="button" data-recipe-add="${ingredientIds.map(escapeHTML).join(",")}">Lägg råvaror</button>
+        ${missingIds.length ? `
+          <button class="ghost-button recipe-shop-button" type="button" data-recipe-shop="${escapeHTML(recipe.id)}">Skapa inköp</button>
+        ` : ""}
+        <button class="primary-button" type="button" data-recipe-ask="${escapeHTML(askPrompt)}">Starta kockläge</button>
+      </div>
+    </section>
   `;
 }
 
@@ -3640,6 +3700,7 @@ function renderRecipeCard(item) {
   const missingNames = missingIds.map(foodNameById).filter(Boolean).slice(0, 4);
   const askPrompt = recipeAiPrompt(recipe, macros, missingIds);
   const level = missingIds.length === 0 ? "complete" : missingIds.length <= 2 ? "close" : "shop";
+  const percent = recipeMatchPercent(item);
 
   return `
     <article class="recipe-card ${level}">
@@ -3655,6 +3716,11 @@ function renderRecipeCard(item) {
         <span>${Math.round(macros.kcal)} kcal</span>
         <span>${Math.round(macros.protein)} g protein</span>
         <span>${Math.round(macros.fiber)} g fiber</span>
+      </div>
+      <div class="recipe-match-line">
+        <span>${escapeHTML(recipeReadinessLabel(item))}</span>
+        <b>${percent}% match</b>
+        <i><em style="width: ${percent}%"></em></i>
       </div>
       <p class="recipe-why">${escapeHTML(recipe.why)}</p>
       <div class="recipe-pro-note">
@@ -3682,6 +3748,29 @@ function renderRecipeCard(item) {
       </div>
     </article>
   `;
+}
+
+function recipeMatchPercent(item) {
+  return Math.round(clamp((item.matchRatio || 0) * 100, 0, 100));
+}
+
+function recipeReadinessLabel(item) {
+  if (!item.missingIds.length) return "Redo att laga";
+  if (item.missingIds.length <= 2) return "Nära klart";
+  if ((item.matchRatio || 0) >= 0.5) return "Bra bas hemma";
+  return "Planera inköp";
+}
+
+function recipePremiumVerdict(item) {
+  const protein = Math.round(item.macros.protein || 0);
+  const fiber = Math.round(item.macros.fiber || 0);
+  if (!item.missingIds.length) {
+    return `Allt finns hemma. Stark premiumrätt med ${protein} g protein och ${fiber} g fiber.`;
+  }
+  if (item.missingIds.length <= 2) {
+    return `Nästan klar. Handla ${item.missingIds.length} saknad vara och du har en komplett rätt med tydlig mättnad.`;
+  }
+  return `Bästa riktningen just nu: stark receptbas hemma, men inköp behövs för restaurangkänslan.`;
 }
 
 function recipeAiPrompt(recipe, macros, missingIds) {

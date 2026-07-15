@@ -1,9 +1,9 @@
-const CACHE_NAME = "visceral-plan-v24";
+const CACHE_NAME = "visceral-plan-v25";
 const APP_SHELL = [
   "/",
   "/index.html",
-  "/styles.css?v=24",
-  "/app.js?v=24",
+  "/styles.css?v=25",
+  "/app.js?v=25",
   "/manifest.json",
   "/assets/video-thumb.jpg",
   "/assets/icon.svg",
