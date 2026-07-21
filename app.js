@@ -53,7 +53,7 @@ const sources = [
   },
   {
     title: "Livsmedelsverkets Livsmedelsdatabas API",
-    note: "Svensk livsmedelsdatabas med näringsvärden och livsmedel som kan användas som nästa datalager för mer exakt svensk näringsberäkning.",
+    note: "Svensk livsmedelsdatabas med näringsvärden per 100 g som appen använder i svensk livsmedelssökning via /api/food-search.",
     url: "https://dataportal.livsmedelsverket.se/livsmedel/swagger/index.html"
   },
   {
@@ -1126,6 +1126,15 @@ let recipeImport = {
   message: "Sök riktiga recept och gör dem till Visceral Plan-recept.",
   note: ""
 };
+let slvFoodSearch = {
+  status: "idle",
+  query: "",
+  results: [],
+  apiInfo: null,
+  source: "idle",
+  message: "Sök svenska livsmedel och jämför näring per 100 g.",
+  note: ""
+};
 let kitchenAiLoading = false;
 let adminUsers = [];
 let adminLoading = false;
@@ -1148,6 +1157,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindLog();
   bindTimer();
   bindSwapLab();
+  bindSlvFoodSearch();
   bindMealScan();
   bindFridgeBuilder();
   bindKitchenAssistant();
@@ -1600,6 +1610,31 @@ function bindSwapLab() {
   select.addEventListener("change", renderSmartFood);
 }
 
+function bindSlvFoodSearch() {
+  const panel = $("#slvFoodPanel");
+  if (!panel) return;
+  panel.addEventListener("submit", (event) => {
+    const form = event.target.closest("[data-slv-food-form]");
+    if (!form) return;
+    event.preventDefault();
+    const input = form.querySelector("[name='slvFoodSearch']");
+    searchSlvFoods(input && input.value);
+  });
+  panel.addEventListener("click", (event) => {
+    const searchButton = event.target.closest("[data-slv-search-term]");
+    if (searchButton) {
+      searchSlvFoods(searchButton.dataset.slvSearchTerm);
+      return;
+    }
+
+    const addButton = event.target.closest("[data-slv-add-food]");
+    if (!addButton) return;
+    const id = addButton.dataset.slvAddFood;
+    if (!pantryFoodById(id)) return;
+    addFridgeIds([id], `${foodNameById(id)} lades till från svensk livsmedelssökning.`);
+  });
+}
+
 function bindMealScan() {
   const scanButton = $("#mealScanButton");
   const fileInput = $("#mealCameraInput");
@@ -1932,6 +1967,7 @@ function renderAll() {
   renderSmartFood();
   renderFridgeBuilder();
   renderMealTemplates();
+  renderSlvFoodSearch();
   renderFoodGuide();
   renderTraining();
   renderWeeklySummary();
@@ -5800,6 +5836,208 @@ function renderMealTemplates() {
       <p>${template.note}</p>
     </article>
   `).join("");
+}
+
+function renderSlvFoodSearch() {
+  const target = $("#slvFoodPanel");
+  if (!target) return;
+  const results = Array.isArray(slvFoodSearch.results) ? slvFoodSearch.results : [];
+  const apiInfo = slvFoodSearch.apiInfo || {};
+  const sourceLabel = slvFoodSearch.source === "slv"
+    ? "SLV live"
+    : slvFoodSearch.source === "local-fallback"
+      ? "Lokal fallback"
+      : "Redo";
+  target.innerHTML = `
+    <div class="slv-food-head">
+      <div>
+        <span>Livsmedelsverket</span>
+        <strong>Svensk näringsdata per 100 g</strong>
+        <p>${escapeHTML(slvFoodSearch.message)}</p>
+      </div>
+      <b>${escapeHTML(sourceLabel)}</b>
+    </div>
+    <form class="slv-food-form" data-slv-food-form="true">
+      <input name="slvFoodSearch" type="search" value="${escapeHTML(slvFoodSearch.query)}" placeholder="Sök t.ex. kyckling, kvarg, potatis, blåbär..." autocomplete="off">
+      <button class="primary-button" type="submit" ${slvFoodSearch.status === "loading" ? "disabled" : ""}>Sök svensk data</button>
+    </form>
+    <div class="slv-food-quick" aria-label="Snabbsök svenska livsmedel">
+      ${["kyckling", "kvarg", "potatis", "lax", "ägg", "blåbär"].map((term) => `
+        <button type="button" data-slv-search-term="${escapeHTML(term)}">${escapeHTML(term)}</button>
+      `).join("")}
+    </div>
+    <div class="slv-food-meta">
+      <article>
+        <span>API-status</span>
+        <strong>${escapeHTML(apiInfo.apiStatus || "Ej kontrollerad")}</strong>
+      </article>
+      <article>
+        <span>API-version</span>
+        <strong>${escapeHTML(apiInfo.apiVersion || "Sök för status")}</strong>
+      </article>
+      <article>
+        <span>Bas</span>
+        <strong>100 g ätbar del</strong>
+      </article>
+    </div>
+    ${slvFoodSearch.note ? `<small class="slv-food-note">${escapeHTML(slvFoodSearch.note)}</small>` : ""}
+    ${results.length ? `
+      <div class="slv-food-results">
+        ${results.map(renderSlvFoodResult).join("")}
+      </div>
+    ` : ""}
+  `;
+}
+
+function renderSlvFoodResult(result) {
+  const nutrients = result.nutrients || {};
+  const matchedId = result.matchedPantryId || matchPantryFoodId(result.name);
+  const matchedName = result.matchedPantryName || foodNameById(matchedId);
+  const sourceBadge = result.source === "slv" ? "SLV" : "Fallback";
+  return `
+    <article class="slv-food-card ${result.source === "slv" ? "verified" : "fallback"}">
+      <header>
+        <div>
+          <span>${escapeHTML(sourceBadge)} · ${escapeHTML(result.type || "Livsmedel")}</span>
+          <strong>${escapeHTML(result.name)}</strong>
+          <small>${escapeHTML(result.nutrientBasis || "per 100 g")}</small>
+        </div>
+        <b>${escapeHTML(result.number || "")}</b>
+      </header>
+      <div class="slv-macro-grid">
+        <article>
+          <span>kcal</span>
+          <strong>${formatNutrientValue(nutrients.kcal, "")}</strong>
+        </article>
+        <article>
+          <span>Protein</span>
+          <strong>${formatNutrientValue(nutrients.protein, "g")}</strong>
+        </article>
+        <article>
+          <span>Kolhydrater</span>
+          <strong>${formatNutrientValue(nutrients.carbs, "g")}</strong>
+        </article>
+        <article>
+          <span>Fett</span>
+          <strong>${formatNutrientValue(nutrients.fat, "g")}</strong>
+        </article>
+        <article>
+          <span>Fiber</span>
+          <strong>${formatNutrientValue(nutrients.fiber, "g")}</strong>
+        </article>
+        <article>
+          <span>Socker</span>
+          <strong>${formatNutrientValue(nutrients.sugar, "g")}</strong>
+        </article>
+      </div>
+      <div class="slv-food-foot">
+        <span>${escapeHTML(result.sourceLabel || "Datakälla")}${matchedName ? ` · Matchar ${escapeHTML(matchedName)}` : ""}</span>
+        ${matchedId ? `<button type="button" data-slv-add-food="${escapeHTML(matchedId)}">Lägg i kylskåp</button>` : ""}
+      </div>
+    </article>
+  `;
+}
+
+async function searchSlvFoods(query) {
+  const cleanQuery = String(query || "").trim();
+  if (!cleanQuery) {
+    slvFoodSearch = {
+      ...slvFoodSearch,
+      status: "error",
+      message: "Skriv ett livsmedel först.",
+      note: ""
+    };
+    renderSlvFoodSearch();
+    return;
+  }
+
+  slvFoodSearch = {
+    ...slvFoodSearch,
+    status: "loading",
+    query: cleanQuery,
+    message: `Söker svensk näringsdata för "${cleanQuery}"...`,
+    note: ""
+  };
+  renderSlvFoodSearch();
+
+  try {
+    const response = await fetch("/api/food-search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: cleanQuery, limit: 6 })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "Livsmedelssökningen misslyckades.");
+    const results = normalizeSlvFoodResults(data.results || []);
+    slvFoodSearch = {
+      status: results.length ? "ready" : "empty",
+      query: cleanQuery,
+      results,
+      apiInfo: data.apiInfo || null,
+      source: data.source || "slv",
+      message: results.length
+        ? `${results.length} träffar hittades. Värden visas per 100 g så du kan jämföra rent.`
+        : "Inga träffar hittades i den svenska datan.",
+      note: String(data.note || data.attribution || "").slice(0, 240)
+    };
+  } catch (error) {
+    slvFoodSearch = {
+      ...slvFoodSearch,
+      status: "error",
+      results: [],
+      source: "error",
+      message: error && error.message ? error.message : "Kunde inte nå svensk livsmedelsdata just nu.",
+      note: "Appens egna livsmedelsranking fungerar fortfarande lokalt."
+    };
+  }
+  renderSlvFoodSearch();
+}
+
+function normalizeSlvFoodResults(results) {
+  return (Array.isArray(results) ? results : [])
+    .map((result) => {
+      if (!result || typeof result !== "object") return null;
+      const matchedId = matchPantryFoodId(result.matchedPantryId || result.name);
+      return {
+        number: String(result.number || "").slice(0, 40),
+        name: String(result.name || "").slice(0, 120),
+        type: String(result.type || "").slice(0, 60),
+        score: Math.round(Number(result.score) || 0),
+        source: String(result.source || "").slice(0, 30),
+        sourceLabel: String(result.sourceLabel || "").slice(0, 90),
+        nutrientBasis: String(result.nutrientBasis || "").slice(0, 90),
+        matchedPantryId: matchedId,
+        matchedPantryName: foodNameById(matchedId),
+        nutrients: normalizeSlvNutrients(result.nutrients)
+      };
+    })
+    .filter((result) => result && result.name)
+    .slice(0, 8);
+}
+
+function normalizeSlvNutrients(nutrients) {
+  const value = nutrients && typeof nutrients === "object" ? nutrients : {};
+  return {
+    kcal: finiteOrNull(value.kcal),
+    protein: finiteOrNull(value.protein),
+    carbs: finiteOrNull(value.carbs),
+    fat: finiteOrNull(value.fat),
+    fiber: finiteOrNull(value.fiber),
+    sugar: finiteOrNull(value.sugar),
+    salt: finiteOrNull(value.salt)
+  };
+}
+
+function finiteOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function formatNutrientValue(value, unit) {
+  if (!Number.isFinite(Number(value))) return "saknas";
+  const number = Number(value);
+  const formatted = Number.isInteger(number) ? String(number) : number.toFixed(1).replace(".", ",");
+  return `${formatted}${unit ? ` ${unit}` : ""}`;
 }
 
 function renderFoodGuide() {
