@@ -6,6 +6,8 @@
     <meta name="theme-color" content="#0f1916">
     <meta name="color-scheme" content="light">
     <meta name="description" content="En svensk PWA för kost, träning och mätbar planering mot bukfett och visceralt fett.">
+    <meta name="application-name" content="Visceral Plan">
+    <meta name="format-detection" content="telephone=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Visceral Plan">
@@ -13,8 +15,8 @@
     <title>Visceral Plan</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="assets/icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=31">
+    <link rel="apple-touch-icon" href="assets/icon-512.png">
+    <link rel="stylesheet" href="styles.css?v=32">
   </head>
   <body>
     <div class="app-shell">
@@ -28,6 +30,7 @@
         </div>
 
         <div class="app-actions" aria-label="Appstatus">
+          <button id="pwaInfoButton" class="pwa-info-button" type="button">PWA</button>
           <button id="installApp" class="install-button" type="button" hidden>Installera</button>
           <span id="connectionStatus" class="connection-pill">Online</span>
         </div>
@@ -117,6 +120,7 @@
               <strong>9 verifierade källspår</strong>
               <small>Video, kliniska riktlinjer och folkhälsodata.</small>
             </div>
+            <div id="pwaReadyCard" class="pwa-ready-card" aria-live="polite"></div>
           </div>
         </section>
 
@@ -761,6 +765,32 @@
       </main>
     </div>
 
-    <script src="app.js?v=31"></script>
+    <div id="pwaToast" class="pwa-toast" role="status" aria-live="polite" hidden>
+      <div>
+        <span id="pwaToastKicker">Appstatus</span>
+        <strong id="pwaToastTitle">Visceral Plan</strong>
+        <small id="pwaToastText">PWA redo.</small>
+      </div>
+      <div class="pwa-toast-actions">
+        <button id="pwaToastPrimary" class="ghost-button" type="button" hidden>Visa</button>
+        <button id="pwaToastDismiss" class="pwa-close-button" type="button" aria-label="Stäng">×</button>
+      </div>
+    </div>
+
+    <div id="pwaInstallSheet" class="pwa-sheet" role="dialog" aria-modal="true" aria-labelledby="pwaSheetTitle" hidden>
+      <div class="pwa-sheet-panel">
+        <button id="pwaSheetClose" class="pwa-close-button" type="button" aria-label="Stäng">×</button>
+        <p class="eyebrow">Premium-PWA</p>
+        <h2 id="pwaSheetTitle">Installera Visceral Plan</h2>
+        <p id="pwaSheetLead">Få appen på hemskärmen med snabb start, offline-skal och mobil känsla.</p>
+        <div id="pwaSheetSteps" class="pwa-sheet-steps"></div>
+        <div class="pwa-sheet-actions">
+          <button id="pwaSheetInstall" class="primary-button" type="button">Installera</button>
+          <button id="pwaSheetDone" class="ghost-button" type="button">Klart</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js?v=32"></script>
   </body>
 </html>

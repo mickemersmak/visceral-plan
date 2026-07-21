@@ -1,17 +1,22 @@
 {
   "name": "Visceral Plan",
-  "short_name": "Visceral Plan",
+  "short_name": "Visceral",
   "id": "/",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "portrait-primary",
-  "background_color": "#f4f6f3",
+  "background_color": "#fffdf7",
   "theme_color": "#0f1916",
   "description": "Svensk premium-PWA för att följa bukmått, kost, träning, vanor och plan mot visceralt fett.",
   "categories": ["health", "fitness", "lifestyle"],
   "lang": "sv-SE",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
   "icons": [
     {
       "src": "assets/icon.svg",
@@ -37,13 +42,29 @@
       "name": "Dagens logg",
       "short_name": "Logg",
       "url": "/?tab=log",
-      "description": "Öppna dagens logg."
+      "description": "Öppna dagens logg.",
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Veckoplan",
       "short_name": "Plan",
       "url": "/?tab=plan",
-      "description": "Öppna veckoplanen."
+      "description": "Öppna veckoplanen.",
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Kylskåpsbyggare",
+      "short_name": "Kylskåp",
+      "url": "/?tab=nutrition",
+      "description": "Bygg måltid från råvaror hemma.",
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Medlemsnav",
+      "short_name": "Medlem",
+      "url": "/?tab=member",
+      "description": "Öppna hälsodata, bokning och coachflöde.",
+      "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

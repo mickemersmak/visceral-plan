@@ -11,7 +11,7 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Träningsbank och intervalltimer.
 - Daglig logg med vanor, rörelse, vikt och midjemått.
 - Källflik med verifierade hälso- och videounderlag.
-- PWA-stöd med manifest, ikoner, offline-cache, installationsknapp och mobil bottennavigering.
+- PWA-stöd med manifest, ikoner, offline-sida, app-shell-cache, installeringssheet, uppdateringssignal, online/offline-status, genvägar och mobil bottennavigering.
 - Lokal profilinloggning med PIN för flera användare på samma enhet.
 - Databaslogin med PostgreSQL, sessions, roller och adminpanel när `DATABASE_URL` är satt.
 - Rollstyrning för `user`, `admin` och `super_admin`, med bootstrap för `micke@ccorebro.se`.
@@ -51,7 +51,17 @@ Konkurrentanalysen visar att stora appar ofta är starka på loggning, matdataba
 
 Öppna `index.html` direkt i webbläsaren.
 
-PWA-funktioner som service worker och installation testas bäst via den deployade HTTPS-versionen.
+PWA-funktioner som service worker, installation, appgenvägar och offline-cache testas bäst via den deployade HTTPS-versionen eller en lokal server.
+
+## PWA
+
+Appen har ett eget PWA-lager:
+
+- `manifest.json` med fristående app-läge, svensk appidentitet, genvägar till logg, veckoplan, kost/kylskåp och medlemsnav.
+- `sw.js` med cacheversion, app-shell-cache, offline-sida, nätbaserade API-anrop och uppdateringsmeddelande till klienten.
+- `offline.html` som visas när nätet saknas och inget färskt navigationssvar finns.
+- Installationsyta i appen som hanterar Chrome/Edge-installation och iOS/Safari-flödet.
+- Mobil polish med safe-area, installeringsstatus, online/offline-status och scrollbar bottennav för alla huvudvyer.
 
 ## AI-vision och köks-AI
 

@@ -2,6 +2,7 @@ const STORAGE_KEY = "visceral-plan-state-v1";
 const USERS_KEY = "visceral-plan-users-v1";
 const SESSION_KEY = "visceral-plan-session-v1";
 const SERVER_SESSION_KEY = "visceral-plan-server-session-v1";
+const APP_VERSION = "v32";
 const ADMIN_ROLES = ["admin", "super_admin"];
 const GUEST_USER = { id: "guest", name: "Gästläge", guest: true };
 
@@ -1165,6 +1166,10 @@ let healthSyncLoading = false;
 let healthSyncMessage = "Apple Hälsa väntar på databaslogin.";
 let authMode = "login";
 let deferredInstallPrompt = null;
+let pendingServiceWorker = null;
+let reloadForServiceWorkerUpdate = false;
+let pwaToastAction = null;
+let pwaToastTimer = null;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -1172,6 +1177,7 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 document.addEventListener("DOMContentLoaded", () => {
   registerServiceWorker();
   bindInstallPrompt();
+  bindPwaControls();
   syncConnectionState();
   bindAuth();
   setToday();
@@ -1194,45 +1200,303 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function registerServiceWorker() {
-  if (!("serviceWorker" in navigator)) return;
-  navigator.serviceWorker.register("/sw.js").catch(() => {});
+  if (!("serviceWorker" in navigator)) {
+    renderPwaPanel();
+    showPwaToast({
+      kicker: "PWA",
+      title: "Service worker saknas",
+      text: "Den här webbläsaren kan köra appen, men utan installerat offline-skal."
+    });
+    return;
+  }
+
+  navigator.serviceWorker.register("/sw.js")
+    .then((registration) => {
+      if (registration.waiting && navigator.serviceWorker.controller) {
+        showServiceWorkerUpdate(registration.waiting);
+      }
+
+      registration.addEventListener("updatefound", () => {
+        const worker = registration.installing;
+        if (!worker) return;
+        worker.addEventListener("statechange", () => {
+          if (worker.state === "installed" && navigator.serviceWorker.controller) {
+            showServiceWorkerUpdate(worker);
+          }
+          renderPwaPanel();
+        });
+      });
+
+      window.setTimeout(() => registration.update().catch(() => null), 3000);
+      renderPwaPanel();
+    })
+    .catch(() => {
+      showPwaToast({
+        kicker: "PWA",
+        title: "Offline-cache kunde inte starta",
+        text: "Appen fungerar online, men installationen behöver HTTPS och service worker-stöd."
+      });
+      renderPwaPanel();
+    });
+
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "APP_CACHE_READY") {
+      renderPwaPanel();
+    }
+  });
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    renderPwaPanel();
+    if (!reloadForServiceWorkerUpdate) return;
+    reloadForServiceWorkerUpdate = false;
+    window.location.reload();
+  });
 }
 
 function bindInstallPrompt() {
   const button = $("#installApp");
   if (!button) return;
 
+  const refresh = () => {
+    const installed = isStandaloneMode();
+    button.hidden = installed || (!deferredInstallPrompt && !isIosDevice());
+    button.textContent = deferredInstallPrompt ? "Installera" : "Lägg till";
+    renderPwaPanel();
+  };
+
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
     deferredInstallPrompt = event;
-    button.hidden = false;
+    refresh();
+    showPwaToast({
+      kicker: "PWA",
+      title: "Appen kan installeras",
+      text: "Lägg Visceral Plan på hemskärmen för snabbare mobilstart.",
+      actionLabel: "Installera",
+      action: promptAppInstall
+    });
   });
 
-  button.addEventListener("click", async () => {
-    if (!deferredInstallPrompt) return;
-    deferredInstallPrompt.prompt();
-    await deferredInstallPrompt.userChoice.catch(() => null);
-    deferredInstallPrompt = null;
-    button.hidden = true;
+  button.addEventListener("click", () => {
+    if (deferredInstallPrompt) {
+      promptAppInstall();
+      return;
+    }
+    openPwaInstallSheet();
   });
 
   window.addEventListener("appinstalled", () => {
     deferredInstallPrompt = null;
-    button.hidden = true;
+    refresh();
+    showPwaToast({
+      kicker: "Installerad",
+      title: "Visceral Plan ligger på enheten",
+      text: "Nästa start sker i app-läge med offline-skal."
+    });
   });
+
+  refresh();
 }
 
 function syncConnectionState() {
   const status = $("#connectionStatus");
   if (!status) return;
+  let previousOffline = navigator.onLine === false;
+  let initialized = false;
   const update = () => {
     const offline = navigator.onLine === false;
     status.textContent = offline ? "Offline redo" : "Online";
     status.classList.toggle("is-offline", offline);
+    renderPwaPanel();
+    if (initialized && offline !== previousOffline) {
+      showPwaToast({
+        kicker: offline ? "Offline" : "Online",
+        title: offline ? "Du är i offline-läge" : "Nätet är tillbaka",
+        text: offline
+          ? "Sparad plan och appskal är tillgängligt på enheten."
+          : "AI, receptsökning och databassynk fungerar igen."
+      });
+    }
+    previousOffline = offline;
+    initialized = true;
   };
   update();
   window.addEventListener("online", update);
   window.addEventListener("offline", update);
+}
+
+function bindPwaControls() {
+  $("#pwaInfoButton")?.addEventListener("click", () => openPwaInstallSheet());
+  $("#pwaSheetClose")?.addEventListener("click", closePwaInstallSheet);
+  $("#pwaSheetDone")?.addEventListener("click", closePwaInstallSheet);
+  $("#pwaInstallSheet")?.addEventListener("click", (event) => {
+    if (event.target && event.target.id === "pwaInstallSheet") closePwaInstallSheet();
+  });
+  $("#pwaSheetInstall")?.addEventListener("click", () => {
+    if (deferredInstallPrompt) promptAppInstall();
+  });
+  $("#pwaToastDismiss")?.addEventListener("click", hidePwaToast);
+  $("#pwaToastPrimary")?.addEventListener("click", () => {
+    if (pwaToastAction) {
+      pwaToastAction();
+      return;
+    }
+    openPwaInstallSheet();
+  });
+  document.addEventListener("visibilitychange", renderPwaPanel);
+  renderPwaPanel();
+}
+
+async function promptAppInstall() {
+  if (!deferredInstallPrompt) {
+    openPwaInstallSheet();
+    return;
+  }
+  const promptEvent = deferredInstallPrompt;
+  deferredInstallPrompt = null;
+  promptEvent.prompt();
+  await promptEvent.userChoice.catch(() => null);
+  closePwaInstallSheet();
+  hidePwaToast();
+  renderPwaPanel();
+  const button = $("#installApp");
+  if (button) button.hidden = true;
+}
+
+function showServiceWorkerUpdate(worker) {
+  pendingServiceWorker = worker;
+  renderPwaPanel();
+  showPwaToast({
+    kicker: "Ny version",
+    title: "En skarpare PWA är redo",
+    text: "Uppdatera appskalet så mobilvyn, offline-läget och cacheversionen laddas om.",
+    actionLabel: "Uppdatera",
+    action: () => {
+      if (!pendingServiceWorker) return;
+      reloadForServiceWorkerUpdate = true;
+      pendingServiceWorker.postMessage({ type: "SKIP_WAITING" });
+    }
+  });
+}
+
+function openPwaInstallSheet() {
+  const sheet = $("#pwaInstallSheet");
+  if (!sheet) return;
+  const installed = isStandaloneMode();
+  const ios = isIosDevice();
+  const steps = pwaInstallSteps(installed, ios);
+  $("#pwaSheetTitle").textContent = installed ? "Visceral Plan är installerad" : "Installera Visceral Plan";
+  $("#pwaSheetLead").textContent = installed
+    ? "Appen körs redan i fristående läge med snabb start och cacheat appskal."
+    : ios
+      ? "På iPhone installeras PWA:n via Safari och hemskärmen."
+      : "Installera appen för snabbare start, fristående vy och bättre offlinekänsla.";
+  $("#pwaSheetSteps").innerHTML = steps.map((step, index) => `
+    <article>
+      <b>${index + 1}</b>
+      <span>${escapeHTML(step)}</span>
+    </article>
+  `).join("");
+  const installButton = $("#pwaSheetInstall");
+  if (installButton) {
+    installButton.hidden = installed || !deferredInstallPrompt;
+    installButton.textContent = "Installera nu";
+  }
+  sheet.hidden = false;
+}
+
+function closePwaInstallSheet() {
+  const sheet = $("#pwaInstallSheet");
+  if (sheet) sheet.hidden = true;
+}
+
+function pwaInstallSteps(installed, ios) {
+  if (installed) {
+    return [
+      "Starta från hemskärmen eller dockan.",
+      "Offline-skalet laddas från enheten efter första öppningen.",
+      `Aktuell appversion är ${APP_VERSION}.`
+    ];
+  }
+  if (ios) {
+    return [
+      "Öppna sidan i Safari.",
+      "Tryck på dela-knappen i Safari.",
+      "Välj Lägg till på hemskärmen."
+    ];
+  }
+  if (deferredInstallPrompt) {
+    return [
+      "Tryck på Installera nu.",
+      "Godkänn installationen i webbläsaren.",
+      "Starta Visceral Plan från hemskärmen eller dockan."
+    ];
+  }
+  return [
+    "Öppna webbläsarens meny.",
+    "Välj Installera app om alternativet visas.",
+    "Använd HTTPS-versionen för full PWA-funktion."
+  ];
+}
+
+function renderPwaPanel() {
+  const card = $("#pwaReadyCard");
+  if (!card) return;
+  const installed = isStandaloneMode();
+  const offline = navigator.onLine === false;
+  const serviceWorkerReady = "serviceWorker" in navigator;
+  const installStatus = installed ? "Installerad" : deferredInstallPrompt ? "Installerbar" : isIosDevice() ? "iOS redo" : "Webb";
+  card.className = `pwa-ready-card ${installed ? "is-installed" : ""} ${offline ? "is-offline" : ""}`;
+  card.innerHTML = `
+    <span>Mobilapp</span>
+    <strong>${installed ? "Installerad premium-PWA" : "PWA redo för hemskärmen"}</strong>
+    <small>${offline ? "Offline-skalet är aktivt på enheten." : "Snabb mobilstart med cache, safe-area och appgenvägar."}</small>
+    <div class="pwa-ready-grid">
+      <article><b>${escapeHTML(installStatus)}</b><small>Läge</small></article>
+      <article><b>${serviceWorkerReady ? APP_VERSION : "N/A"}</b><small>Cache</small></article>
+      <article><b>${offline ? "Offline" : "Online"}</b><small>Nät</small></article>
+    </div>
+    <button type="button" data-pwa-open>${installed ? "Visa status" : "Installera"}</button>
+  `;
+  card.querySelector("[data-pwa-open]")?.addEventListener("click", openPwaInstallSheet);
+}
+
+function showPwaToast({ kicker = "Appstatus", title, text, actionLabel = "", action = null }) {
+  const toast = $("#pwaToast");
+  if (!toast) return;
+  $("#pwaToastKicker").textContent = kicker;
+  $("#pwaToastTitle").textContent = title || "Visceral Plan";
+  $("#pwaToastText").textContent = text || "";
+  const primary = $("#pwaToastPrimary");
+  pwaToastAction = typeof action === "function" ? action : null;
+  if (primary) {
+    primary.hidden = !actionLabel;
+    primary.textContent = actionLabel || "Visa";
+  }
+  toast.hidden = false;
+  window.clearTimeout(pwaToastTimer);
+  if (!actionLabel) {
+    pwaToastTimer = window.setTimeout(hidePwaToast, 5200);
+  }
+}
+
+function hidePwaToast() {
+  const toast = $("#pwaToast");
+  if (toast) toast.hidden = true;
+  pwaToastAction = null;
+  window.clearTimeout(pwaToastTimer);
+}
+
+function isStandaloneMode() {
+  return window.matchMedia("(display-mode: standalone)").matches
+    || window.navigator.standalone === true;
+}
+
+function isIosDevice() {
+  const userAgent = window.navigator.userAgent || "";
+  const platform = window.navigator.platform || "";
+  return /iphone|ipad|ipod/i.test(userAgent)
+    || (platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
 }
 
 function loadUsers() {
@@ -2063,6 +2327,7 @@ function renderAll() {
   renderAdminHub();
   renderSources();
   renderCompetitors();
+  renderPwaPanel();
   loadLogForDate();
 }
 
