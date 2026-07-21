@@ -231,8 +231,8 @@ function scoreFoodMatch(food, rawQuery, normalizedQuery, aliases) {
     const overlap = tokenOverlap(normalizedName, term);
     if (overlap) best = Math.max(best, 42 + overlap * 16);
   }
-  if (food.matchedPantryName) best += 8;
-  if (/rå|naturell|kokt|fil[eé]|utan/i.test(food.name)) best += 4;
+  if (best > 0 && food.matchedPantryName) best += 8;
+  if (best > 0 && /rå|naturell|kokt|fil[eé]|utan/i.test(food.name)) best += 4;
   return best;
 }
 
