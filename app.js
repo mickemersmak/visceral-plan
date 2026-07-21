@@ -47,6 +47,16 @@ const sources = [
     url: "https://www.who.int/news-room/fact-sheets/detail/healthy-diet"
   },
   {
+    title: "TheMealDB API",
+    note: "Extern receptkälla med receptdata, bilder, ingredienser och API-stöd som appen använder för receptimport med källänk.",
+    url: "https://www.themealdb.com/docs_api_guide.php"
+  },
+  {
+    title: "Livsmedelsverkets Livsmedelsdatabas API",
+    note: "Svensk livsmedelsdatabas med näringsvärden och livsmedel som kan användas som nästa datalager för mer exakt svensk näringsberäkning.",
+    url: "https://dataportal.livsmedelsverket.se/livsmedel/swagger/index.html"
+  },
+  {
     title: "Dietary Guidelines for Americans / RealFood.gov",
     note: "Prioriterar hela, näringsrika livsmedel och begränsning av tillsatt socker, mättat fett, natrium och alkohol.",
     url: "https://www.dietaryguidelines.gov/"
@@ -79,7 +89,8 @@ const defaultState = {
     cookStepIndex: 0,
     kitchenMessages: [],
     scanFeedback: [],
-    shoppingList: []
+    shoppingList: [],
+    importedRecipes: []
   }
 };
 
@@ -1108,6 +1119,13 @@ let mealScan = {
   message: "Matkamera redo",
   note: ""
 };
+let recipeImport = {
+  status: "idle",
+  query: "",
+  results: [],
+  message: "Sök riktiga recept och gör dem till Visceral Plan-recept.",
+  note: ""
+};
 let kitchenAiLoading = false;
 let adminUsers = [];
 let adminLoading = false;
@@ -1414,7 +1432,8 @@ function mergeState(base, next) {
       cookStepIndex: Number.isFinite(next.pantry && next.pantry.cookStepIndex) ? next.pantry.cookStepIndex : base.pantry.cookStepIndex,
       kitchenMessages: Array.isArray(next.pantry && next.pantry.kitchenMessages) ? next.pantry.kitchenMessages : base.pantry.kitchenMessages,
       scanFeedback: Array.isArray(next.pantry && next.pantry.scanFeedback) ? next.pantry.scanFeedback : base.pantry.scanFeedback,
-      shoppingList: Array.isArray(next.pantry && next.pantry.shoppingList) ? next.pantry.shoppingList : base.pantry.shoppingList
+      shoppingList: Array.isArray(next.pantry && next.pantry.shoppingList) ? next.pantry.shoppingList : base.pantry.shoppingList,
+      importedRecipes: Array.isArray(next.pantry && next.pantry.importedRecipes) ? next.pantry.importedRecipes : base.pantry.importedRecipes
     },
     member: {
       ...base.member,
@@ -1668,7 +1687,33 @@ function bindFridgeBuilder() {
     }
   });
 
+  $("#recipeEngine")?.addEventListener("submit", (event) => {
+    const form = event.target.closest("[data-recipe-search-form]");
+    if (!form) return;
+    event.preventDefault();
+    const input = form.querySelector("[name='recipeSearch']");
+    searchExternalRecipes(input && input.value);
+  });
+
   $("#recipeEngine")?.addEventListener("click", (event) => {
+    const searchTermButton = event.target.closest("[data-recipe-search-term]");
+    if (searchTermButton) {
+      searchExternalRecipes(searchTermButton.dataset.recipeSearchTerm);
+      return;
+    }
+
+    const importButton = event.target.closest("[data-recipe-import]");
+    if (importButton) {
+      importExternalRecipe(importButton.dataset.recipeImport);
+      return;
+    }
+
+    const clearImportsButton = event.target.closest("[data-recipe-import-clear]");
+    if (clearImportsButton) {
+      clearImportedRecipes();
+      return;
+    }
+
     const filterButton = event.target.closest("[data-recipe-filter]");
     if (filterButton) {
       ensurePantryState();
@@ -2338,6 +2383,7 @@ function ensurePantryState() {
   if (!Array.isArray(state.pantry.kitchenMessages)) state.pantry.kitchenMessages = [];
   if (!Array.isArray(state.pantry.scanFeedback)) state.pantry.scanFeedback = [];
   if (!Array.isArray(state.pantry.shoppingList)) state.pantry.shoppingList = [];
+  if (!Array.isArray(state.pantry.importedRecipes)) state.pantry.importedRecipes = [];
   if (!state.pantry.goal) state.pantry.goal = defaultState.pantry.goal;
   if (!state.pantry.recipeFilter) state.pantry.recipeFilter = defaultState.pantry.recipeFilter;
   if (typeof state.pantry.activeCookRecipeId !== "string") state.pantry.activeCookRecipeId = "";
@@ -2674,7 +2720,7 @@ function saveScanShoppingItems(items) {
 
 function saveRecipeShoppingList(recipeId) {
   ensurePantryState();
-  const recipe = recipeTemplates.find((item) => item.id === recipeId);
+  const recipe = recipeLibrary().find((item) => item.id === recipeId);
   if (!recipe) return;
   const shoppingItems = recipeShoppingItems(recipe);
   if (!shoppingItems.length) {
@@ -2700,13 +2746,19 @@ function saveRecipeShoppingList(recipeId) {
 
 function recipeShoppingItems(recipe) {
   const available = availablePantryIds();
-  return recipe.ingredients
+  const matchedItems = recipe.ingredients
     .filter((ingredient) => !available.has(ingredient.id))
     .map((ingredient) => ({
       ...ingredient,
       name: foodNameById(ingredient.id)
     }))
     .filter((item) => item.name);
+  const externalItems = recipeExternalMissingIngredients(recipe, available).map((ingredient) => ({
+    name: ingredient.name,
+    grams: ingredient.grams || 80,
+    external: true
+  }));
+  return [...matchedItems, ...externalItems];
 }
 
 function mergeShoppingList(current, additions) {
@@ -2733,7 +2785,7 @@ function clearRecipeShoppingList() {
 }
 
 function startRecipeCookMode(recipeId) {
-  if (!recipeTemplates.some((recipe) => recipe.id === recipeId)) return;
+  if (!recipeLibrary().some((recipe) => recipe.id === recipeId)) return;
   ensurePantryState();
   state.pantry.activeCookRecipeId = recipeId;
   state.pantry.cookStepIndex = 0;
@@ -2743,7 +2795,7 @@ function startRecipeCookMode(recipeId) {
 
 function setRecipeCookStep(index) {
   ensurePantryState();
-  const recipe = recipeTemplates.find((item) => item.id === state.pantry.activeCookRecipeId);
+  const recipe = recipeLibrary().find((item) => item.id === state.pantry.activeCookRecipeId);
   if (!recipe) return;
   state.pantry.cookStepIndex = clamp(Math.round(index || 0), 0, Math.max(0, recipe.steps.length - 1));
   saveState();
@@ -3530,6 +3582,367 @@ function recipeSteps(family, ingredients, minutes, style) {
   ];
 }
 
+async function searchExternalRecipes(query) {
+  const cleanQuery = String(query || "").trim();
+  if (!cleanQuery) {
+    recipeImport = {
+      ...recipeImport,
+      status: "error",
+      message: "Skriv ett recept, en råvara eller en stil att söka efter.",
+      note: ""
+    };
+    renderRecipeEngine();
+    return;
+  }
+
+  recipeImport = {
+    ...recipeImport,
+    status: "loading",
+    query: cleanQuery,
+    message: `Söker riktiga recept för "${cleanQuery}"...`,
+    note: ""
+  };
+  renderRecipeEngine();
+
+  try {
+    const response = await fetch("/api/recipe-search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query: cleanQuery,
+        limit: 8,
+        goal: state.pantry.goal
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || "Receptsökningen misslyckades.");
+    const results = normalizeExternalRecipeResults(data.recipes || []);
+    recipeImport = {
+      status: results.length ? "ready" : "empty",
+      query: cleanQuery,
+      results,
+      message: results.length
+        ? `${results.length} riktiga recept hittades. Importera ett för score, kockläge och inköpslista.`
+        : "Inga recept hittades. Testa ett bredare sökord.",
+      note: String(data.note || "").slice(0, 220)
+    };
+  } catch (error) {
+    recipeImport = {
+      ...recipeImport,
+      status: "error",
+      results: [],
+      message: error && error.message ? error.message : "Kunde inte söka recept just nu.",
+      note: "Appens egna 100 recept fungerar fortfarande offline."
+    };
+  }
+  renderRecipeEngine();
+}
+
+function importExternalRecipe(resultId) {
+  ensurePantryState();
+  const result = (recipeImport.results || []).find((item) => item.id === resultId);
+  if (!result) return;
+  const recipe = externalResultToRecipe(result);
+  if (!recipe || !recipe.ingredients.length && !recipe.externalIngredients.length) return;
+  const existingKey = recipe.externalId || recipe.id;
+  state.pantry.importedRecipes = [
+    recipe,
+    ...state.pantry.importedRecipes.filter((item) => (item.externalId || item.id) !== existingKey)
+  ].slice(0, 16);
+  state.pantry.activeCookRecipeId = recipe.id;
+  state.pantry.cookStepIndex = 0;
+  recipeImport = {
+    ...recipeImport,
+    status: "imported",
+    message: `${recipe.title} importerades och fick Visceral Score, kockläge och inköpslista.`,
+    note: recipe.attribution || recipeImport.note
+  };
+  saveState();
+  renderFridgeBuilder();
+}
+
+function clearImportedRecipes() {
+  ensurePantryState();
+  state.pantry.importedRecipes = [];
+  if (state.pantry.activeCookRecipeId && state.pantry.activeCookRecipeId.startsWith("themealdb-")) {
+    state.pantry.activeCookRecipeId = "";
+    state.pantry.cookStepIndex = 0;
+  }
+  recipeImport = {
+    status: "idle",
+    query: recipeImport.query,
+    results: recipeImport.results,
+    message: "Importerade recept rensades. Sök igen när du vill fylla biblioteket.",
+    note: ""
+  };
+  saveState();
+  renderFridgeBuilder();
+}
+
+function normalizeExternalRecipeResults(results) {
+  const seen = new Set();
+  return (Array.isArray(results) ? results : [])
+    .map((result) => {
+      if (!result || typeof result !== "object") return null;
+      const id = String(result.id || result.externalId || "").slice(0, 80);
+      const title = String(result.title || "").trim().slice(0, 100);
+      if (!id || !title || seen.has(id)) return null;
+      seen.add(id);
+      return {
+        id,
+        externalId: String(result.externalId || id).slice(0, 80),
+        title,
+        source: String(result.source || "external").slice(0, 40),
+        sourceLabel: String(result.sourceLabel || "Extern källa").slice(0, 50),
+        sourceUrl: safeExternalUrl(result.sourceUrl),
+        image: safeExternalUrl(result.image),
+        youtube: safeExternalUrl(result.youtube),
+        category: String(result.category || "").slice(0, 36),
+        area: String(result.area || "").slice(0, 36),
+        tags: Array.isArray(result.tags) ? result.tags.map((tag) => String(tag || "").trim()).filter(Boolean).slice(0, 6) : [],
+        minutes: clamp(Math.round(Number(result.minutes) || 25), 5, 90),
+        difficulty: String(result.difficulty || "Medel").slice(0, 32),
+        ingredients: normalizeExternalIngredients(result.ingredients),
+        instructions: Array.isArray(result.instructions)
+          ? result.instructions.map((step) => String(step || "").trim()).filter(Boolean).map((step) => step.slice(0, 260)).slice(0, 8)
+          : [],
+        attribution: String(result.attribution || "").slice(0, 180)
+      };
+    })
+    .filter(Boolean);
+}
+
+function normalizeExternalIngredients(ingredients) {
+  return (Array.isArray(ingredients) ? ingredients : [])
+    .map((ingredient) => {
+      const name = String(ingredient && ingredient.name || "").trim().slice(0, 70);
+      if (!name) return null;
+      const grams = clamp(Math.round(Number(ingredient.grams) || 80), 1, 900);
+      const measure = String(ingredient.measure || "").trim().slice(0, 55);
+      const original = String(ingredient.original || [measure, name].filter(Boolean).join(" ")).trim().slice(0, 110);
+      const id = matchPantryFoodId(name) || matchPantryFoodId(original);
+      return {
+        id,
+        name,
+        measure,
+        grams,
+        gramsConfidence: String(ingredient.gramsConfidence || "uppskattad").slice(0, 20),
+        original
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 14);
+}
+
+function externalResultToRecipe(result) {
+  const sourceIngredients = normalizeExternalIngredients(result.ingredients);
+  const matchedIngredients = uniqueRecipeIngredients(sourceIngredients
+    .filter((ingredient) => ingredient.id && pantryFoodById(ingredient.id))
+    .map((ingredient) => ({
+      id: ingredient.id,
+      grams: clamp(Math.round(ingredient.grams || pantryFoodById(ingredient.id).defaultGrams || 100), 3, 900),
+      role: pantryFoodById(ingredient.id).role
+    })));
+  const inferredIngredients = externalRecipeFallbackIngredients(result, matchedIngredients);
+  const ingredients = uniqueRecipeIngredients([...matchedIngredients, ...inferredIngredients]);
+  const externalIngredients = sourceIngredients.map((ingredient) => ({
+    ...ingredient,
+    id: ingredient.id && ingredients.some((item) => item.id === ingredient.id) ? ingredient.id : ""
+  }));
+  const title = String(result.title || "Importerat recept").trim().slice(0, 100);
+  const sourceLabel = String(result.sourceLabel || "Extern källa").slice(0, 50);
+  const sourceUrl = safeExternalUrl(result.sourceUrl);
+  const area = String(result.area || "").slice(0, 36);
+  const category = String(result.category || "Import").slice(0, 36);
+  const tags = Array.from(new Set([
+    "imported",
+    ingredients.some((item) => (pantryFoodById(item.id) || {}).role === "protein") ? "high-protein" : "",
+    ingredients.some((item) => (pantryFoodById(item.id) || {}).role === "legume") ? "fiber" : "",
+    Number(result.minutes) <= 20 ? "quick" : "planned",
+    isExternalVegetarian(result, ingredients) ? "vegetarian" : ""
+  ].filter(Boolean)));
+
+  return {
+    id: String(result.id || `external-${Date.now()}`).slice(0, 80),
+    externalId: String(result.externalId || result.id || "").slice(0, 80),
+    title,
+    type: area ? `${category} · ${area}` : category || "Import",
+    minutes: clamp(Math.round(Number(result.minutes) || 25), 5, 90),
+    difficulty: String(result.difficulty || "Medel").slice(0, 32),
+    tags,
+    ingredients,
+    externalIngredients,
+    image: safeExternalUrl(result.image),
+    sourceLabel,
+    sourceUrl,
+    youtube: safeExternalUrl(result.youtube),
+    sourceInstructionsCount: Array.isArray(result.instructions) ? result.instructions.length : 0,
+    attribution: String(result.attribution || `Receptdata och bild via ${sourceLabel}. Öppna källan för originalreceptet.`).slice(0, 180),
+    method: externalRecipeMethodLine(result, ingredients),
+    flavor: [area, category, sourceLabel].filter(Boolean).join(" · "),
+    prep: externalRecipePrepLine(sourceIngredients, ingredients),
+    chefNote: "Det här är originalreceptet översatt till vår gramlogik: väg olja, förstärk protein och låt grön volym skydda energibalansen.",
+    why: `Riktigt recept från ${sourceLabel}, uppgraderat med midjemåttsfokus, metriska gram, matchning mot kylskåp och smart inköpslista.`,
+    steps: buildExternalRecipeSteps(result, ingredients, sourceIngredients)
+  };
+}
+
+function normalizeStoredImportedRecipe(recipe) {
+  if (!recipe || typeof recipe !== "object" || !recipe.id || !recipe.title) return null;
+  const ingredients = uniqueRecipeIngredients(Array.isArray(recipe.ingredients)
+    ? recipe.ingredients.map((ingredient) => ({
+      id: matchPantryFoodId(ingredient.id) || matchPantryFoodId(ingredient.name),
+      grams: clamp(Math.round(Number(ingredient.grams) || 80), 3, 900),
+      role: String(ingredient.role || "")
+    })).filter((ingredient) => ingredient.id && pantryFoodById(ingredient.id))
+    : []);
+  const externalIngredients = normalizeExternalIngredients(recipe.externalIngredients || []);
+  return {
+    ...recipe,
+    id: String(recipe.id).slice(0, 80),
+    externalId: String(recipe.externalId || recipe.id).slice(0, 80),
+    title: String(recipe.title).slice(0, 100),
+    type: String(recipe.type || "Import").slice(0, 80),
+    minutes: clamp(Math.round(Number(recipe.minutes) || 25), 5, 90),
+    difficulty: String(recipe.difficulty || "Medel").slice(0, 32),
+    tags: Array.isArray(recipe.tags) ? recipe.tags.map(String).slice(0, 8) : ["imported"],
+    ingredients,
+    externalIngredients,
+    image: safeExternalUrl(recipe.image),
+    sourceLabel: String(recipe.sourceLabel || "Extern källa").slice(0, 50),
+    sourceUrl: safeExternalUrl(recipe.sourceUrl),
+    youtube: safeExternalUrl(recipe.youtube),
+    method: String(recipe.method || "").slice(0, 180),
+    flavor: String(recipe.flavor || "").slice(0, 120),
+    prep: String(recipe.prep || "").slice(0, 220),
+    chefNote: String(recipe.chefNote || "").slice(0, 220),
+    why: String(recipe.why || "").slice(0, 260),
+    attribution: String(recipe.attribution || "").slice(0, 180),
+    sourceInstructionsCount: Math.max(0, Math.round(Number(recipe.sourceInstructionsCount) || 0)),
+    steps: Array.isArray(recipe.steps) && recipe.steps.length
+      ? recipe.steps.map((step) => String(step || "").trim()).filter(Boolean).map((step) => step.slice(0, 260)).slice(0, 8)
+      : buildExternalRecipeSteps(recipe, ingredients, externalIngredients)
+  };
+}
+
+function externalRecipeFallbackIngredients(result, matchedIngredients) {
+  const used = new Set(matchedIngredients.map((ingredient) => ingredient.id));
+  const text = `${result.title || ""} ${result.category || ""} ${result.area || ""}`.toLowerCase();
+  const ids = [];
+  const add = (id) => {
+    if (!used.has(id) && pantryFoodById(id)) ids.push(id);
+  };
+  if (/chicken|pollo|kyckling/.test(text)) add("chicken");
+  if (/salmon|lax/.test(text)) add("salmon");
+  if (/cod|fish|fisk/.test(text)) add("cod");
+  if (/tuna|tonfisk/.test(text)) add("tuna");
+  if (/shrimp|prawn|räk|rak/.test(text)) add("shrimp");
+  if (/beef|mince|burger|meat|notfars|kött|kott/.test(text)) add("ground-beef");
+  if (/egg|omelette|omelet|ägg|agg/.test(text)) add("egg");
+  if (/tofu|vegetarian|vego|veg/.test(text)) add("tofu");
+  if (/lentil|bean|chickpea/.test(text)) add("lentils");
+  if (/pasta/.test(text)) add("wholegrain-pasta");
+  if (/rice|ris/.test(text)) add("brownrice");
+  if (/potato|potatis/.test(text)) add("potato");
+  if (ids.length && !matchedIngredients.some((ingredient) => {
+    const food = pantryFoodById(ingredient.id);
+    return food && food.role === "veg";
+  })) add("broccoli");
+  return ids.map((id) => ({
+    id,
+    grams: recipeGramsForFood(pantryFoodById(id), pantryFoodById(id).role, { tags: [] }, 0),
+    role: pantryFoodById(id).role
+  })).slice(0, 3);
+}
+
+function recipeExternalMissingIngredients(recipe) {
+  const internalIds = new Set((recipe.ingredients || []).map((ingredient) => ingredient.id));
+  const seen = new Set();
+  return (Array.isArray(recipe.externalIngredients) ? recipe.externalIngredients : [])
+    .filter((ingredient) => ingredient && ingredient.name && (!ingredient.id || !internalIds.has(ingredient.id)))
+    .map((ingredient) => ({
+      name: String(ingredient.name || "").trim().slice(0, 70),
+      grams: clamp(Math.round(Number(ingredient.grams) || 80), 1, 900),
+      measure: String(ingredient.measure || "").slice(0, 55),
+      original: String(ingredient.original || ingredient.name || "").slice(0, 110)
+    }))
+    .filter((ingredient) => {
+      const key = normalizeScanText(ingredient.name);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 8);
+}
+
+function recipeTotalIngredientCount(recipe) {
+  return Math.max(1, (recipe.ingredients || []).length + recipeExternalMissingIngredients(recipe).length);
+}
+
+function recipeIngredientSummary(recipe) {
+  if (Array.isArray(recipe.externalIngredients) && recipe.externalIngredients.length) {
+    return recipe.externalIngredients
+      .map((ingredient) => `${ingredient.name} ${Math.round(ingredient.grams || 80)} g`)
+      .slice(0, 14);
+  }
+  const internal = (recipe.ingredients || [])
+    .map((ingredient) => `${foodNameById(ingredient.id)} ${ingredient.grams} g`)
+    .filter((line) => line.trim());
+  return internal.length ? internal : ["Se originalkällan för full råvarulista"];
+}
+
+function externalRecipePrepLine(sourceIngredients, ingredients) {
+  const matched = ingredients.map((ingredient) => foodNameById(ingredient.id)).filter(Boolean).slice(0, 4);
+  const external = sourceIngredients.filter((ingredient) => !ingredient.id).map((ingredient) => ingredient.name).slice(0, 3);
+  const lines = [];
+  if (matched.length) lines.push(`Väg matchade råvaror: ${matched.join(", ")}.`);
+  if (external.length) lines.push(`Kontrollera externa råvaror: ${external.join(", ")}.`);
+  lines.push("Ha köksvåg framme och mät fettkällor innan värmen går på.");
+  return lines.join(" ");
+}
+
+function externalRecipeMethodLine(result, ingredients) {
+  const category = String(result.category || "recept").toLowerCase();
+  const hasProtein = ingredients.some((ingredient) => {
+    const food = pantryFoodById(ingredient.id);
+    return food && ["protein", "dairy", "legume"].includes(food.role);
+  });
+  if (category.includes("seafood")) return "Tillaga fisken varsamt, bygg tallriken med grön volym och håll fettkällan uppmätt.";
+  if (category.includes("vegetarian")) return "Bygg runt baljväxt, tofu eller mejeri och lägg till grön volym för fiber.";
+  if (category.includes("dessert")) return "Behandla som ett kontrollerat undantag: mindre portion, extra protein vid sidan och tydlig energimedvetenhet.";
+  return hasProtein
+    ? "Följ originalets huvudteknik, men låt protein, fiber och uppmätt fett styra portionen."
+    : "Följ originalets huvudteknik och komplettera med protein om målet är bukfett och mättnad.";
+}
+
+function buildExternalRecipeSteps(result, ingredients, sourceIngredients) {
+  const parts = recipeParts(ingredients);
+  const protein = recipeNames(parts.proteins.slice(0, 2), "proteinet");
+  const veg = recipeNames(parts.vegs, "grönsakerna");
+  const carb = recipeIngredientName(parts.carb);
+  const fat = recipeIngredientName(parts.fat) || "fettkällan";
+  const externalNames = sourceIngredients.filter((ingredient) => !ingredient.id).map((ingredient) => ingredient.name).slice(0, 3);
+  const sourceCount = Array.isArray(result.instructions) ? result.instructions.length : 0;
+  return [
+    `Läs originalkällan först${sourceCount ? ` (${sourceCount} steg)` : ""} och väg alla råvaror i gram innan du börjar.`,
+    `Förbered ${protein}${veg !== "grönsakerna" ? ` och ${veg}` : ""}${externalNames.length ? ` samt ${externalNames.join(", ")}` : ""}.`,
+    `Tillaga enligt originalets huvudteknik, men håll ${fat} uppmätt och låt proteinet bli klart utan att torka ut.`,
+    `${carb ? `Servera med ${carb}` : "Bygg tallriken med extra grön volym"} och justera portionen mot målet: protein först, fiber synligt, energi kontrollerad.`
+  ];
+}
+
+function isExternalVegetarian(result, ingredients) {
+  const text = `${result.title || ""} ${result.category || ""} ${(result.ingredients || []).map((item) => item.name).join(" ")}`.toLowerCase();
+  if (/vegetarian|vego|tofu|lentil|bean|chickpea/.test(text)) return true;
+  if (/chicken|beef|pork|lamb|bacon|ham|salmon|cod|tuna|shrimp|prawn|fish|turkey|sausage/.test(text)) return false;
+  return ingredients.length ? isVegetarianRecipe({ ingredients, externalIngredients: [] }) : false;
+}
+
+function safeExternalUrl(value) {
+  const url = String(value || "").trim();
+  return /^https?:\/\//i.test(url) ? url.slice(0, 500) : "";
+}
+
 function availablePantryIds() {
   ensurePantryState();
   const selectedIds = Array.isArray(state.pantry.selected) ? state.pantry.selected : [];
@@ -3540,11 +3953,19 @@ function availablePantryIds() {
   return new Set([...selectedIds, ...scanIds].filter((id) => pantryFoodById(id)));
 }
 
+function recipeLibrary() {
+  ensurePantryState();
+  return [
+    ...recipeTemplates,
+    ...state.pantry.importedRecipes.map(normalizeStoredImportedRecipe).filter(Boolean)
+  ];
+}
+
 function rankRecipeTemplates(filter = "best") {
   ensurePantryState();
   const available = availablePantryIds();
   const goal = state.pantry.goal || "fatloss";
-  return recipeTemplates
+  return recipeLibrary()
     .map((recipe) => scoreRecipe(recipe, available, goal))
     .filter((item) => recipeMatchesFilter(item, filter))
     .sort((a, b) => (
@@ -3559,14 +3980,17 @@ function scoreRecipe(recipe, available, goal) {
   const ingredientIds = recipe.ingredients.map((item) => item.id);
   const matchIds = ingredientIds.filter((id) => available.has(id));
   const missingIds = ingredientIds.filter((id) => !available.has(id));
+  const externalMissing = recipeExternalMissingIngredients(recipe, available);
+  const totalIngredientCount = Math.max(1, ingredientIds.length + externalMissing.length);
   const macros = calculateRecipeMacros(recipe);
   const quality = recipeQualityScore(recipe, macros, goal);
   const proteinDensity = macros.kcal ? (macros.protein * 100) / macros.kcal : 0;
   const vegetarian = isVegetarianRecipe(recipe);
   let score = 50;
   score += matchIds.length * 30;
-  score += (ingredientIds.length ? (matchIds.length / ingredientIds.length) : 0) * 70;
+  score += (matchIds.length / totalIngredientCount) * 70;
   score -= missingIds.length * 13;
+  score -= externalMissing.length * 9;
   score += Math.min(macros.protein, 55) * 0.7;
   score += Math.min(macros.fiber, 20) * 2.2;
   score += proteinDensity * 16;
@@ -3595,8 +4019,10 @@ function scoreRecipe(recipe, available, goal) {
     quality,
     matchIds,
     missingIds,
+    externalMissing,
     score,
-    matchRatio: ingredientIds.length ? matchIds.length / ingredientIds.length : 0,
+    totalIngredientCount,
+    matchRatio: matchIds.length / totalIngredientCount,
     vegetarian
   };
 }
@@ -3621,6 +4047,11 @@ function calculateRecipeMacros(recipe) {
 
 function isVegetarianRecipe(recipe) {
   const animalIds = new Set(["chicken", "salmon", "tuna", "cod", "turkey", "shrimp", "ham", "turkey-slices", "ground-beef", "ground-chicken", "falukorv"]);
+  const externalText = (recipe.externalIngredients || [])
+    .map((ingredient) => ingredient.name || ingredient.original || "")
+    .join(" ")
+    .toLowerCase();
+  if (/\b(chicken|beef|pork|lamb|bacon|ham|salmon|cod|tuna|shrimp|prawn|fish|turkey|sausage)\b/.test(externalText)) return false;
   return recipe.ingredients.every((ingredient) => !animalIds.has(ingredient.id));
 }
 
@@ -3696,6 +4127,8 @@ function renderRecipeEngine() {
   const ranked = rankRecipeTemplates(filter);
   const closeMatches = rankRecipeTemplates("best").filter((item) => item.missingIds.length <= 2).length;
   const selectedCount = availablePantryIds().size;
+  const importedCount = state.pantry.importedRecipes.length;
+  const libraryCount = recipeLibrary().length;
   const visible = ranked.slice(0, 9);
   const hero = visible[0] || null;
   const cardItems = hero ? visible.slice(1, 9) : visible;
@@ -3706,9 +4139,9 @@ function renderRecipeEngine() {
       <div>
         <span>Receptstudio</span>
         <h3 id="recipe-engine-title">Kockstyrda recept från ditt kylskåp</h3>
-        <p>Rankar 100 recept efter hemma-råvaror, mål, protein, fiber, tid, teknik och vad som saknas.</p>
+        <p>Rankar egna och importerade recept efter hemma-råvaror, mål, protein, fiber, tid, teknik, källa och vad som saknas.</p>
       </div>
-      <b>${recipeTemplates.length} recept</b>
+      <b>${recipeTemplates.length} egna · ${importedCount} import</b>
     </div>
     <div class="recipe-engine-stats" aria-label="Receptmotor status">
       <article>
@@ -3720,10 +4153,11 @@ function renderRecipeEngine() {
         <strong>${closeMatches}</strong>
       </article>
       <article>
-        <span>Visas</span>
-        <strong>${hero ? cardItems.length + 1 : cardItems.length}</strong>
+        <span>Bibliotek</span>
+        <strong>${libraryCount}</strong>
       </article>
     </div>
+    ${renderRecipeImportPanel()}
     <div class="recipe-filter-row" aria-label="Filtrera recept">
       ${recipeFilterOptions.map((option) => `
         <button type="button" class="${filter === option.id ? "is-active" : ""}" data-recipe-filter="${option.id}">
@@ -3740,6 +4174,68 @@ function renderRecipeEngine() {
   `;
 }
 
+function renderRecipeImportPanel() {
+  ensurePantryState();
+  const results = Array.isArray(recipeImport.results) ? recipeImport.results.slice(0, 6) : [];
+  const importedIds = new Set(state.pantry.importedRecipes.map((recipe) => recipe.externalId || recipe.id));
+  const statusText = recipeImport.status === "loading"
+    ? "Söker riktiga recept..."
+    : recipeImport.message;
+  return `
+    <section class="recipe-import-panel ${recipeImport.status}" aria-label="Importera riktiga recept">
+      <div class="recipe-import-copy">
+        <div>
+          <span>Riktiga recept</span>
+          <strong>Sök, importera och gör om till midjesmart premiumrecept.</strong>
+          <p>${escapeHTML(statusText)}</p>
+        </div>
+        ${state.pantry.importedRecipes.length ? `<button type="button" data-recipe-import-clear="true">Rensa import</button>` : ""}
+      </div>
+      <form class="recipe-import-form" data-recipe-search-form="true">
+        <input name="recipeSearch" type="search" value="${escapeHTML(recipeImport.query)}" placeholder="Sök kyckling, lax, vegetarisk, soup..." autocomplete="off">
+        <button class="primary-button" type="submit" ${recipeImport.status === "loading" ? "disabled" : ""}>Sök recept</button>
+      </form>
+      <div class="recipe-import-quick" aria-label="Snabbsök recept">
+        ${["kyckling", "lax", "vegetarisk", "beef", "soup"].map((term) => `
+          <button type="button" data-recipe-search-term="${escapeHTML(term)}">${escapeHTML(term)}</button>
+        `).join("")}
+      </div>
+      ${recipeImport.note ? `<small class="recipe-import-note">${escapeHTML(recipeImport.note)}</small>` : ""}
+      ${results.length ? `
+        <div class="recipe-import-results">
+          ${results.map((result) => renderExternalRecipeResult(result, importedIds)).join("")}
+        </div>
+      ` : ""}
+    </section>
+  `;
+}
+
+function renderExternalRecipeResult(result, importedIds) {
+  const recipe = externalResultToRecipe(result);
+  const matchIds = recipe.ingredients.map((ingredient) => ingredient.id).filter((id) => availablePantryIds().has(id));
+  const imported = importedIds.has(result.externalId || result.id);
+  const ingredientPreview = recipeIngredientSummary(recipe).slice(0, 4);
+  return `
+    <article class="recipe-import-card">
+      ${result.image ? `
+        <figure>
+          <img src="${escapeHTML(result.image)}" alt="${escapeHTML(result.title)}" loading="lazy">
+        </figure>
+      ` : ""}
+      <div>
+        <span>${escapeHTML([result.area, result.category].filter(Boolean).join(" · ") || result.sourceLabel || "Extern källa")}</span>
+        <strong>${escapeHTML(result.title)}</strong>
+        <p>${escapeHTML(ingredientPreview.length ? ingredientPreview.join(", ") : "Ingredienser hämtade från källan")}</p>
+        <small>${matchIds.length}/${Math.max(1, recipe.totalIngredientCount || recipe.ingredients.length)} matchar din råvarubank · ${result.minutes || recipe.minutes} min · ${escapeHTML(result.sourceLabel || "Källa")}</small>
+      </div>
+      <div class="recipe-import-actions">
+        ${result.sourceUrl ? `<a href="${escapeHTML(result.sourceUrl)}" target="_blank" rel="noopener noreferrer">Källa</a>` : ""}
+        <button type="button" data-recipe-import="${escapeHTML(result.id)}" ${imported ? "disabled" : ""}>${imported ? "Importerad" : "Importera"}</button>
+      </div>
+    </article>
+  `;
+}
+
 function renderRecipeStudioHero(item) {
   if (!item) {
     return `
@@ -3751,6 +4247,7 @@ function renderRecipeStudioHero(item) {
   }
   const { recipe, macros, matchIds, missingIds } = item;
   const ingredientIds = recipe.ingredients.map((ingredient) => ingredient.id);
+  const allIngredientCount = recipeTotalIngredientCount(recipe);
   const percent = recipeMatchPercent(item);
   const verdict = recipePremiumVerdict(item);
   const missing = missingIds.map(foodNameById).filter(Boolean).slice(0, 3);
@@ -3760,10 +4257,17 @@ function renderRecipeStudioHero(item) {
   return `
     <section class="recipe-studio-hero ${missingIds.length ? "needs-shop" : "ready"}">
       <div class="recipe-hero-copy">
-        <span>Chefens val</span>
+        <span>${recipe.sourceLabel ? `Chefens val · ${escapeHTML(recipe.sourceLabel)}` : "Chefens val"}</span>
         <h4>${escapeHTML(recipe.title)}</h4>
         <p>${escapeHTML(verdict)}</p>
+        ${recipe.sourceUrl ? `<a href="${escapeHTML(recipe.sourceUrl)}" target="_blank" rel="noopener noreferrer">Öppna originalkälla</a>` : ""}
       </div>
+      ${recipe.image ? `
+        <figure class="recipe-hero-image">
+          <img src="${escapeHTML(recipe.image)}" alt="${escapeHTML(recipe.title)}" loading="lazy">
+          <figcaption>${escapeHTML(recipe.attribution || `Bild och receptdata via ${recipe.sourceLabel || "extern källa"}`)}</figcaption>
+        </figure>
+      ` : ""}
       <div class="recipe-hero-meter" aria-label="Receptmatchning">
         <div>
           <span>Match · ${recipeQualityLabel(quality)} score ${quality.score}</span>
@@ -3774,7 +4278,7 @@ function renderRecipeStudioHero(item) {
       <div class="recipe-hero-proof">
         <article>
           <span>Kan lagas nu</span>
-          <strong>${home.length ? escapeHTML(home.join(", ")) : "Välj råvaror"}</strong>
+          <strong>${home.length ? escapeHTML(home.join(", ")) : "Välj råvaror"} · ${matchIds.length}/${allIngredientCount}</strong>
         </article>
         <article>
           <span>${missing.length ? "Handla" : "Status"}</span>
@@ -3809,15 +4313,19 @@ function renderRecipeCookMode() {
   const { recipe, macros, missingIds } = item;
   const stepIndex = clamp(Math.round(state.pantry.cookStepIndex || 0), 0, Math.max(0, recipe.steps.length - 1));
   const plan = recipeCookModePlan(recipe, macros);
-  const missing = missingIds.map(foodNameById).filter(Boolean);
+  const missing = [
+    ...missingIds.map(foodNameById).filter(Boolean),
+    ...recipeExternalMissingIngredients(recipe, availablePantryIds()).map((ingredient) => ingredient.name).filter(Boolean)
+  ].slice(0, 5);
 
   return `
     <section class="recipe-cook-mode" aria-label="Kockläge">
       <header>
         <div>
-          <span>Kockläge</span>
+          <span>${recipe.sourceLabel ? `Kockläge · ${escapeHTML(recipe.sourceLabel)}` : "Kockläge"}</span>
           <strong>${escapeHTML(recipe.title)}</strong>
           <small>${recipe.minutes} min · ${recipe.difficulty} · ${Math.round(macros.kcal)} kcal</small>
+          ${recipe.sourceUrl ? `<a href="${escapeHTML(recipe.sourceUrl)}" target="_blank" rel="noopener noreferrer">Originalrecept</a>` : ""}
         </div>
         <button type="button" data-cook-close="true">Stäng</button>
       </header>
@@ -3863,7 +4371,7 @@ function recipeRankedItemById(recipeId) {
   const ranked = rankRecipeTemplates("best");
   const rankedItem = ranked.find((entry) => entry.recipe.id === recipeId);
   if (rankedItem) return rankedItem;
-  const recipe = recipeTemplates.find((entry) => entry.id === recipeId);
+  const recipe = recipeLibrary().find((entry) => entry.id === recipeId);
   return recipe ? scoreRecipe(recipe, availablePantryIds(), state.pantry.goal || "fatloss") : null;
 }
 
@@ -3901,23 +4409,34 @@ function renderRecipeShoppingList(items) {
 }
 
 function renderRecipeCard(item) {
-  const { recipe, macros, matchIds, missingIds } = item;
+  const { recipe, macros, matchIds, missingIds, externalMissing } = item;
   const ingredientIds = recipe.ingredients.map((ingredient) => ingredient.id);
+  const allIngredientCount = recipeTotalIngredientCount(recipe);
   const homeNames = matchIds.map(foodNameById).filter(Boolean);
-  const missingNames = missingIds.map(foodNameById).filter(Boolean).slice(0, 4);
-  const level = missingIds.length === 0 ? "complete" : missingIds.length <= 2 ? "close" : "shop";
+  const missingNames = [
+    ...missingIds.map(foodNameById).filter(Boolean),
+    ...(externalMissing || []).map((ingredient) => ingredient.name).filter(Boolean)
+  ].slice(0, 4);
+  const missingCount = missingIds.length + ((externalMissing && externalMissing.length) || 0);
+  const level = missingCount === 0 ? "complete" : missingCount <= 2 ? "close" : "shop";
   const percent = recipeMatchPercent(item);
   const quality = item.quality || recipeQualityScore(recipe, macros, state.pantry.goal || "fatloss");
   const substitutions = recipeSubstitutionPlan(recipe, missingIds);
 
   return `
     <article class="recipe-card ${level}">
+      ${recipe.image ? `
+        <figure class="recipe-card-media">
+          <img src="${escapeHTML(recipe.image)}" alt="${escapeHTML(recipe.title)}" loading="lazy">
+          <figcaption>${escapeHTML(recipe.sourceLabel || "Extern källa")}</figcaption>
+        </figure>
+      ` : ""}
       <header>
         <div>
-          <span>${escapeHTML(recipe.type)}</span>
+          <span>${escapeHTML(recipe.sourceLabel ? `${recipe.type} · ${recipe.sourceLabel}` : recipe.type)}</span>
           <strong>${escapeHTML(recipe.title)}</strong>
         </div>
-        <b>${matchIds.length}/${ingredientIds.length} hemma</b>
+        <b>${matchIds.length}/${allIngredientCount} hemma</b>
       </header>
       <div class="recipe-meta-row">
         <span>${recipe.minutes} min</span>
@@ -3953,18 +4472,24 @@ function renderRecipeCard(item) {
         <small>${escapeHTML(recipe.chefNote || "Väg fettkällan och låt grönsakerna ge volym.")}</small>
       </div>
       <div class="recipe-ingredient-lines">
-        <p><strong>Gram:</strong> ${recipe.ingredients.map((ingredient) => `${escapeHTML(foodNameById(ingredient.id))} ${ingredient.grams} g`).join(", ")}</p>
+        <p><strong>Gram:</strong> ${recipeIngredientSummary(recipe).map(escapeHTML).join(", ")}</p>
         <p><strong>Förbered:</strong> ${escapeHTML(recipe.prep || "Väg råvarorna innan du börjar laga.")}</p>
         <p><strong>Hemma:</strong> ${homeNames.length ? escapeHTML(homeNames.slice(0, 5).join(", ")) : "Inga matchade ännu"}</p>
         <p><strong>Saknas:</strong> ${missingNames.length ? escapeHTML(missingNames.join(", ")) : "Inget saknas"}</p>
       </div>
+      ${recipe.sourceUrl ? `
+        <div class="recipe-source-row">
+          <span>${escapeHTML(recipe.attribution || `Importerat från ${recipe.sourceLabel || "extern källa"}.`)}</span>
+          <a href="${escapeHTML(recipe.sourceUrl)}" target="_blank" rel="noopener noreferrer">Original</a>
+        </div>
+      ` : ""}
       ${substitutions.length ? renderRecipeSubstitutions(substitutions) : ""}
       <ol>
         ${recipe.steps.map((step) => `<li>${escapeHTML(step)}</li>`).join("")}
       </ol>
       <div class="recipe-actions">
         <button class="ghost-button" type="button" data-recipe-add="${ingredientIds.map(escapeHTML).join(",")}">Lägg råvaror</button>
-        ${missingIds.length ? `
+        ${missingCount ? `
           <button class="ghost-button recipe-shop-button" type="button" data-recipe-shop="${escapeHTML(recipe.id)}">Skapa inköp</button>
         ` : `
           <button class="ghost-button recipe-shop-button" type="button" disabled>Allt finns</button>
@@ -3997,8 +4522,9 @@ function recipeMatchPercent(item) {
 }
 
 function recipeReadinessLabel(item) {
-  if (!item.missingIds.length) return "Redo att laga";
-  if (item.missingIds.length <= 2) return "Nära klart";
+  const missingCount = item.missingIds.length + ((item.externalMissing && item.externalMissing.length) || 0);
+  if (!missingCount) return "Redo att laga";
+  if (missingCount <= 2) return "Nära klart";
   if ((item.matchRatio || 0) >= 0.5) return "Bra bas hemma";
   return "Planera inköp";
 }
@@ -4006,11 +4532,12 @@ function recipeReadinessLabel(item) {
 function recipePremiumVerdict(item) {
   const protein = Math.round(item.macros.protein || 0);
   const fiber = Math.round(item.macros.fiber || 0);
-  if (!item.missingIds.length) {
+  const missingCount = item.missingIds.length + ((item.externalMissing && item.externalMissing.length) || 0);
+  if (!missingCount) {
     return `Allt finns hemma. Stark premiumrätt med ${protein} g protein och ${fiber} g fiber.`;
   }
-  if (item.missingIds.length <= 2) {
-    return `Nästan klar. Handla ${item.missingIds.length} saknad vara och du har en komplett rätt med tydlig mättnad.`;
+  if (missingCount <= 2) {
+    return `Nästan klar. Handla ${missingCount} saknad vara och du har en komplett rätt med tydlig mättnad.`;
   }
   return `Bästa riktningen just nu: stark receptbas hemma, men inköp behövs för restaurangkänslan.`;
 }
@@ -4114,23 +4641,28 @@ function recipeCookPrompt(recipeId) {
   const quality = item.quality || recipeQualityScore(recipe, item.macros, state.pantry.goal || "fatloss");
   return [
     `Agera premiumkock och dietist för receptet "${recipe.title}".`,
+    recipe.sourceLabel ? `Receptet är importerat från ${recipe.sourceLabel}; kopiera inte källtext rakt av, utan guida med egna tydliga steg.` : "",
     `Jag är i kockläge. Nuvarande steg: ${(state.pantry.cookStepIndex || 0) + 1}.`,
     `Receptscore ${quality.score}/100. Svagaste länk: ${quality.weakest.label}.`,
-    `Ingredienser i gram: ${recipe.ingredients.map((ingredient) => `${foodNameById(ingredient.id)} ${ingredient.grams} g`).join(", ")}.`,
+    `Ingredienser i gram: ${recipeIngredientSummary(recipe).join(", ")}.`,
     `Ge kort hjälp med teknik, timing, substitutionsval och hur jag håller måltiden bra för bukfett/mättnad.`
-  ].join(" ");
+  ].filter(Boolean).join(" ");
 }
 
 function recipeAiPrompt(recipe, macros, missingIds) {
-  const missing = missingIds.map(foodNameById).filter(Boolean);
+  const missing = [
+    ...missingIds.map(foodNameById).filter(Boolean),
+    ...recipeExternalMissingIngredients(recipe).map((ingredient) => ingredient.name)
+  ];
   const goalCopy = fridgeGoalCopy[state.pantry.goal || "fatloss"] || fridgeGoalCopy.fatloss;
   return [
     `Gör receptet "${recipe.title}" ännu bättre för ${goalCopy.kicker.toLowerCase()}.`,
+    recipe.sourceLabel ? `Receptkälla: ${recipe.sourceLabel}. Använd egen coachformulering och länka användaren till originalet vid behov.` : "",
     `Makro cirka ${Math.round(macros.kcal)} kcal, ${Math.round(macros.protein)} g protein, ${Math.round(macros.carbs)} g kolhydrater, ${Math.round(macros.fat)} g fett och ${Math.round(macros.fiber)} g fiber.`,
     `Smakprofil: ${recipe.flavor || "protein, fiber och kontrollerad energi"}. Kocktips: ${recipe.chefNote || "håll fettkällan uppmätt"}.`,
     `Receptsteg: ${(recipe.steps || []).join(" / ")}`,
     missing.length ? `Saknas hemma: ${missing.join(", ")}. Föreslå ersättningar från mina valda eller scannade råvaror.` : "Alla huvudingredienser finns hemma. Ge exakt tillagning i gram."
-  ].join(" ");
+  ].filter(Boolean).join(" ");
 }
 
 async function handleMealScanFile(file) {
@@ -4591,26 +5123,57 @@ function matchPantryFoodId(value) {
     paslagg: "ham",
     notfars: "ground-beef",
     kottfars: "ground-beef",
+    beef: "ground-beef",
+    groundbeef: "ground-beef",
+    mincedbeef: "ground-beef",
+    mince: "ground-beef",
     kycklingfars: "ground-chicken",
+    groundchicken: "ground-chicken",
     falukorv: "falukorv",
     keso: "cottage",
     cottagecheese: "cottage",
     kyckling: "chicken",
     chickenbreast: "chicken",
+    chickenbreasts: "chicken",
+    chickenfillet: "chicken",
+    chickenfillets: "chicken",
     tonfisk: "tuna",
     tuna: "tuna",
+    tunasteak: "tuna",
+    salmon: "salmon",
+    lax: "salmon",
+    cod: "cod",
+    whitefish: "cod",
+    turkey: "turkey",
     rakor: "shrimp",
+    shrimp: "shrimp",
     prawns: "shrimp",
+    prawn: "shrimp",
     broccoli: "broccoli",
+    cauliflower: "cauliflower",
     blomkal: "cauliflower",
     vitkal: "cabbage",
+    cabbage: "cabbage",
     spenat: "spinach",
+    spinach: "spinach",
     gronkal: "kale",
+    kale: "kale",
     morot: "carrot",
+    carrot: "carrot",
+    carrots: "carrot",
     tomat: "tomato",
+    tomato: "tomato",
+    tomatoes: "tomato",
     gurka: "cucumber",
+    cucumber: "cucumber",
     paprika: "pepper",
+    pepper: "pepper",
+    bellpepper: "pepper",
+    redpepper: "pepper",
+    greenpepper: "pepper",
     svamp: "mushroom",
+    mushroom: "mushroom",
+    mushrooms: "mushroom",
     zucchini: "zucchini",
     sallad: "lettuce",
     lettuce: "lettuce",
@@ -4621,13 +5184,23 @@ function matchPantryFoodId(value) {
     lemon: "lemon",
     potatis: "potato",
     sweetpotato: "sweetpotato",
+    sweetpotatoes: "sweetpotato",
     sotpotatis: "sweetpotato",
     ris: "brownrice",
+    rice: "brownrice",
+    brownrice: "brownrice",
     quinoa: "quinoa",
     havre: "oats",
+    oats: "oats",
+    oatmeal: "oats",
     ragbrod: "rye-bread",
+    bread: "rye-bread",
+    ryebread: "rye-bread",
     pasta: "wholegrain-pasta",
+    wholegrainpasta: "wholegrain-pasta",
+    spaghetti: "wholegrain-pasta",
     olivolja: "olive-oil",
+    oliveoil: "olive-oil",
     avocado: "avocado",
     avokado: "avocado",
     mandel: "almonds",
@@ -4636,16 +5209,22 @@ function matchPantryFoodId(value) {
     bar: "berries",
     blabar: "blueberries",
     blueberries: "blueberries",
+    blueberry: "blueberries",
     jordgubbar: "strawberries",
     strawberries: "strawberries",
+    strawberry: "strawberries",
     apple: "apple",
+    apples: "apple",
     applefruit: "apple",
     banan: "banana",
     banana: "banana",
+    bananas: "banana",
     apelsin: "orange",
     orange: "orange",
+    oranges: "orange",
     paron: "pear",
     pear: "pear",
+    pears: "pear",
     vindruvor: "grapes",
     grapes: "grapes"
   };
