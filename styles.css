@@ -2767,7 +2767,7 @@ select:focus {
 
 .recipe-hero-proof {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -2807,6 +2807,157 @@ select:focus {
   border-color: rgba(255, 254, 250, 0.24);
   background: rgba(255, 255, 255, 0.08);
   color: #fffefa;
+}
+
+.recipe-cook-mode {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(36, 123, 102, 0.28);
+  border-radius: 12px;
+  padding: 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 254, 250, 0.98), rgba(237, 247, 241, 0.9));
+  box-shadow: 0 18px 42px rgba(13, 20, 17, 0.08);
+}
+
+.recipe-cook-mode header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.recipe-cook-mode header span,
+.recipe-cook-mode header strong,
+.recipe-cook-mode header small,
+.cook-focus-step span,
+.cook-focus-step strong,
+.cook-focus-step p,
+.cook-mode-tools span,
+.cook-mode-tools strong {
+  display: block;
+}
+
+.recipe-cook-mode header span,
+.cook-focus-step span,
+.cook-mode-tools span {
+  color: var(--gold-dark);
+  font-size: 0.7rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.recipe-cook-mode header strong {
+  margin-top: 4px;
+  color: var(--green);
+  line-height: 1.22;
+}
+
+.recipe-cook-mode header small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.recipe-cook-mode header button {
+  border: 1px solid rgba(18, 63, 53, 0.14);
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: rgba(255, 254, 250, 0.9);
+  color: var(--green);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.cook-mode-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(220px, 0.9fr);
+  gap: 10px;
+}
+
+.cook-focus-step,
+.cook-mode-tools article {
+  border: 1px solid rgba(18, 63, 53, 0.1);
+  border-radius: 10px;
+  padding: 11px;
+  background: rgba(255, 254, 250, 0.88);
+}
+
+.cook-focus-step strong {
+  margin-top: 6px;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.cook-focus-step p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+.cook-mode-tools {
+  display: grid;
+  gap: 8px;
+}
+
+.cook-mode-tools strong {
+  margin-top: 4px;
+  color: var(--green);
+  line-height: 1.32;
+  font-size: 0.86rem;
+}
+
+.cook-step-list {
+  display: grid;
+  gap: 7px;
+}
+
+.cook-step-list button {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border: 1px solid rgba(18, 63, 53, 0.1);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 254, 250, 0.82);
+  color: var(--ink);
+  text-align: left;
+}
+
+.cook-step-list button.is-active {
+  border-color: rgba(36, 123, 102, 0.36);
+  background: rgba(237, 247, 241, 0.92);
+  box-shadow: 0 10px 24px rgba(13, 20, 17, 0.065);
+}
+
+.cook-step-list b {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(18, 63, 53, 0.08);
+  color: var(--green);
+  font-size: 0.78rem;
+}
+
+.cook-step-list span {
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.cook-mode-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cook-mode-actions .primary-button,
+.cook-mode-actions .ghost-button {
+  min-height: 42px;
+  justify-content: center;
+  padding: 9px 10px;
+  font-size: 0.78rem;
 }
 
 .recipe-shopping-panel {
@@ -2997,6 +3148,82 @@ select:focus {
   background: linear-gradient(90deg, var(--green), var(--green-2), var(--gold));
 }
 
+.recipe-score-panel {
+  display: grid;
+  gap: 9px;
+  border: 1px solid rgba(18, 63, 53, 0.1);
+  border-radius: 10px;
+  padding: 10px;
+  background:
+    linear-gradient(135deg, rgba(237, 247, 241, 0.88), rgba(255, 254, 250, 0.92));
+}
+
+.recipe-score-panel.elite,
+.recipe-score-panel.strong {
+  border-color: rgba(36, 123, 102, 0.3);
+}
+
+.recipe-score-panel span,
+.recipe-score-panel strong,
+.recipe-score-panel small {
+  display: block;
+}
+
+.recipe-score-panel > div:first-child span {
+  color: var(--gold-dark);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.recipe-score-panel > div:first-child strong {
+  margin-top: 4px;
+  color: var(--green);
+  line-height: 1.2;
+}
+
+.recipe-score-panel > div:first-child small {
+  margin-top: 5px;
+  color: var(--muted);
+  line-height: 1.38;
+}
+
+.recipe-score-bars {
+  display: grid;
+  gap: 6px;
+}
+
+.recipe-score-bars p {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 8px;
+  align-items: center;
+  margin: 0;
+}
+
+.recipe-score-bars span,
+.recipe-score-bars b {
+  color: var(--green);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.recipe-score-bars i {
+  grid-column: 1 / -1;
+  display: block;
+  overflow: hidden;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(18, 63, 53, 0.1);
+}
+
+.recipe-score-bars em {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green), var(--gold));
+}
+
 .recipe-why,
 .recipe-ingredient-lines p,
 .recipe-card li {
@@ -3053,6 +3280,63 @@ select:focus {
 
 .recipe-ingredient-lines strong {
   color: var(--green);
+}
+
+.recipe-substitution-panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(195, 154, 76, 0.24);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 248, 232, 0.65);
+}
+
+.recipe-substitution-panel > span {
+  color: var(--gold-dark);
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.recipe-substitution-panel article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid rgba(18, 63, 53, 0.08);
+  padding-top: 8px;
+}
+
+.recipe-substitution-panel article:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.recipe-substitution-panel strong,
+.recipe-substitution-panel small {
+  display: block;
+}
+
+.recipe-substitution-panel strong {
+  color: var(--green);
+  line-height: 1.24;
+}
+
+.recipe-substitution-panel small {
+  margin-top: 3px;
+  color: var(--muted);
+  line-height: 1.34;
+}
+
+.recipe-substitution-panel button {
+  border: 1px solid rgba(18, 63, 53, 0.14);
+  border-radius: 999px;
+  padding: 8px 10px;
+  background: #fffefa;
+  color: var(--green);
+  font-size: 0.72rem;
+  font-weight: 950;
+  white-space: nowrap;
 }
 
 .recipe-card ol {
@@ -4143,6 +4427,10 @@ textarea:focus {
   .recipe-shopping-head,
   .recipe-card header,
   .recipe-hero-actions,
+  .recipe-hero-actions.two-actions,
+  .cook-mode-grid,
+  .cook-mode-actions,
+  .recipe-substitution-panel article,
   .recipe-actions {
     grid-template-columns: 1fr;
   }

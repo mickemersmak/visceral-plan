@@ -75,6 +75,8 @@ const defaultState = {
     goal: "fatloss",
     selected: ["egg", "kvarg", "broccoli", "potato", "olive-oil"],
     recipeFilter: "best",
+    activeCookRecipeId: "",
+    cookStepIndex: 0,
     kitchenMessages: [],
     scanFeedback: [],
     shoppingList: []
@@ -1408,6 +1410,8 @@ function mergeState(base, next) {
       ...(next.pantry || {}),
       selected: Array.isArray(next.pantry && next.pantry.selected) ? next.pantry.selected : base.pantry.selected,
       recipeFilter: typeof (next.pantry && next.pantry.recipeFilter) === "string" ? next.pantry.recipeFilter : base.pantry.recipeFilter,
+      activeCookRecipeId: typeof (next.pantry && next.pantry.activeCookRecipeId) === "string" ? next.pantry.activeCookRecipeId : base.pantry.activeCookRecipeId,
+      cookStepIndex: Number.isFinite(next.pantry && next.pantry.cookStepIndex) ? next.pantry.cookStepIndex : base.pantry.cookStepIndex,
       kitchenMessages: Array.isArray(next.pantry && next.pantry.kitchenMessages) ? next.pantry.kitchenMessages : base.pantry.kitchenMessages,
       scanFeedback: Array.isArray(next.pantry && next.pantry.scanFeedback) ? next.pantry.scanFeedback : base.pantry.scanFeedback,
       shoppingList: Array.isArray(next.pantry && next.pantry.shoppingList) ? next.pantry.shoppingList : base.pantry.shoppingList
@@ -1696,6 +1700,36 @@ function bindFridgeBuilder() {
     const askShoppingButton = event.target.closest("[data-recipe-shopping-ask]");
     if (askShoppingButton && !kitchenAiLoading) {
       askKitchenAssistant(recipeShoppingPrompt());
+      return;
+    }
+
+    const cookButton = event.target.closest("[data-recipe-cook]");
+    if (cookButton) {
+      startRecipeCookMode(cookButton.dataset.recipeCook);
+      return;
+    }
+
+    const cookStepButton = event.target.closest("[data-cook-step]");
+    if (cookStepButton) {
+      setRecipeCookStep(Number(cookStepButton.dataset.cookStep));
+      return;
+    }
+
+    const closeCookButton = event.target.closest("[data-cook-close]");
+    if (closeCookButton) {
+      closeRecipeCookMode();
+      return;
+    }
+
+    const askCookButton = event.target.closest("[data-cook-ask]");
+    if (askCookButton && !kitchenAiLoading) {
+      askKitchenAssistant(recipeCookPrompt(askCookButton.dataset.cookAsk));
+      return;
+    }
+
+    const substituteButton = event.target.closest("[data-recipe-substitute]");
+    if (substituteButton) {
+      applyRecipeSubstitution(substituteButton.dataset.recipeSubstitute, substituteButton.dataset.recipeSubstituteFor);
       return;
     }
 
@@ -2306,6 +2340,8 @@ function ensurePantryState() {
   if (!Array.isArray(state.pantry.shoppingList)) state.pantry.shoppingList = [];
   if (!state.pantry.goal) state.pantry.goal = defaultState.pantry.goal;
   if (!state.pantry.recipeFilter) state.pantry.recipeFilter = defaultState.pantry.recipeFilter;
+  if (typeof state.pantry.activeCookRecipeId !== "string") state.pantry.activeCookRecipeId = "";
+  if (!Number.isFinite(state.pantry.cookStepIndex)) state.pantry.cookStepIndex = 0;
 }
 
 function renderFridgeBuilder() {
@@ -2694,6 +2730,39 @@ function clearRecipeShoppingList() {
   };
   saveState();
   renderFridgeBuilder();
+}
+
+function startRecipeCookMode(recipeId) {
+  if (!recipeTemplates.some((recipe) => recipe.id === recipeId)) return;
+  ensurePantryState();
+  state.pantry.activeCookRecipeId = recipeId;
+  state.pantry.cookStepIndex = 0;
+  saveState();
+  renderFridgeBuilder();
+}
+
+function setRecipeCookStep(index) {
+  ensurePantryState();
+  const recipe = recipeTemplates.find((item) => item.id === state.pantry.activeCookRecipeId);
+  if (!recipe) return;
+  state.pantry.cookStepIndex = clamp(Math.round(index || 0), 0, Math.max(0, recipe.steps.length - 1));
+  saveState();
+  renderFridgeBuilder();
+}
+
+function closeRecipeCookMode() {
+  ensurePantryState();
+  state.pantry.activeCookRecipeId = "";
+  state.pantry.cookStepIndex = 0;
+  saveState();
+  renderFridgeBuilder();
+}
+
+function applyRecipeSubstitution(substituteId, originalId) {
+  const substitute = pantryFoodById(substituteId);
+  if (!substitute) return;
+  const original = foodNameById(originalId) || "saknad råvara";
+  addFridgeIds([substituteId], `${substitute.name} lades till som ersättning för ${original}.`);
 }
 
 function recipeShoppingPrompt() {
@@ -3491,6 +3560,7 @@ function scoreRecipe(recipe, available, goal) {
   const matchIds = ingredientIds.filter((id) => available.has(id));
   const missingIds = ingredientIds.filter((id) => !available.has(id));
   const macros = calculateRecipeMacros(recipe);
+  const quality = recipeQualityScore(recipe, macros, goal);
   const proteinDensity = macros.kcal ? (macros.protein * 100) / macros.kcal : 0;
   const vegetarian = isVegetarianRecipe(recipe);
   let score = 50;
@@ -3522,6 +3592,7 @@ function scoreRecipe(recipe, available, goal) {
   return {
     recipe,
     macros,
+    quality,
     matchIds,
     missingIds,
     score,
@@ -3551,6 +3622,70 @@ function calculateRecipeMacros(recipe) {
 function isVegetarianRecipe(recipe) {
   const animalIds = new Set(["chicken", "salmon", "tuna", "cod", "turkey", "shrimp", "ham", "turkey-slices", "ground-beef", "ground-chicken", "falukorv"]);
   return recipe.ingredients.every((ingredient) => !animalIds.has(ingredient.id));
+}
+
+function recipeQualityScore(recipe, macros, goal) {
+  const vegGrams = recipe.ingredients.reduce((sum, ingredient) => {
+    const food = pantryFoodById(ingredient.id);
+    return sum + (food && food.role === "veg" ? ingredient.grams : 0);
+  }, 0);
+  const wholeFoodShare = recipe.ingredients.filter((ingredient) => {
+    const food = pantryFoodById(ingredient.id);
+    return food && !["falukorv", "protein-pudding"].includes(food.id);
+  }).length / Math.max(1, recipe.ingredients.length);
+  const proteinDensity = macros.kcal ? (macros.protein * 100) / macros.kcal : 0;
+  const carbQuality = recipe.ingredients.some((ingredient) => {
+    const food = pantryFoodById(ingredient.id);
+    return food && ["carb", "legume", "fruit"].includes(food.role);
+  });
+  const fatControl = macros.fat <= 32 ? 100 : clamp(100 - (macros.fat - 32) * 4, 35, 100);
+  const energyDensity = macros.kcal <= 760 ? 100 : clamp(100 - (macros.kcal - 760) * 0.08, 35, 100);
+  const technique = recipe.steps.length >= 4 && recipe.prep && recipe.chefNote ? 100 : 72;
+  const speed = recipe.minutes <= 15 ? 100 : recipe.minutes <= 24 ? 84 : 68;
+  const goalFit = recipeGoalFit(recipe, macros, goal);
+  const components = [
+    ["Protein", clamp(proteinDensity * 13, 35, 100)],
+    ["Fiber", clamp((macros.fiber / 14) * 100, 30, 100)],
+    ["Grön volym", clamp((vegGrams / 300) * 100, 30, 100)],
+    ["Energi", energyDensity],
+    ["Fettkontroll", fatControl],
+    ["Råvarukvalitet", clamp(wholeFoodShare * 100, 55, 100)],
+    ["Kolhydratkvalitet", carbQuality || goal === "lowcarb" ? 92 : 68],
+    ["Teknik", technique],
+    ["Tempo", speed],
+    ["Målfit", goalFit]
+  ].map(([label, value]) => ({ label, value: Math.round(value) }));
+  const score = Math.round(components.reduce((sum, item) => sum + item.value, 0) / components.length);
+  return {
+    score,
+    level: score >= 88 ? "elite" : score >= 78 ? "strong" : score >= 66 ? "good" : "tune",
+    vegGrams,
+    proteinDensity,
+    components,
+    weakest: [...components].sort((a, b) => a.value - b.value)[0],
+    strongest: [...components].sort((a, b) => b.value - a.value)[0]
+  };
+}
+
+function recipeGoalFit(recipe, macros, goal) {
+  if (goal === "training") {
+    return clamp((macros.protein >= 30 ? 45 : 25) + (macros.carbs >= 35 ? 45 : 25) + (recipe.minutes <= 24 ? 10 : 0), 35, 100);
+  }
+  if (goal === "lowcarb") {
+    return macros.carbs <= 28 ? 100 : macros.carbs <= 40 ? 78 : 48;
+  }
+  if (goal === "vegetarian") {
+    return isVegetarianRecipe(recipe) ? 100 : 42;
+  }
+  return clamp((macros.protein >= 32 ? 38 : 24) + (macros.fiber >= 9 ? 34 : 20) + (macros.kcal <= 760 ? 28 : 18), 35, 100);
+}
+
+function recipeQualityLabel(quality) {
+  if (!quality) return "Premium";
+  if (quality.level === "elite") return "Elite";
+  if (quality.level === "strong") return "Stark";
+  if (quality.level === "good") return "Bra";
+  return "Justera";
 }
 
 function renderRecipeEngine() {
@@ -3597,6 +3732,7 @@ function renderRecipeEngine() {
       `).join("")}
     </div>
     ${renderRecipeStudioHero(hero)}
+    ${renderRecipeCookMode()}
     ${renderRecipeShoppingList(shoppingList)}
     <div class="recipe-card-grid">
       ${cardItems.map(renderRecipeCard).join("")}
@@ -3616,10 +3752,10 @@ function renderRecipeStudioHero(item) {
   const { recipe, macros, matchIds, missingIds } = item;
   const ingredientIds = recipe.ingredients.map((ingredient) => ingredient.id);
   const percent = recipeMatchPercent(item);
-  const askPrompt = recipeAiPrompt(recipe, macros, missingIds);
   const verdict = recipePremiumVerdict(item);
   const missing = missingIds.map(foodNameById).filter(Boolean).slice(0, 3);
   const home = matchIds.map(foodNameById).filter(Boolean).slice(0, 4);
+  const quality = item.quality || recipeQualityScore(recipe, macros, state.pantry.goal || "fatloss");
 
   return `
     <section class="recipe-studio-hero ${missingIds.length ? "needs-shop" : "ready"}">
@@ -3630,7 +3766,7 @@ function renderRecipeStudioHero(item) {
       </div>
       <div class="recipe-hero-meter" aria-label="Receptmatchning">
         <div>
-          <span>Match</span>
+          <span>Match · ${recipeQualityLabel(quality)} score ${quality.score}</span>
           <strong>${percent}%</strong>
         </div>
         <i><em style="width: ${percent}%"></em></i>
@@ -3648,16 +3784,87 @@ function renderRecipeStudioHero(item) {
           <span>Profil</span>
           <strong>${recipe.minutes} min · ${Math.round(macros.protein)} g protein · ${Math.round(macros.fiber)} g fiber</strong>
         </article>
+        <article>
+          <span>Svagaste länk</span>
+          <strong>${escapeHTML(quality.weakest.label)} ${quality.weakest.value}/100</strong>
+        </article>
       </div>
       <div class="recipe-hero-actions ${missingIds.length ? "" : "two-actions"}">
         <button class="ghost-button" type="button" data-recipe-add="${ingredientIds.map(escapeHTML).join(",")}">Lägg råvaror</button>
         ${missingIds.length ? `
           <button class="ghost-button recipe-shop-button" type="button" data-recipe-shop="${escapeHTML(recipe.id)}">Skapa inköp</button>
         ` : ""}
-        <button class="primary-button" type="button" data-recipe-ask="${escapeHTML(askPrompt)}">Starta kockläge</button>
+        <button class="primary-button" type="button" data-recipe-cook="${escapeHTML(recipe.id)}">Starta kockläge</button>
       </div>
     </section>
   `;
+}
+
+function renderRecipeCookMode() {
+  ensurePantryState();
+  const recipeId = state.pantry.activeCookRecipeId;
+  if (!recipeId) return "";
+  const item = recipeRankedItemById(recipeId);
+  if (!item || !item.recipe) return "";
+  const { recipe, macros, missingIds } = item;
+  const stepIndex = clamp(Math.round(state.pantry.cookStepIndex || 0), 0, Math.max(0, recipe.steps.length - 1));
+  const plan = recipeCookModePlan(recipe, macros);
+  const missing = missingIds.map(foodNameById).filter(Boolean);
+
+  return `
+    <section class="recipe-cook-mode" aria-label="Kockläge">
+      <header>
+        <div>
+          <span>Kockläge</span>
+          <strong>${escapeHTML(recipe.title)}</strong>
+          <small>${recipe.minutes} min · ${recipe.difficulty} · ${Math.round(macros.kcal)} kcal</small>
+        </div>
+        <button type="button" data-cook-close="true">Stäng</button>
+      </header>
+      <div class="cook-mode-grid">
+        <div class="cook-focus-step">
+          <span>Steg ${stepIndex + 1} av ${recipe.steps.length}</span>
+          <strong>${escapeHTML(recipe.steps[stepIndex])}</strong>
+          <p>${escapeHTML(plan.guidance[stepIndex] || "Följ steget lugnt och väg energitäta delar.")}</p>
+        </div>
+        <div class="cook-mode-tools">
+          <article>
+            <span>Utrustning</span>
+            <strong>${escapeHTML(plan.equipment.join(", "))}</strong>
+          </article>
+          <article>
+            <span>Förvaring</span>
+            <strong>${escapeHTML(plan.storage)}</strong>
+          </article>
+          <article>
+            <span>${missing.length ? "Saknas" : "Redo"}</span>
+            <strong>${missing.length ? escapeHTML(missing.slice(0, 4).join(", ")) : "Alla huvudingredienser finns hemma"}</strong>
+          </article>
+        </div>
+      </div>
+      <div class="cook-step-list">
+        ${recipe.steps.map((step, index) => `
+          <button type="button" class="${index === stepIndex ? "is-active" : ""}" data-cook-step="${index}">
+            <b>${index + 1}</b>
+            <span>${escapeHTML(step)}</span>
+          </button>
+        `).join("")}
+      </div>
+      <div class="cook-mode-actions">
+        <button class="ghost-button" type="button" data-cook-step="${Math.max(0, stepIndex - 1)}">Föregående</button>
+        <button class="ghost-button" type="button" data-cook-step="${Math.min(recipe.steps.length - 1, stepIndex + 1)}">Nästa steg</button>
+        <button class="primary-button" type="button" data-cook-ask="${escapeHTML(recipe.id)}">Fråga kocken</button>
+      </div>
+    </section>
+  `;
+}
+
+function recipeRankedItemById(recipeId) {
+  const ranked = rankRecipeTemplates("best");
+  const rankedItem = ranked.find((entry) => entry.recipe.id === recipeId);
+  if (rankedItem) return rankedItem;
+  const recipe = recipeTemplates.find((entry) => entry.id === recipeId);
+  return recipe ? scoreRecipe(recipe, availablePantryIds(), state.pantry.goal || "fatloss") : null;
 }
 
 function renderRecipeShoppingList(items) {
@@ -3698,9 +3905,10 @@ function renderRecipeCard(item) {
   const ingredientIds = recipe.ingredients.map((ingredient) => ingredient.id);
   const homeNames = matchIds.map(foodNameById).filter(Boolean);
   const missingNames = missingIds.map(foodNameById).filter(Boolean).slice(0, 4);
-  const askPrompt = recipeAiPrompt(recipe, macros, missingIds);
   const level = missingIds.length === 0 ? "complete" : missingIds.length <= 2 ? "close" : "shop";
   const percent = recipeMatchPercent(item);
+  const quality = item.quality || recipeQualityScore(recipe, macros, state.pantry.goal || "fatloss");
+  const substitutions = recipeSubstitutionPlan(recipe, missingIds);
 
   return `
     <article class="recipe-card ${level}">
@@ -3719,8 +3927,24 @@ function renderRecipeCard(item) {
       </div>
       <div class="recipe-match-line">
         <span>${escapeHTML(recipeReadinessLabel(item))}</span>
-        <b>${percent}% match</b>
+        <b>${percent}% match · ${quality.score} score</b>
         <i><em style="width: ${percent}%"></em></i>
+      </div>
+      <div class="recipe-score-panel ${quality.level}">
+        <div>
+          <span>Receptscore 2.0</span>
+          <strong>${quality.score}/100 · ${recipeQualityLabel(quality)}</strong>
+          <small>Starkast: ${escapeHTML(quality.strongest.label)} ${quality.strongest.value}/100 · Justera: ${escapeHTML(quality.weakest.label)} ${quality.weakest.value}/100</small>
+        </div>
+        <div class="recipe-score-bars">
+          ${quality.components.slice(0, 5).map((component) => `
+            <p>
+              <span>${escapeHTML(component.label)}</span>
+              <b>${component.value}</b>
+              <i><em style="width: ${component.value}%"></em></i>
+            </p>
+          `).join("")}
+        </div>
       </div>
       <p class="recipe-why">${escapeHTML(recipe.why)}</p>
       <div class="recipe-pro-note">
@@ -3734,6 +3958,7 @@ function renderRecipeCard(item) {
         <p><strong>Hemma:</strong> ${homeNames.length ? escapeHTML(homeNames.slice(0, 5).join(", ")) : "Inga matchade ännu"}</p>
         <p><strong>Saknas:</strong> ${missingNames.length ? escapeHTML(missingNames.join(", ")) : "Inget saknas"}</p>
       </div>
+      ${substitutions.length ? renderRecipeSubstitutions(substitutions) : ""}
       <ol>
         ${recipe.steps.map((step) => `<li>${escapeHTML(step)}</li>`).join("")}
       </ol>
@@ -3744,9 +3969,26 @@ function renderRecipeCard(item) {
         ` : `
           <button class="ghost-button recipe-shop-button" type="button" disabled>Allt finns</button>
         `}
-        <button class="primary-button" type="button" data-recipe-ask="${escapeHTML(askPrompt)}">Fråga Köks-AI</button>
+        <button class="primary-button" type="button" data-recipe-cook="${escapeHTML(recipe.id)}">Kockläge</button>
       </div>
     </article>
+  `;
+}
+
+function renderRecipeSubstitutions(substitutions) {
+  return `
+    <div class="recipe-substitution-panel">
+      <span>Smarta byten</span>
+      ${substitutions.map((item) => `
+        <article>
+          <div>
+            <strong>${escapeHTML(item.originalName)} → ${escapeHTML(item.best.name)}</strong>
+            <small>${escapeHTML(item.reason)}</small>
+          </div>
+          <button type="button" data-recipe-substitute="${escapeHTML(item.best.id)}" data-recipe-substitute-for="${escapeHTML(item.originalId)}">Använd byte</button>
+        </article>
+      `).join("")}
+    </div>
   `;
 }
 
@@ -3771,6 +4013,112 @@ function recipePremiumVerdict(item) {
     return `Nästan klar. Handla ${item.missingIds.length} saknad vara och du har en komplett rätt med tydlig mättnad.`;
   }
   return `Bästa riktningen just nu: stark receptbas hemma, men inköp behövs för restaurangkänslan.`;
+}
+
+function recipeSubstitutionPlan(recipe, missingIds) {
+  return missingIds
+    .map((id) => {
+      const original = pantryFoodById(id);
+      if (!original) return null;
+      const alternatives = recipeSubstitutionOptions(original, recipe).slice(0, 2);
+      if (!alternatives.length) return null;
+      const best = alternatives[0];
+      return {
+        originalId: id,
+        originalName: original.name,
+        best,
+        alternatives,
+        reason: recipeSubstitutionReason(original, best)
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function recipeSubstitutionOptions(original, recipe) {
+  const available = availablePantryIds();
+  const recipeIds = new Set(recipe.ingredients.map((ingredient) => ingredient.id));
+  const role = original.role;
+  const vegetarian = isVegetarianRecipe(recipe);
+  return pantryFoods
+    .filter((food) => food.id !== original.id && !recipeIds.has(food.id))
+    .filter((food) => {
+      if (vegetarian && ["chicken", "salmon", "tuna", "cod", "turkey", "shrimp", "ham", "turkey-slices", "ground-beef", "ground-chicken", "falukorv"].includes(food.id)) return false;
+      if (role === "protein") return ["protein", "dairy", "legume"].includes(food.role);
+      if (role === "dairy") return ["dairy", "protein"].includes(food.role);
+      if (role === "legume") return ["legume", "protein", "dairy"].includes(food.role);
+      if (role === "veg") return food.role === "veg" || food.id === "frozen-veg";
+      if (role === "carb") return ["carb", "legume", "fruit"].includes(food.role);
+      if (role === "fat") return food.role === "fat";
+      if (role === "fruit") return ["fruit", "veg"].includes(food.role);
+      return food.category === original.category || food.role === original.role;
+    })
+    .map((food) => ({
+      ...food,
+      substitutionScore: recipeSubstitutionScore(original, food, available)
+    }))
+    .sort((a, b) => b.substitutionScore - a.substitutionScore)
+    .slice(0, 4);
+}
+
+function recipeSubstitutionScore(original, candidate, available) {
+  let score = 0;
+  if (available.has(candidate.id)) score += 55;
+  if (candidate.role === original.role) score += 34;
+  if (candidate.category === original.category) score += 18;
+  score += Math.max(0, 20 - Math.abs((candidate.protein || 0) - (original.protein || 0))) * 1.2;
+  score += Math.max(0, 10 - Math.abs((candidate.fiber || 0) - (original.fiber || 0))) * 1.1;
+  score -= Math.max(0, candidate.kcal - original.kcal) * 0.03;
+  if (["falukorv", "butter", "cream-cheese"].includes(candidate.id)) score -= 14;
+  if (["broccoli", "cabbage", "cauliflower", "frozen-veg", "kvarg", "egg", "tofu", "lentils", "potato", "oats"].includes(candidate.id)) score += 8;
+  return score;
+}
+
+function recipeSubstitutionReason(original, substitute) {
+  const homeText = availablePantryIds().has(substitute.id) ? "finns hemma" : "är lätt att handla";
+  if (["protein", "dairy", "legume"].includes(original.role)) {
+    return `${substitute.name} ${homeText} och håller receptets proteinlinje.`;
+  }
+  if (original.role === "veg") return `${substitute.name} ${homeText} och behåller grön volym och fiber.`;
+  if (original.role === "carb") return `${substitute.name} ${homeText} och kan bära mättnaden i samma gramlogik.`;
+  if (original.role === "fat") return `${substitute.name} ${homeText}; väg mängden så energin hålls premiumkontrollerad.`;
+  return `${substitute.name} ${homeText} och passar receptets funktion.`;
+}
+
+function recipeCookModePlan(recipe, macros) {
+  const ids = new Set(recipe.ingredients.map((ingredient) => ingredient.id));
+  const equipment = ["köksvåg", "skärbräda"];
+  if (recipe.type === "Omelett" || recipe.type === "Wok" || recipe.type === "Färs" || recipe.type === "Pasta") equipment.push("stekpanna");
+  if (recipe.type === "Soppa" || recipe.type === "Fibergryta" || recipe.type === "Pasta") equipment.push("kastrull");
+  if (recipe.type === "Ugnsplåt") equipment.push("ugn", "plåt");
+  if (ids.has("oats") || recipe.type === "Skål") equipment.push("skål");
+  const guidance = recipe.steps.map((step, index) => {
+    if (index === 0) return "Lägg fram allt innan du börjar. Premiumkänslan kommer från ordning, gram och lugn.";
+    if (step.toLowerCase().includes("stek") || step.toLowerCase().includes("woka")) return "Håll värmen kontrollerad och flytta hellre av pannan än att översteka proteinet.";
+    if (step.toLowerCase().includes("toppa") || step.toLowerCase().includes("avsluta")) return "Smaka av med syra och peppar innan du lägger till mer fett eller salt.";
+    return `Fokusera på textur: ${Math.round(macros.protein || 0)} g protein och ${Math.round(macros.fiber || 0)} g fiber ska kännas mättande, inte tungt.`;
+  });
+  return {
+    equipment: Array.from(new Set(equipment)).slice(0, 5),
+    guidance,
+    storage: recipe.tags.includes("meal-prep") || recipe.minutes >= 20
+      ? "Håller 2-3 dagar i kylen. Packa topping separat för bättre textur."
+      : "Bäst direkt. Spara kalla delar separat om du gör matlåda."
+  };
+}
+
+function recipeCookPrompt(recipeId) {
+  const item = recipeRankedItemById(recipeId || state.pantry.activeCookRecipeId);
+  if (!item || !item.recipe) return "Hjälp mig laga receptet steg för steg i kockläge.";
+  const recipe = item.recipe;
+  const quality = item.quality || recipeQualityScore(recipe, item.macros, state.pantry.goal || "fatloss");
+  return [
+    `Agera premiumkock och dietist för receptet "${recipe.title}".`,
+    `Jag är i kockläge. Nuvarande steg: ${(state.pantry.cookStepIndex || 0) + 1}.`,
+    `Receptscore ${quality.score}/100. Svagaste länk: ${quality.weakest.label}.`,
+    `Ingredienser i gram: ${recipe.ingredients.map((ingredient) => `${foodNameById(ingredient.id)} ${ingredient.grams} g`).join(", ")}.`,
+    `Ge kort hjälp med teknik, timing, substitutionsval och hur jag håller måltiden bra för bukfett/mättnad.`
+  ].join(" ");
 }
 
 function recipeAiPrompt(recipe, macros, missingIds) {
