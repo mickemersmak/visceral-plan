@@ -85,6 +85,8 @@ const defaultState = {
     goal: "fatloss",
     selected: ["egg", "kvarg", "broccoli", "potato", "olive-oil"],
     recipeFilter: "best",
+    weekMode: "smart",
+    weekServings: 1,
     activeCookRecipeId: "",
     cookStepIndex: 0,
     kitchenMessages: [],
@@ -462,6 +464,15 @@ const recipeFilterOptions = [
   { id: "vegetarian", label: "Vegetariskt" },
   { id: "lowcarb", label: "Låg kolhydrat" },
   { id: "meal-prep", label: "Lunchlåda" }
+];
+
+const weeklyPlannerModes = [
+  { id: "smart", label: "Smart", hint: "Bästa totalveckan" },
+  { id: "budget", label: "Billig", hint: "Råvaror som räcker" },
+  { id: "quick", label: "Snabb", hint: "Kortast kökstid" },
+  { id: "protein", label: "Protein", hint: "Högst mättnad" },
+  { id: "lowcarb", label: "Låg kolhydrat", hint: "Lägre sockerlast" },
+  { id: "vegetarian", label: "Vegetarisk", hint: "Växtbaserad vecka" }
 ];
 
 const recipeFamilies = [
@@ -1440,6 +1451,8 @@ function mergeState(base, next) {
       ...(next.pantry || {}),
       selected: Array.isArray(next.pantry && next.pantry.selected) ? next.pantry.selected : base.pantry.selected,
       recipeFilter: typeof (next.pantry && next.pantry.recipeFilter) === "string" ? next.pantry.recipeFilter : base.pantry.recipeFilter,
+      weekMode: typeof (next.pantry && next.pantry.weekMode) === "string" ? next.pantry.weekMode : base.pantry.weekMode,
+      weekServings: Number.isFinite(next.pantry && next.pantry.weekServings) ? next.pantry.weekServings : base.pantry.weekServings,
       activeCookRecipeId: typeof (next.pantry && next.pantry.activeCookRecipeId) === "string" ? next.pantry.activeCookRecipeId : base.pantry.activeCookRecipeId,
       cookStepIndex: Number.isFinite(next.pantry && next.pantry.cookStepIndex) ? next.pantry.cookStepIndex : base.pantry.cookStepIndex,
       kitchenMessages: Array.isArray(next.pantry && next.pantry.kitchenMessages) ? next.pantry.kitchenMessages : base.pantry.kitchenMessages,
@@ -1721,6 +1734,49 @@ function bindFridgeBuilder() {
     const askButton = event.target.closest("[data-scan-ask]");
     if (askButton && !kitchenAiLoading) {
       askKitchenAssistant(askButton.dataset.scanAsk || "Vad kan jag laga av de scannade råvarorna?");
+    }
+  });
+
+  $("#weeklyMealPlanner")?.addEventListener("click", (event) => {
+    const modeButton = event.target.closest("[data-week-mode]");
+    if (modeButton) {
+      ensurePantryState();
+      state.pantry.weekMode = modeButton.dataset.weekMode || "smart";
+      saveState();
+      renderWeeklyMealPlanner();
+      return;
+    }
+
+    const servingButton = event.target.closest("[data-week-servings]");
+    if (servingButton) {
+      ensurePantryState();
+      state.pantry.weekServings = clamp(Math.round(Number(servingButton.dataset.weekServings) || 1), 1, 4);
+      saveState();
+      renderWeeklyMealPlanner();
+      return;
+    }
+
+    const shoppingButton = event.target.closest("[data-week-shop]");
+    if (shoppingButton) {
+      saveWeeklyShoppingList();
+      return;
+    }
+
+    const askButton = event.target.closest("[data-week-ask]");
+    if (askButton && !kitchenAiLoading) {
+      askKitchenAssistant(weeklyMealPrompt());
+      return;
+    }
+
+    const cookButton = event.target.closest("[data-week-cook]");
+    if (cookButton) {
+      startWeeklyRecipeCook(cookButton.dataset.weekCook);
+      return;
+    }
+
+    const importButton = event.target.closest("[data-week-import]");
+    if (importButton) {
+      importExternalRecipe(importButton.dataset.weekImport);
     }
   });
 
@@ -2424,6 +2480,8 @@ function ensurePantryState() {
   if (!Array.isArray(state.pantry.importedRecipes)) state.pantry.importedRecipes = [];
   if (!state.pantry.goal) state.pantry.goal = defaultState.pantry.goal;
   if (!state.pantry.recipeFilter) state.pantry.recipeFilter = defaultState.pantry.recipeFilter;
+  if (!state.pantry.weekMode) state.pantry.weekMode = defaultState.pantry.weekMode;
+  if (!Number.isFinite(state.pantry.weekServings)) state.pantry.weekServings = defaultState.pantry.weekServings;
   if (typeof state.pantry.activeCookRecipeId !== "string") state.pantry.activeCookRecipeId = "";
   if (!Number.isFinite(state.pantry.cookStepIndex)) state.pantry.cookStepIndex = 0;
 }
@@ -2438,6 +2496,7 @@ function renderFridgeBuilder() {
   renderKitchenAssistant();
   renderFridgeFoodBank();
   renderFridgeMeal();
+  renderWeeklyMealPlanner();
   renderRecipeEngine();
 }
 
@@ -3641,6 +3700,7 @@ async function searchExternalRecipes(query, options = {}) {
       note: ""
     };
     renderRecipeEngine();
+    renderWeeklyMealPlanner();
     return;
   }
 
@@ -3654,6 +3714,7 @@ async function searchExternalRecipes(query, options = {}) {
     note: ""
   };
   renderRecipeEngine();
+  renderWeeklyMealPlanner();
 
   try {
     const response = await fetch("/api/recipe-search", {
@@ -3688,6 +3749,7 @@ async function searchExternalRecipes(query, options = {}) {
     };
   }
   renderRecipeEngine();
+  renderWeeklyMealPlanner();
 }
 
 function importExternalRecipe(resultId) {
@@ -4087,6 +4149,450 @@ function recipeMatchesFilter(item, filter) {
   if (filter === "lowcarb") return item.macros.carbs <= 35 || item.recipe.tags.includes("lowcarb");
   if (filter === "meal-prep") return item.recipe.tags.includes("meal-prep") || item.recipe.minutes >= 20;
   return true;
+}
+
+function activeWeeklyMode() {
+  ensurePantryState();
+  const mode = weeklyPlannerModes.find((option) => option.id === state.pantry.weekMode);
+  return mode ? mode.id : defaultState.pantry.weekMode;
+}
+
+function weeklyRecipeCandidates() {
+  ensurePantryState();
+  const saved = recipeLibrary().map((recipe) => ({ ...recipe, weekPreview: false }));
+  const seen = new Set(saved.map((recipe) => recipe.externalId || recipe.id));
+  const previews = (Array.isArray(recipeImport.results) ? recipeImport.results : [])
+    .map((result) => {
+      const recipe = externalResultToRecipe(result);
+      if (!recipe) return null;
+      const key = recipe.externalId || recipe.id;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      return {
+        ...recipe,
+        weekPreview: true,
+        previewResultId: result.id
+      };
+    })
+    .filter(Boolean);
+  return [...saved, ...previews];
+}
+
+function rankWeeklyRecipeCandidates(mode = activeWeeklyMode()) {
+  const available = availablePantryIds();
+  const goal = mode === "vegetarian" ? "vegetarian" : mode === "lowcarb" ? "lowcarb" : state.pantry.goal || "fatloss";
+  return weeklyRecipeCandidates()
+    .map((recipe) => {
+      const item = scoreRecipe(recipe, available, goal);
+      return {
+        ...item,
+        weekScore: item.score + weeklyRecipeModeBonus(item, mode)
+      };
+    })
+    .sort((a, b) => (
+      b.weekScore - a.weekScore ||
+      b.quality.score - a.quality.score ||
+      a.missingIds.length - b.missingIds.length ||
+      a.recipe.minutes - b.recipe.minutes
+    ));
+}
+
+function weeklyRecipeModeBonus(item, mode) {
+  const recipe = item.recipe;
+  const tags = Array.isArray(recipe.tags) ? recipe.tags : [];
+  const ids = new Set((recipe.ingredients || []).map((ingredient) => ingredient.id));
+  const budgetIds = ["egg", "potato", "oats", "lentils", "chickpeas", "blackbeans", "cabbage", "carrot", "frozen-veg", "kvarg", "tuna", "rye-bread"];
+  let bonus = recipe.image ? 16 : 0;
+  if (item.missingIds.length + ((item.externalMissing && item.externalMissing.length) || 0) === 0) bonus += 18;
+  if (mode === "quick") bonus += recipe.minutes <= 12 ? 36 : recipe.minutes <= 18 ? 24 : -18;
+  if (mode === "budget") bonus += budgetIds.filter((id) => ids.has(id)).length * 9 - Math.max(0, item.externalMissing.length - 1) * 6;
+  if (mode === "protein") bonus += Math.min(item.macros.protein, 65) * 0.9 + (tags.includes("high-protein") ? 18 : 0);
+  if (mode === "lowcarb") bonus += item.macros.carbs <= 25 ? 38 : item.macros.carbs <= 38 ? 18 : -28;
+  if (mode === "vegetarian") bonus += item.vegetarian ? 42 : -90;
+  if (mode === "smart") bonus += Math.min(item.quality.score, 100) * 0.35 + (tags.includes("meal-prep") ? 8 : 0);
+  return bonus;
+}
+
+function buildWeeklyMealPlan() {
+  ensurePantryState();
+  const mode = activeWeeklyMode();
+  const modeMeta = weeklyPlannerModes.find((option) => option.id === mode) || weeklyPlannerModes[0];
+  const ranked = rankWeeklyRecipeCandidates(mode);
+  const used = new Set();
+  const plan = weeklyPlans[state.profile.level] || weeklyPlans.beginner;
+  const days = plan.map((entry, dayIndex) => {
+    const meals = [
+      ["breakfast", "Frukost"],
+      ["lunch", "Lunch"],
+      ["dinner", "Middag"],
+      ["emergency", "Akutval"]
+    ].map(([kind, label]) => {
+      const item = pickWeeklyRecipe(ranked, kind, used, dayIndex);
+      return item ? { kind, label, item } : null;
+    }).filter(Boolean);
+
+    return {
+      day: entry[0],
+      training: entry[1],
+      nutrition: entry[2],
+      recovery: entry[3],
+      meals
+    };
+  });
+  const shopping = weeklyShoppingItems(days);
+  const prep = weeklyPrepPlan(days);
+  const stats = weeklyPlanStats(days, shopping);
+  return { mode, modeMeta, ranked, days, shopping, prep, stats };
+}
+
+function pickWeeklyRecipe(ranked, kind, used, dayIndex) {
+  const unused = ranked.filter((item) => !used.has(weeklyRecipeKey(item.recipe)));
+  const filtered = unused.filter((item) => weeklyMealKindMatches(item.recipe, kind));
+  const pool = filtered.length ? filtered : unused.length ? unused : ranked.filter((item) => weeklyMealKindMatches(item.recipe, kind));
+  const fallback = pool.length ? pool : ranked;
+  const item = [...fallback]
+    .sort((a, b) => (
+      weeklyRecipeSlotScore(b, kind, dayIndex) - weeklyRecipeSlotScore(a, kind, dayIndex) ||
+      b.weekScore - a.weekScore
+    ))[0];
+  if (item) used.add(weeklyRecipeKey(item.recipe));
+  return item || null;
+}
+
+function weeklyRecipeSlotScore(item, kind, dayIndex) {
+  const recipe = item.recipe;
+  const tags = Array.isArray(recipe.tags) ? recipe.tags : [];
+  const type = String(recipe.type || "").toLowerCase();
+  let score = item.weekScore;
+  if (kind === "breakfast") {
+    if (tags.includes("breakfast")) score += 70;
+    if (/frukost|skål|rågbröd/.test(type)) score += 32;
+    if (recipe.minutes <= 12) score += 18;
+    score -= Math.max(0, recipe.minutes - 18) * 2.2;
+  }
+  if (kind === "lunch") {
+    if (tags.includes("meal-prep")) score += 46;
+    if (/lunch|bowl|skål|sallad|potatis|medelhav|fibergryta/.test(type)) score += 18;
+    if (recipe.minutes <= 24) score += 10;
+  }
+  if (kind === "dinner") {
+    if (recipe.image) score += 34;
+    if (/ugnsplåt|wok|färs|fisk|soppa|pasta|medelhav/.test(type)) score += 24;
+    if (dayIndex >= 4 && recipe.minutes <= 20) score += 10;
+    if (tags.includes("breakfast")) score -= 46;
+  }
+  if (kind === "emergency") {
+    if (tags.includes("quick")) score += 54;
+    if (/akutval|rågbröd|skål/.test(type)) score += 48;
+    if (recipe.minutes <= 10) score += 30;
+    score -= Math.max(0, recipe.minutes - 16) * 3.4;
+  }
+  return score;
+}
+
+function weeklyMealKindMatches(recipe, kind) {
+  const tags = Array.isArray(recipe.tags) ? recipe.tags : [];
+  const type = String(recipe.type || "").toLowerCase();
+  if (kind === "breakfast") return tags.includes("breakfast") || /frukost|skål|rågbröd/.test(type);
+  if (kind === "lunch") return tags.includes("meal-prep") || /lunch|bowl|skål|sallad|potatis|medelhav|fibergryta/.test(type);
+  if (kind === "dinner") return !tags.includes("breakfast") && !/akutval|rågbröd/.test(type) && recipe.minutes >= 12;
+  if (kind === "emergency") return tags.includes("quick") || recipe.minutes <= 10 || /akutval|rågbröd|skål/.test(type);
+  return true;
+}
+
+function weeklyShoppingItems(days) {
+  const servings = clamp(Math.round(Number(state.pantry.weekServings) || 1), 1, 4);
+  const byKey = new Map();
+  days.flatMap((day) => day.meals.map((meal) => meal.item.recipe)).forEach((recipe) => {
+    recipeShoppingItems(recipe).forEach((item) => {
+      const name = String(item.name || "").trim();
+      if (!name) return;
+      const key = normalizeScanText(name);
+      const grams = Math.max(5, Math.round(((Number(item.grams) || 80) * servings) / 5) * 5);
+      const current = byKey.get(key) || { name, grams: 0, count: 0, recipes: new Set() };
+      current.grams += grams;
+      current.count += 1;
+      current.recipes.add(recipe.title);
+      byKey.set(key, current);
+    });
+  });
+  return Array.from(byKey.values())
+    .map((item) => ({
+      name: item.name,
+      grams: Math.min(9999, Math.round(item.grams / 5) * 5),
+      count: item.count,
+      recipes: Array.from(item.recipes).slice(0, 3)
+    }))
+    .sort((a, b) => b.count - a.count || b.grams - a.grams || a.name.localeCompare(b.name, "sv-SE"))
+    .slice(0, 36);
+}
+
+function weeklyPrepPlan(days) {
+  const recipes = uniqueWeeklyRecipes(days)
+    .filter((recipe) => {
+      const tags = Array.isArray(recipe.tags) ? recipe.tags : [];
+      return tags.includes("meal-prep") || recipe.minutes >= 20 || /lunch|låda|ugn|gryta|soppa/i.test(recipe.type || "");
+    })
+    .slice(0, 3);
+  if (!recipes.length) {
+    return [
+      { label: "Söndag", title: "Förbered protein och grönt", text: "Väg två proteinbaser och minst 700 g grönsaker så veckan startar utan friktion." },
+      { label: "Onsdag", title: "Fyll på färskvaror", text: "Komplettera med frukt, bär, sallad och en snabb proteinkälla innan energin dippar." }
+    ];
+  }
+  return recipes.map((recipe, index) => ({
+    label: index === 0 ? "Söndag" : index === 1 ? "Onsdag" : "Fredag",
+    title: index === 0 ? `Laga dubbel sats: ${recipe.title}` : `Preppa: ${recipe.title}`,
+    text: index === 0
+      ? "Gör två portioner, kyl snabbt och packa topping separat för bättre textur."
+      : "Förbered huvudråvarorna i gram så måltiden går att laga på autopilot."
+  }));
+}
+
+function weeklyPlanStats(days, shopping) {
+  const meals = days.flatMap((day) => day.meals.map((meal) => meal.item));
+  const totals = meals.reduce((sum, item) => {
+    sum.kcal += item.macros.kcal || 0;
+    sum.protein += item.macros.protein || 0;
+    sum.fiber += item.macros.fiber || 0;
+    return sum;
+  }, { kcal: 0, protein: 0, fiber: 0 });
+  const readyMeals = meals.filter((item) => !recipeShoppingItems(item.recipe).length).length;
+  const imageMeals = meals.filter((item) => item.recipe.image).length;
+  return {
+    avgKcal: Math.round(totals.kcal / Math.max(1, days.length)),
+    proteinDay: Math.round(totals.protein / Math.max(1, days.length)),
+    fiberDay: Math.round(totals.fiber / Math.max(1, days.length)),
+    readyMeals,
+    imageMeals,
+    totalMeals: meals.length,
+    shoppingCount: shopping.length
+  };
+}
+
+function uniqueWeeklyRecipes(days) {
+  const seen = new Set();
+  return days.flatMap((day) => day.meals.map((meal) => meal.item.recipe))
+    .filter((recipe) => {
+      const key = weeklyRecipeKey(recipe);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function weeklyRecipeKey(recipe) {
+  return String((recipe && (recipe.externalId || recipe.id)) || "");
+}
+
+function saveWeeklyShoppingList() {
+  ensurePantryState();
+  const plan = buildWeeklyMealPlan();
+  if (!plan.shopping.length) {
+    fridgeScan = {
+      ...fridgeScan,
+      message: "Veckomenyn är redo utan inköp",
+      note: "Alla huvudråvaror i planen matchar det du har hemma eller i scanningen."
+    };
+    renderFridgeBuilder();
+    return;
+  }
+  const formattedItems = plan.shopping.map((item) => {
+    const source = item.recipes.length ? ` (${item.recipes.join(", ")})` : "";
+    return `${item.name} ${item.grams} g - Min vecka${source}`;
+  });
+  state.pantry.shoppingList = mergeShoppingList(state.pantry.shoppingList, formattedItems).slice(-80);
+  fridgeScan = {
+    ...fridgeScan,
+    message: `${plan.shopping.length} veckovaror lades i inköpslistan`,
+    note: `${plan.modeMeta.label}: ${plan.shopping.slice(0, 6).map((item) => item.name).join(", ")}.`
+  };
+  saveState();
+  renderFridgeBuilder();
+}
+
+function startWeeklyRecipeCook(recipeId) {
+  if (recipeLibrary().some((recipe) => recipe.id === recipeId)) {
+    startRecipeCookMode(recipeId);
+    return;
+  }
+  if ((recipeImport.results || []).some((result) => result.id === recipeId)) {
+    importExternalRecipe(recipeId);
+  }
+}
+
+function weeklyMealPrompt() {
+  const plan = buildWeeklyMealPlan();
+  const home = Array.from(availablePantryIds()).map(foodNameById).filter(Boolean).slice(0, 12);
+  const dayLines = plan.days.map((day) => (
+    `${day.day}: ${day.training}; ${day.meals.map((meal) => `${meal.label} ${meal.item.recipe.title}`).join(", ")}`
+  ));
+  const shopping = plan.shopping.slice(0, 14).map((item) => `${item.name} ${item.grams} g`).join(", ");
+  return [
+    "Agera premium nutrition coach, kökschef och träningscoach för bukfett.",
+    `Planläge: ${plan.modeMeta.label}. Profil: ${state.profile.sex}, ${state.profile.age} år, ${state.profile.height} cm, ${state.profile.weight} kg, midja ${state.profile.waist} cm, nivå ${state.profile.level}.`,
+    home.length ? `Råvaror hemma/scannade: ${home.join(", ")}.` : "Råvaror hemma saknas eller är inte valda.",
+    `Veckomeny: ${dayLines.join(" | ")}.`,
+    shopping ? `Saknade inköp i gram: ${shopping}.` : "Inga huvudinköp saknas enligt appens matchning.",
+    "Förbättra veckan med 3 skarpa beslut: ett receptbyte, en prep-plan och en justering för protein/fiber utan att höja energin i onödan."
+  ].join(" ");
+}
+
+function renderWeeklyMealPlanner() {
+  const target = $("#weeklyMealPlanner");
+  if (!target) return;
+  ensurePantryState();
+  const plan = buildWeeklyMealPlan();
+  const servings = clamp(Math.round(Number(state.pantry.weekServings) || 1), 1, 4);
+  const home = Array.from(availablePantryIds()).map(foodNameById).filter(Boolean).slice(0, 5);
+  target.innerHTML = `
+    <div class="weekly-planner-head">
+      <div>
+        <span>Min vecka</span>
+        <h3 id="weekly-meal-title">Premium veckomeny från ditt kylskåp</h3>
+        <p>Bygger 7 dagar med träning, frukost, lunch, middag, akutval, prep och inköp i gram utifrån det du har hemma.</p>
+      </div>
+      <b>${escapeHTML(plan.modeMeta.label)}</b>
+    </div>
+    <div class="week-mode-row" aria-label="Välj veckoläge">
+      ${weeklyPlannerModes.map((option) => `
+        <button type="button" class="${plan.mode === option.id ? "is-active" : ""}" data-week-mode="${escapeHTML(option.id)}">
+          <span>${escapeHTML(option.label)}</span>
+          <small>${escapeHTML(option.hint)}</small>
+        </button>
+      `).join("")}
+    </div>
+    <div class="weekly-serving-row" aria-label="Portioner i veckans inköp">
+      <span>Portioner per recept</span>
+      <div>
+        ${[1, 2, 3, 4].map((value) => `
+          <button type="button" class="${servings === value ? "is-active" : ""}" data-week-servings="${value}">${value}</button>
+        `).join("")}
+      </div>
+    </div>
+    <div class="weekly-plan-stats" aria-label="Veckomeny status">
+      <article>
+        <span>Protein/dag</span>
+        <strong>${plan.stats.proteinDay} g</strong>
+      </article>
+      <article>
+        <span>Fiber/dag</span>
+        <strong>${plan.stats.fiberDay} g</strong>
+      </article>
+      <article>
+        <span>Bildrecept</span>
+        <strong>${plan.stats.imageMeals}/${plan.stats.totalMeals}</strong>
+      </article>
+      <article>
+        <span>Inköp</span>
+        <strong>${plan.stats.shoppingCount}</strong>
+      </article>
+    </div>
+    <div class="weekly-actions">
+      <button class="primary-button" type="button" data-week-shop="true">Skapa veckans inköp</button>
+      <button class="ghost-button" type="button" data-week-ask="true" ${kitchenAiLoading ? "disabled" : ""}>Fråga Köks-AI</button>
+    </div>
+    <div class="weekly-context-strip">
+      <span>Hemma nu</span>
+      <strong>${home.length ? escapeHTML(home.join(", ")) : "Välj eller scanna råvaror"}</strong>
+    </div>
+    <div class="weekly-day-grid">
+      ${plan.days.map(renderWeeklyDay).join("")}
+    </div>
+    ${renderWeeklyPrepPanel(plan)}
+    ${renderWeeklyShoppingPreview(plan)}
+  `;
+}
+
+function renderWeeklyDay(day) {
+  return `
+    <article class="weekly-day-card">
+      <header>
+        <div>
+          <span>${escapeHTML(day.day)}</span>
+          <strong>${escapeHTML(day.training)}</strong>
+        </div>
+        <b>${escapeHTML(day.nutrition)}</b>
+      </header>
+      <p>${escapeHTML(day.recovery)}</p>
+      <div class="weekly-meal-list">
+        ${day.meals.map(renderWeeklyMealSlot).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function renderWeeklyMealSlot(meal) {
+  const recipe = meal.item.recipe;
+  const macros = meal.item.macros;
+  const missingCount = meal.item.missingIds.length + ((meal.item.externalMissing && meal.item.externalMissing.length) || 0);
+  const actionAttr = recipe.weekPreview
+    ? `data-week-import="${escapeHTML(recipe.previewResultId || recipe.id)}"`
+    : `data-week-cook="${escapeHTML(recipe.id)}"`;
+  return `
+    <article class="weekly-meal-slot ${recipe.image ? "has-image" : ""}">
+      ${recipe.image ? `
+        <figure class="weekly-meal-image">
+          <img src="${escapeHTML(recipe.image)}" alt="${escapeHTML(recipe.title)}" loading="lazy">
+        </figure>
+      ` : ""}
+      <div>
+        <span>${escapeHTML(meal.label)} · ${recipe.minutes} min</span>
+        <strong>${escapeHTML(recipe.title)}</strong>
+        <small>${Math.round(macros.protein)} g protein · ${meal.item.quality.score}/100 · ${missingCount ? `${missingCount} saknas` : "klart hemma"}</small>
+      </div>
+      <button type="button" ${actionAttr}>${recipe.weekPreview ? "Importera" : "Laga"}</button>
+    </article>
+  `;
+}
+
+function renderWeeklyPrepPanel(plan) {
+  return `
+    <div class="weekly-prep-panel">
+      <div>
+        <span>Prep-plan</span>
+        <strong>Förbered så veckan blir lätt att följa.</strong>
+      </div>
+      ${plan.prep.map((item) => `
+        <article>
+          <b>${escapeHTML(item.label)}</b>
+          <div>
+            <strong>${escapeHTML(item.title)}</strong>
+            <small>${escapeHTML(item.text)}</small>
+          </div>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderWeeklyShoppingPreview(plan) {
+  const items = plan.shopping.slice(0, 8);
+  if (!items.length) {
+    return `
+      <div class="weekly-shopping-preview empty">
+        <span>Smart inköp</span>
+        <strong>Alla huvudvaror matchar hemmet.</strong>
+        <small>Scanna fler hyllor eller byt veckoläge om du vill skapa en ny lista.</small>
+      </div>
+    `;
+  }
+  return `
+    <div class="weekly-shopping-preview">
+      <div>
+        <span>Smart inköp</span>
+        <strong>${plan.shopping.length} saknade varor i gram</strong>
+      </div>
+      <ul>
+        ${items.map((item) => `
+          <li>
+            <span>${escapeHTML(item.name)}</span>
+            <b>${item.grams} g</b>
+          </li>
+        `).join("")}
+      </ul>
+    </div>
+  `;
 }
 
 function calculateRecipeMacros(recipe) {
