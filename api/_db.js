@@ -3,6 +3,8 @@ const { neon } = require("@neondatabase/serverless");
 
 const SESSION_DAYS = 30;
 let cachedSql = null;
+let schemaReady = false;
+let schemaPromise = null;
 
 function getSql() {
   const connectionString = process.env.DATABASE_URL;
@@ -16,6 +18,38 @@ function getSql() {
 }
 
 async function ensureSchema() {
+  if (schemaReady) return;
+  if (!schemaPromise) {
+    schemaPromise = retryEnsureSchema(0)
+      .then(() => {
+        schemaReady = true;
+      })
+      .catch((error) => {
+        schemaPromise = null;
+        throw error;
+      });
+  }
+  return schemaPromise;
+}
+
+async function retryEnsureSchema(attempt) {
+  try {
+    await ensureSchemaInternal();
+  } catch (error) {
+    if (attempt < 2 && isConcurrentSchemaError(error)) {
+      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+      await retryEnsureSchema(attempt + 1);
+      return;
+    }
+    throw error;
+  }
+}
+
+function isConcurrentSchemaError(error) {
+  return /duplicate key value violates unique constraint|already exists/i.test(error && error.message || "");
+}
+
+async function ensureSchemaInternal() {
   const sql = getSql();
   await sql`
     CREATE TABLE IF NOT EXISTS users (
@@ -183,8 +217,6 @@ async function createSession(userId) {
 }
 
 async function requireSession(req, allowedRoles = []) {
-  await ensureSchema();
-  const sql = getSql();
   const auth = req.headers.authorization || req.headers.Authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   if (!token) {
@@ -192,6 +224,8 @@ async function requireSession(req, allowedRoles = []) {
     error.statusCode = 401;
     throw error;
   }
+  await ensureSchema();
+  const sql = getSql();
   const rows = await sql`
     SELECT users.*
     FROM sessions
