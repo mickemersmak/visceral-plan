@@ -25,6 +25,7 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Mobilkamerascan av kylskåp med flera bilder, OpenAI/Gemini-förslag, bildkvalitet, osäkra fynd, användarfeedback och tolerant råvarumatchning när AI:n ser namn, förpackning eller kategori.
 - Matfoto-AI som uppskattar näringsvärde från en fotad måltid: kcal, gram, protein, kolhydrater, fett, fiber, komponenter, portionssäkerhet och förbättringsförslag.
 - Köks-AI som kan resonera med användaren om scannade råvaror, fotade måltider, valda livsmedel, måltidsmål, protein, fiber, lunchlådor, smarta kompletteringar och inköpsplan i gram.
+- Apple Hälsa/Watch-lager med server-API, databastabeller, medlemsvy, demo-sync, steg, träningsminuter, aktiv energi, sömn, vilopuls, HRV, VO2 max, pass och coachsignaler som kan styra nästa beslut.
 - Utökad råvarubank med protein, mejeri, baljväxter, grönsaker, frukt, frysvaror, kolhydratbaser och fettkällor.
 - Metabolt index som väger bukmått, rörelse, styrka, kostvanor, återhämtning och loggföljsamhet.
 - Visceral Score 2.0 med nedbrytning av buksignal, rörelse, styrka, kost, återhämtning och loggning.
@@ -82,3 +83,12 @@ curl -X POST https://visceral-plan.vercel.app/api/admin/bootstrap \
 Efter bootstrap kan super admin logga in med e-post + PIN i appen. Adminfliken visas då automatiskt och kan skapa användare eller admins.
 
 Vanliga medlemmar kan själva skapa konto i appens profilkort. Registrering går via `POST /api/auth/register`, skapar rollen `user` och loggar in användaren direkt med en serverbaserad kontoprofil.
+
+## Apple Watch och HealthKit
+
+PWA:n kan inte läsa Apple Watch-data direkt från Safari. För riktig koppling behövs en iPhone-app med HealthKit-behörighet som loggar in mot samma konto och postar godkända, metriska summeringar till:
+
+- `POST /api/health/sync`: tar emot `provider: "apple-health"`, `device`, `permissions`, `daily[]` och `workouts[]`.
+- `GET /api/health/summary`: hämtar senaste 14 dagarna och senaste 20 passen för medlemsvyn.
+
+Första native-versionen bör läsa steg, träningspass, aktiv energi, träningsminuter, vilopuls, HRV, VO2 max, sömn, vikt och eventuellt midja om användaren delar det. All åtkomst måste ske med tydliga HealthKit-purpose strings, användargodkännande per datatyp och en integritetspolicy. HealthKit-data ska bara användas för hälsa/träning/coaching, inte annonsering eller försäljning.

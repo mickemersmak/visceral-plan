@@ -79,7 +79,16 @@ const defaultState = {
   logs: {},
   member: {
     bookings: [],
-    messages: []
+    messages: [],
+    healthSync: {
+      provider: "apple-health",
+      status: "not_connected",
+      source: "local",
+      lastSyncedAt: "",
+      connection: null,
+      daily: [],
+      workouts: []
+    }
   },
   pantry: {
     goal: "fatloss",
@@ -100,7 +109,7 @@ const memberValueProps = [
   ["Träning", "Pass, progression, timer och bokningsbara coachytor."],
   ["Kost", "Gram-mallar, smarta byten och livsmedelsranking."],
   ["AI-coach", "Nästa bästa åtgärd, svagaste länk och veckans experiment."],
-  ["Hälsodata", "Midja, vikt, vanor, dagspoäng och trend samlat för coachning."],
+  ["Hälsodata", "Midja, vikt, vanor, Apple Watch-signaler och trend samlat för coachning."],
   ["Bokning", "Rekommenderade pass kopplas till medlemmens mål och status."],
   ["Kommunikation", "Coachmeddelanden, medlemsflöde och uppföljning i samma vy."]
 ];
@@ -1152,6 +1161,8 @@ let adminUsers = [];
 let adminLoading = false;
 let adminLoaded = false;
 let adminMessage = "Logga in som admin för databasläge.";
+let healthSyncLoading = false;
+let healthSyncMessage = "Apple Hälsa väntar på databaslogin.";
 let authMode = "login";
 let deferredInstallPrompt = null;
 
@@ -1174,10 +1185,12 @@ document.addEventListener("DOMContentLoaded", () => {
   bindFridgeBuilder();
   bindKitchenAssistant();
   bindMemberMessages();
+  bindHealthSync();
   bindAdmin();
   renderAll();
   activateInitialTab();
   autoLoadRecipeImages();
+  if (activeUser.server) fetchHealthSummary({ silent: true });
 });
 
 function registerServiceWorker() {
@@ -1378,6 +1391,7 @@ function switchUser(user) {
   syncProfileFields();
   renderAuth();
   renderAll();
+  if (user.server) fetchHealthSummary({ silent: true });
 }
 
 async function loginWithDatabase(email, pin) {
@@ -1464,7 +1478,8 @@ function mergeState(base, next) {
       ...base.member,
       ...(next.member || {}),
       bookings: Array.isArray(next.member && next.member.bookings) ? next.member.bookings : base.member.bookings,
-      messages: Array.isArray(next.member && next.member.messages) ? next.member.messages : base.member.messages
+      messages: Array.isArray(next.member && next.member.messages) ? next.member.messages : base.member.messages,
+      healthSync: normalizeHealthSyncState(next.member && next.member.healthSync, base.member.healthSync)
     }
   };
 }
@@ -1935,6 +1950,21 @@ function bindMemberMessages() {
   });
 }
 
+function bindHealthSync() {
+  $("#appleHealthPanel")?.addEventListener("click", (event) => {
+    const refreshButton = event.target.closest("[data-health-refresh]");
+    if (refreshButton) {
+      fetchHealthSummary();
+      return;
+    }
+
+    const demoButton = event.target.closest("[data-health-demo]");
+    if (demoButton) {
+      syncDemoAppleHealth();
+    }
+  });
+}
+
 function bindAdmin() {
   const form = $("#adminCreateUserForm");
   const refreshButton = $("#refreshAdminUsers");
@@ -2049,15 +2079,139 @@ function getTrend(values) {
   return values.length >= 2 ? values[values.length - 1] - values[0] : 0;
 }
 
+function normalizeHealthSyncState(value, fallback = defaultState.member.healthSync) {
+  const source = value && typeof value === "object" ? value : {};
+  return {
+    ...fallback,
+    ...source,
+    provider: String(source.provider || fallback.provider || "apple-health"),
+    status: String(source.status || fallback.status || "not_connected"),
+    source: String(source.source || fallback.source || "local"),
+    lastSyncedAt: String(source.lastSyncedAt || fallback.lastSyncedAt || ""),
+    connection: source.connection && typeof source.connection === "object" ? source.connection : fallback.connection,
+    daily: Array.isArray(source.daily) ? source.daily.map(normalizeHealthDaily).filter(Boolean).slice(0, 31) : [],
+    workouts: Array.isArray(source.workouts) ? source.workouts.map(normalizeHealthWorkout).filter(Boolean).slice(0, 50) : []
+  };
+}
+
+function normalizeHealthDaily(item) {
+  if (!item || typeof item !== "object") return null;
+  const date = String(item.date || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  return {
+    date,
+    stepCount: nullableNumber(item.stepCount),
+    activeEnergyKcal: nullableNumber(item.activeEnergyKcal),
+    exerciseMinutes: nullableNumber(item.exerciseMinutes),
+    standHours: nullableNumber(item.standHours),
+    restingHeartRateBpm: nullableNumber(item.restingHeartRateBpm),
+    hrvMs: nullableNumber(item.hrvMs),
+    vo2MaxMlKgMin: nullableNumber(item.vo2MaxMlKgMin),
+    sleepMinutes: nullableNumber(item.sleepMinutes),
+    mindfulMinutes: nullableNumber(item.mindfulMinutes),
+    bodyMassKg: nullableNumber(item.bodyMassKg),
+    waistCm: nullableNumber(item.waistCm),
+    source: String(item.source || "apple-health"),
+    syncedAt: String(item.syncedAt || "")
+  };
+}
+
+function normalizeHealthWorkout(item) {
+  if (!item || typeof item !== "object") return null;
+  const startedAt = String(item.startedAt || "");
+  if (!startedAt) return null;
+  return {
+    externalId: String(item.externalId || item.id || startedAt).slice(0, 120),
+    workoutType: String(item.workoutType || item.type || "other").slice(0, 60),
+    startedAt,
+    endedAt: String(item.endedAt || ""),
+    durationMinutes: nullableNumber(item.durationMinutes),
+    activeEnergyKcal: nullableNumber(item.activeEnergyKcal),
+    distanceMeters: nullableNumber(item.distanceMeters),
+    averageHeartRateBpm: nullableNumber(item.averageHeartRateBpm),
+    maxHeartRateBpm: nullableNumber(item.maxHeartRateBpm),
+    sourceName: String(item.sourceName || "Apple Watch"),
+    syncedAt: String(item.syncedAt || "")
+  };
+}
+
+function nullableNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function getHealthSignalWindow(days = 7) {
+  ensureMemberState();
+  const health = state.member.healthSync;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - Math.max(1, days - 1));
+  cutoff.setHours(0, 0, 0, 0);
+  const daily = (health.daily || [])
+    .filter((item) => {
+      const date = new Date(`${item.date}T00:00:00`);
+      return !Number.isNaN(date.getTime()) && date >= cutoff;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const workouts = (health.workouts || [])
+    .filter((item) => {
+      const date = new Date(item.startedAt);
+      return !Number.isNaN(date.getTime()) && date >= cutoff;
+    });
+  const exerciseFromDaily = daily.reduce((sum, item) => sum + (item.exerciseMinutes || 0), 0);
+  const exerciseFromWorkouts = workouts.reduce((sum, item) => sum + (item.durationMinutes || 0), 0);
+  const strengthDays = new Set(workouts
+    .filter((item) => /strength|functional|traditional|styrka/i.test(item.workoutType || ""))
+    .map((item) => dateKey(new Date(item.startedAt)))).size;
+  const sleepValues = daily.map((item) => item.sleepMinutes).filter((value) => Number.isFinite(value));
+  const hrvValues = daily.map((item) => item.hrvMs).filter((value) => Number.isFinite(value));
+  const restingValues = daily.map((item) => item.restingHeartRateBpm).filter((value) => Number.isFinite(value));
+  const stepValues = daily.map((item) => item.stepCount).filter((value) => Number.isFinite(value));
+  const activeEnergyValues = daily.map((item) => item.activeEnergyKcal).filter((value) => Number.isFinite(value));
+
+  return {
+    hasData: Boolean(daily.length || workouts.length),
+    connected: health.status === "connected" || health.status === "demo",
+    days: daily.length,
+    workouts: workouts.length,
+    steps: stepValues.reduce((sum, value) => sum + value, 0),
+    avgSteps: average(stepValues),
+    activeEnergyKcal: activeEnergyValues.reduce((sum, value) => sum + value, 0),
+    exerciseMinutes: Math.max(exerciseFromDaily, exerciseFromWorkouts),
+    strengthDays,
+    sleepMinutes: sleepValues.reduce((sum, value) => sum + value, 0),
+    avgSleepMinutes: average(sleepValues),
+    sleepDays: sleepValues.filter((value) => value >= 420).length,
+    avgHrvMs: average(hrvValues),
+    avgRestingHeartRateBpm: average(restingValues),
+    latestDaily: daily[daily.length - 1] || null,
+    latestWorkout: workouts.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))[0] || null,
+    source: health.source || "local"
+  };
+}
+
+function average(values) {
+  const valid = values.filter((value) => Number.isFinite(value));
+  if (!valid.length) return 0;
+  return valid.reduce((sum, value) => sum + value, 0) / valid.length;
+}
+
 function analyzeProgress() {
   const p = state.profile;
   const entries = getRecentEntries(7);
+  const healthSignal = getHealthSignalWindow(7);
   const whtr = p.waist / p.height;
-  const minutes = entries.reduce((sum, item) => sum + (item.entry.minutes || 0), 0);
+  const loggedMinutes = entries.reduce((sum, item) => sum + (item.entry.minutes || 0), 0);
+  const minutes = Math.max(loggedMinutes, Math.round(healthSignal.exerciseMinutes || 0));
   const habitHits = entries.reduce((sum, item) => sum + Object.values(item.entry.habits || {}).filter(Boolean).length, 0);
   const possibleHabits = Math.max(7, entries.length * 7);
-  const strengthDays = entries.filter((item) => item.entry.habits && item.entry.habits.strength).length;
-  const sleepDays = entries.filter((item) => item.entry.habits && item.entry.habits.sleep).length;
+  const strengthDays = Math.max(
+    entries.filter((item) => item.entry.habits && item.entry.habits.strength).length,
+    healthSignal.strengthDays
+  );
+  const sleepDays = Math.max(
+    entries.filter((item) => item.entry.habits && item.entry.habits.sleep).length,
+    healthSignal.sleepDays
+  );
   const stressDays = entries.filter((item) => item.entry.habits && item.entry.habits.stress).length;
   const alcoholFreeDays = entries.filter((item) => item.entry.habits && item.entry.habits.alcohol).length;
   const vegDays = entries.filter((item) => item.entry.habits && item.entry.habits.veg).length;
@@ -2075,10 +2229,10 @@ function analyzeProgress() {
   const loggingScore = Math.min(8, Math.round((entries.length / 5) * 8));
   const breakdown = [
     ["Buksignal", waistScore, 30, whtr < 0.5 ? "Under 0,50 eller på väg dit" : "Midja/längd behöver mest fokus"],
-    ["Rörelse", movementScore, 20, `${minutes} min senaste 7 dagarna`],
-    ["Styrka", strengthScore, 12, `${strengthDays}/2 styrkedagar`],
+    ["Rörelse", movementScore, 20, `${minutes} min senaste 7 dagarna${healthSignal.hasData ? " inkl. Watch" : ""}`],
+    ["Styrka", strengthScore, 12, `${strengthDays}/2 styrkedagar${healthSignal.strengthDays ? " inkl. Watch" : ""}`],
     ["Kost", foodScore, 18, `${proteinDays + vegDays + sugarFreeDays} matträffar`],
-    ["Återhämtning", recoveryScore, 12, `${sleepDays + stressDays + alcoholFreeDays} återhämtningsträffar`],
+    ["Återhämtning", recoveryScore, 12, `${sleepDays + stressDays + alcoholFreeDays} återhämtningsträffar${healthSignal.hasData ? " med sömn/HRV" : ""}`],
     ["Loggning", loggingScore, 8, `${entries.length}/5 dagar för smart analys`]
   ];
   const score = clamp(waistScore + movementScore + strengthScore + foodScore + recoveryScore + loggingScore, 0, 100);
@@ -2103,7 +2257,8 @@ function analyzeProgress() {
     sugarFreeDays,
     waistTrend,
     habitHits,
-    possibleHabits
+    possibleHabits,
+    healthSignal
   };
 }
 
@@ -2202,6 +2357,19 @@ function renderCoachBrief(analysis) {
 }
 
 function getPrimaryBlocker(analysis) {
+  const health = analysis.healthSignal || {};
+  if (health.hasData && health.avgSleepMinutes && health.avgSleepMinutes < 390) {
+    return {
+      title: "Sömn bromsar planen",
+      text: `Apple Watch visar cirka ${formatHealthDuration(health.avgSleepMinutes)} sömn i snitt. Sänk intensiteten och gör kosten enklare tills återhämtningen vänder.`
+    };
+  }
+  if (health.hasData && health.avgSteps && health.avgSteps < 7000) {
+    return {
+      title: "Låg vardagsvolym",
+      text: `Klockan visar cirka ${Math.round(health.avgSteps).toLocaleString("sv-SE")} steg/dag. Lägg in korta promenader efter måltid innan mer HIIT.`
+    };
+  }
   if (analysis.entries.length < 3) {
     return {
       title: "För lite signaldata",
@@ -2264,7 +2432,29 @@ function getWeeklyExperiment(analysis) {
 }
 
 function getNextBestAction(analysis) {
-  if (analysis.entries.length < 3) {
+  const health = analysis.healthSignal || {};
+  if (health.hasData && health.avgSleepMinutes && health.avgSleepMinutes < 390) {
+    return {
+      title: "Byt hårt pass mot återhämtning",
+      text: "Välj zon 2, promenad eller rörlighet idag och håll måltiderna extremt enkla: protein, grönt och uppmätt fett.",
+      reason: "Sömn från Apple Watch signalerar att kroppen behöver marginal före intensitet."
+    };
+  }
+  if (health.hasData && health.avgRestingHeartRateBpm && health.avgRestingHeartRateBpm >= 72 && health.avgHrvMs && health.avgHrvMs < 35) {
+    return {
+      title: "Återhämtningsdag med hög precision",
+      text: "Gör 30-45 min lugn zon 2, håll koffein tidigt och välj en planerad middag från veckomenyn.",
+      reason: "Högre vilopuls ihop med låg HRV är en signal att stressbelastningen är dyr."
+    };
+  }
+  if (health.hasData && health.avgSteps && health.avgSteps < 7000) {
+    return {
+      title: "Fyll vardagsstegen",
+      text: "Sikta på tre promenader på 10 minuter efter måltid. Det är mer träffsäkert än att bara lägga till ett hårt pass.",
+      reason: "Apple Watch visar att vardagsvolymen är den största lätta hävstången."
+    };
+  }
+  if (analysis.entries.length < 3 && !health.hasData) {
     return {
       title: "Logga 3 dagar utan att ändra allt",
       text: "Registrera midja, vikt, rörelse och vanor i tre dagar. Appen blir smartare när den ser din baslinje.",
@@ -2315,6 +2505,7 @@ function getNextBestAction(analysis) {
 }
 
 function getCoachReport(analysis) {
+  const health = analysis.healthSignal || {};
   const waistText = analysis.waistTrend > 0
     ? `Midjan rör sig åt rätt håll: ${formatTrend(analysis.waistTrend, "cm")}.`
     : analysis.waistTrend < 0
@@ -2323,12 +2514,16 @@ function getCoachReport(analysis) {
   const movementText = analysis.minutes >= 150
     ? `Du har nått ${analysis.minutes} min rörelse senaste 7 dagarna.`
     : `Du saknar ${150 - analysis.minutes} min till veckogolvet 150 min.`;
+  const recoveryText = health.hasData && health.avgSleepMinutes
+    ? `Apple Watch: ${formatHealthDuration(health.avgSleepMinutes)} sömn i snitt, ${Math.round(health.avgRestingHeartRateBpm || 0) || "-"} vilopuls och ${Math.round(health.avgHrvMs || 0) || "-"} ms HRV.`
+    : "Koppla Apple Hälsa för sömn, HRV, vilopuls och träningssignal.";
   const foodText = (analysis.proteinDays + analysis.vegDays + analysis.sugarFreeDays) >= 15
     ? "Kostvanorna bär planen. Nästa nivå är portionsprecision i gram."
     : "Kostvanorna är den snabbaste vinsten: protein, grönt och sockerfri dryck.";
   return [
     ["Trend", waistText],
     ["Volym", movementText],
+    ["Watch", recoveryText],
     ["Hävstång", foodText]
   ];
 }
@@ -6715,12 +6910,14 @@ function renderMemberHub() {
   renderHealthDataGrid();
   renderMessageFeed();
   renderRetentionGrid();
+  renderAppleHealthPanel();
 }
 
 function ensureMemberState() {
   state.member = state.member || { bookings: [], messages: [] };
   state.member.bookings = Array.isArray(state.member.bookings) ? state.member.bookings : [];
   state.member.messages = Array.isArray(state.member.messages) ? state.member.messages : [];
+  state.member.healthSync = normalizeHealthSyncState(state.member.healthSync, defaultState.member.healthSync);
 }
 
 function renderMemberValueGrid() {
@@ -6802,12 +6999,14 @@ function renderHealthDataGrid() {
   const p = state.profile;
   const whtr = p.waist / p.height;
   const lastLog = getRecentEntries(14)[0];
+  const health = analysis.healthSignal || {};
   const healthCards = [
     ["Visceral Score", `${analysis.score}/100`, `${analysis.tier.label}: ${analysis.weakest[0]} är största hävstången.`],
     ["Midja", `${p.waist.toFixed(1).replace(".", ",")} cm`, `Mål: ${p.targetWaist.toFixed(1).replace(".", ",")} cm.`],
     ["Midja/längd", whtr.toFixed(2).replace(".", ","), whtr < 0.5 ? "Under 0,50." : "Fokusera på buksignal."],
     ["Rörelse 7 dagar", `${analysis.minutes} min`, "Golvet är 150 min/vecka."],
     ["Styrka", `${analysis.strengthDays}/2 pass`, "Bokning kan styra nästa pass."],
+    ["Apple Watch", health.hasData ? `${Math.round(health.avgSteps || 0).toLocaleString("sv-SE")} steg/dag` : "Ej kopplad", health.hasData ? `${formatHealthDuration(health.avgSleepMinutes)} sömn · ${Math.round(health.avgHrvMs || 0) || "-"} ms HRV.` : "Redo för HealthKit-synk."],
     ["Senaste logg", lastLog ? lastLog.key : "Saknas", lastLog ? "Redo för coachuppföljning." : "Logga idag för bättre coachdata."]
   ];
   target.innerHTML = healthCards.map(([title, value, note]) => `
@@ -6819,11 +7018,301 @@ function renderHealthDataGrid() {
   `).join("");
 }
 
+function renderAppleHealthPanel() {
+  const target = $("#appleHealthPanel");
+  if (!target) return;
+  ensureMemberState();
+  const health = state.member.healthSync;
+  const signal = getHealthSignalWindow(7);
+  const coach = appleHealthCoachSignal(signal);
+  const connected = health.status === "connected" || health.status === "demo";
+  const badgeLabel = healthSyncLoading
+    ? "Synkar"
+    : connected
+      ? health.source === "database" ? "Kopplad" : "Demo"
+      : activeUser.server ? "Redo" : "Login krävs";
+  const badgeClass = connected ? "low" : activeUser.server ? "medium" : "high";
+  const message = healthSyncLoading
+    ? healthSyncMessage
+    : healthSyncMessage || (connected ? `Senast synkad ${formatMessageDate(health.lastSyncedAt)}` : "Logga in för serverbaserad HealthKit-synk.");
+  const metrics = [
+    ["Steg/dag", signal.hasData ? Math.round(signal.avgSteps || 0).toLocaleString("sv-SE") : "-", "Snitt 7 dagar"],
+    ["Träningsmin", signal.hasData ? `${Math.round(signal.exerciseMinutes || 0)} min` : "-", "Watch + pass"],
+    ["Aktiv energi", signal.hasData ? `${Math.round(signal.activeEnergyKcal || 0)} kcal` : "-", "7 dagar"],
+    ["Sömn", signal.hasData ? formatHealthDuration(signal.avgSleepMinutes) : "-", "Snitt/natt"],
+    ["Vilopuls", signal.avgRestingHeartRateBpm ? `${Math.round(signal.avgRestingHeartRateBpm)} bpm` : "-", "Återhämtning"],
+    ["HRV", signal.avgHrvMs ? `${Math.round(signal.avgHrvMs)} ms` : "-", "Stresssignal"]
+  ];
+  const workouts = (health.workouts || []).slice(0, 4);
+
+  target.innerHTML = `
+    <div class="module-heading">
+      <div>
+        <p class="eyebrow">Apple Hälsa</p>
+        <h2 id="apple-health-title">Apple Watch-synk för smartare coachning</h2>
+      </div>
+      <span class="status-badge ${badgeClass}">${badgeLabel}</span>
+    </div>
+    <div class="apple-health-panel">
+      <section class="apple-health-hero">
+        <div>
+          <span>HealthKit bridge</span>
+          <strong>${connected ? "Watch-data påverkar planen" : "Backend redo för iPhone-appen"}</strong>
+          <p>${escapeHTML(message)}</p>
+        </div>
+        <div class="apple-health-actions">
+          <button class="ghost-button" type="button" data-health-refresh="true" ${!activeUser.server || healthSyncLoading ? "disabled" : ""}>Hämta data</button>
+          <button class="primary-button" type="button" data-health-demo="true" ${healthSyncLoading ? "disabled" : ""}>Testa demo-sync</button>
+        </div>
+      </section>
+      <div class="apple-health-metrics">
+        ${metrics.map(([title, value, note]) => `
+          <article>
+            <span>${title}</span>
+            <strong>${value}</strong>
+            <small>${note}</small>
+          </article>
+        `).join("")}
+      </div>
+      <section class="apple-health-coach ${coach.level}">
+        <span>Coachsignal</span>
+        <strong>${escapeHTML(coach.title)}</strong>
+        <p>${escapeHTML(coach.text)}</p>
+      </section>
+      <div class="apple-health-bottom">
+        <section>
+          <span>Senaste pass</span>
+          ${workouts.length ? workouts.map((workout) => `
+            <article>
+              <strong>${escapeHTML(healthWorkoutLabel(workout.workoutType))}</strong>
+              <small>${formatMessageDate(workout.startedAt)} · ${Math.round(workout.durationMinutes || 0)} min · ${Math.round(workout.activeEnergyKcal || 0)} kcal</small>
+            </article>
+          `).join("") : `<article><strong>Inga pass synkade</strong><small>iPhone-appen skickar HKWorkout-data hit.</small></article>`}
+        </section>
+        <section>
+          <span>Native-koppling</span>
+          <article>
+            <strong>iOS läser HealthKit</strong>
+            <small>Steg, pass, puls, HRV, sömn, aktiv energi och kroppsmått.</small>
+          </article>
+          <article>
+            <strong>Watch app nästa</strong>
+            <small>Starta pass, pulszon och nudgar direkt på klockan.</small>
+          </article>
+        </section>
+      </div>
+    </div>
+  `;
+}
+
+async function fetchHealthSummary(options = {}) {
+  ensureMemberState();
+  if (!activeUser.server) {
+    healthSyncMessage = "Skapa konto eller logga in för Apple Hälsa-synk.";
+    renderAppleHealthPanel();
+    return;
+  }
+  healthSyncLoading = true;
+  if (!options.silent) healthSyncMessage = "Hämtar Apple Hälsa-data från databasen...";
+  renderAppleHealthPanel();
+  try {
+    const data = await apiRequest("/api/health/summary");
+    applyHealthSyncPayload(data, "database");
+    healthSyncMessage = data.connection
+      ? `Senast synkad ${formatMessageDate(data.connection.lastSyncedAt)}.`
+      : "Ingen HealthKit-data synkad ännu.";
+    saveState();
+    renderAll();
+  } catch (error) {
+    healthSyncMessage = error.message || "Kunde inte hämta Apple Hälsa-data.";
+    renderAppleHealthPanel();
+  } finally {
+    healthSyncLoading = false;
+    renderAppleHealthPanel();
+  }
+}
+
+async function syncDemoAppleHealth() {
+  ensureMemberState();
+  const payload = buildDemoAppleHealthPayload();
+  healthSyncLoading = true;
+  healthSyncMessage = activeUser.server ? "Skickar demo från Apple Hälsa-flödet..." : "Skapar lokal Watch-demo...";
+  renderAppleHealthPanel();
+  try {
+    if (activeUser.server) {
+      const data = await apiRequest("/api/health/sync", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      applyHealthSyncPayload(data, "database");
+      healthSyncMessage = `${data.synced.daily} dagar och ${data.synced.workouts} pass synkades.`;
+    } else {
+      applyHealthSyncPayload({
+        connection: {
+          provider: "apple-health",
+          status: "demo",
+          deviceName: payload.device.name,
+          deviceModel: payload.device.model,
+          lastSyncedAt: new Date().toISOString()
+        },
+        daily: payload.daily,
+        workouts: payload.workouts
+      }, "local-demo");
+      healthSyncMessage = "Lokal Watch-demo skapad. Logga in för riktig server-synk.";
+    }
+    saveState();
+    renderAll();
+  } catch (error) {
+    healthSyncMessage = error.message || "Demo-synken misslyckades.";
+    renderAppleHealthPanel();
+  } finally {
+    healthSyncLoading = false;
+    renderAppleHealthPanel();
+  }
+}
+
+function applyHealthSyncPayload(data, source) {
+  ensureMemberState();
+  const connection = data.connection || null;
+  state.member.healthSync = normalizeHealthSyncState({
+    provider: "apple-health",
+    status: connection ? connection.status || "connected" : "not_connected",
+    source,
+    lastSyncedAt: connection && connection.lastSyncedAt ? connection.lastSyncedAt : "",
+    connection,
+    daily: Array.isArray(data.daily) ? data.daily : [],
+    workouts: Array.isArray(data.workouts) ? data.workouts : []
+  });
+}
+
+function buildDemoAppleHealthPayload() {
+  const daily = Array.from({ length: 14 }, (_, index) => {
+    const dayOffset = 13 - index;
+    const date = new Date();
+    date.setDate(date.getDate() - dayOffset);
+    const wave = Math.sin(index * 0.9);
+    return {
+      date: dateKey(date),
+      stepCount: Math.round(6400 + index * 180 + wave * 900),
+      activeEnergyKcal: Math.round(360 + index * 12 + wave * 55),
+      exerciseMinutes: Math.round(22 + (index % 4) * 7 + Math.max(0, wave) * 12),
+      standHours: 10 + (index % 3),
+      restingHeartRateBpm: Math.round(66 - index * 0.25 + Math.max(0, -wave) * 4),
+      hrvMs: Math.round(36 + index * 0.7 + wave * 6),
+      vo2MaxMlKgMin: Number((34 + index * 0.08).toFixed(1)),
+      sleepMinutes: Math.round(385 + (index % 5) * 18 + Math.max(0, wave) * 35),
+      mindfulMinutes: index % 3 === 0 ? 8 : 0,
+      bodyMassKg: state.profile.weight,
+      waistCm: state.profile.waist,
+      source: "apple-health-demo"
+    };
+  });
+  const workoutTypes = ["walking", "traditionalStrengthTraining", "zone2", "functionalStrengthTraining"];
+  const workouts = [1, 3, 5, 8].map((offset, index) => {
+    const start = new Date();
+    start.setDate(start.getDate() - offset);
+    start.setHours(17 + (index % 2), 15, 0, 0);
+    const duration = index % 2 ? 42 : 36;
+    const end = new Date(start.getTime() + duration * 60 * 1000);
+    return {
+      externalId: `demo-watch-${dateKey(start)}-${workoutTypes[index]}`,
+      workoutType: workoutTypes[index],
+      startedAt: start.toISOString(),
+      endedAt: end.toISOString(),
+      durationMinutes: duration,
+      activeEnergyKcal: 220 + index * 55,
+      distanceMeters: workoutTypes[index] === "walking" ? 4200 : null,
+      averageHeartRateBpm: 112 + index * 9,
+      maxHeartRateBpm: 136 + index * 12,
+      sourceName: "Apple Watch Demo"
+    };
+  });
+  return {
+    provider: "apple-health",
+    device: {
+      name: "Apple Watch",
+      model: "HealthKit bridge demo"
+    },
+    permissions: {
+      stepCount: "read",
+      workouts: "read",
+      heartRate: "read",
+      hrv: "read",
+      sleepAnalysis: "read",
+      activeEnergy: "read"
+    },
+    daily,
+    workouts
+  };
+}
+
+function appleHealthCoachSignal(signal = getHealthSignalWindow(7)) {
+  if (!signal.hasData) {
+    return {
+      level: "neutral",
+      title: "Ingen Watch-signal ännu",
+      text: "När iPhone-appen synkar Apple Hälsa kan coachen väga sömn, HRV, vilopuls, steg och träningspass mot midjemålet."
+    };
+  }
+  if (signal.avgSleepMinutes && signal.avgSleepMinutes < 390) {
+    return {
+      level: "watch",
+      title: "Återhämtningen är dyr just nu",
+      text: `Sömnen ligger runt ${formatHealthDuration(signal.avgSleepMinutes)}. Prioritera zon 2, promenad och enkel matram före hårda intervaller.`
+    };
+  }
+  if (signal.avgRestingHeartRateBpm >= 72 && signal.avgHrvMs && signal.avgHrvMs < 35) {
+    return {
+      level: "watch",
+      title: "Stressignal i pulsdata",
+      text: `Vilopuls ${Math.round(signal.avgRestingHeartRateBpm)} bpm och HRV ${Math.round(signal.avgHrvMs)} ms pekar mot lägre belastning idag.`
+    };
+  }
+  if (signal.avgSteps && signal.avgSteps < 7000) {
+    return {
+      level: "tune",
+      title: "Vardagssteg är nästa hävstång",
+      text: `Snittet är ${Math.round(signal.avgSteps).toLocaleString("sv-SE")} steg/dag. Lägg 10 minuter efter två måltider innan du jagar mer intensitet.`
+    };
+  }
+  if (signal.exerciseMinutes < 150) {
+    return {
+      level: "tune",
+      title: "Veckovolymen behöver fyllas",
+      text: `${Math.round(signal.exerciseMinutes)} träningsminuter är synkade. Sikta på 150 minuter innan extra HIIT.`
+    };
+  }
+  return {
+    level: "strong",
+    title: "Watch-signalen stödjer planen",
+    text: `${Math.round(signal.exerciseMinutes)} min rörelse, ${Math.round(signal.avgSteps).toLocaleString("sv-SE")} steg/dag och ${formatHealthDuration(signal.avgSleepMinutes)} sömn ger bra underlag för coachningen.`
+  };
+}
+
+function formatHealthDuration(minutes) {
+  if (!Number.isFinite(minutes) || minutes <= 0) return "-";
+  const hours = Math.floor(minutes / 60);
+  const rest = Math.round(minutes % 60);
+  return `${hours} h ${rest} min`;
+}
+
+function healthWorkoutLabel(type) {
+  const normalized = String(type || "").toLowerCase();
+  if (normalized.includes("strength")) return "Styrka";
+  if (normalized.includes("walking")) return "Promenad";
+  if (normalized.includes("running")) return "Löpning";
+  if (normalized.includes("cycling")) return "Cykel";
+  if (normalized.includes("hiit") || normalized.includes("interval")) return "Intervall";
+  if (normalized.includes("zone2")) return "Zon 2";
+  return "Träningspass";
+}
+
 function renderMessageFeed() {
   const target = $("#messageFeed");
   if (!target) return;
   const analysis = analyzeProgress();
   const action = getNextBestAction(analysis);
+  const watchSignal = appleHealthCoachSignal(analysis.healthSignal);
   const bookedNames = state.member.bookings
     .map((id) => bookingCatalog.find((item) => item.id === id))
     .filter(Boolean)
@@ -6841,6 +7330,13 @@ function renderMessageFeed() {
       type: "gym",
       title: bookedNames.length ? "Kommande bokningar" : "Boka nästa steg",
       text: bookedNames.length ? bookedNames.join(", ") : "Välj ett rekommenderat pass så kopplas träningen till din buksignal.",
+      date: new Date().toISOString()
+    },
+    {
+      id: "watch-signal",
+      type: "coach",
+      title: watchSignal.title,
+      text: watchSignal.text,
       date: new Date().toISOString()
     }
   ];
