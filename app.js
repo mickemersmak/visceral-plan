@@ -1123,7 +1123,8 @@ let recipeImport = {
   status: "idle",
   query: "",
   results: [],
-  message: "Sök riktiga recept och gör dem till Visceral Plan-recept.",
+  autoLoaded: false,
+  message: "Hämtar riktiga bildrecept automatiskt. Du kan också söka själv.",
   note: ""
 };
 let slvFoodSearch = {
@@ -1165,6 +1166,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindAdmin();
   renderAll();
   activateInitialTab();
+  autoLoadRecipeImages();
 });
 
 function registerServiceWorker() {
@@ -3618,7 +3620,18 @@ function recipeSteps(family, ingredients, minutes, style) {
   ];
 }
 
-async function searchExternalRecipes(query) {
+function autoLoadRecipeImages() {
+  if (recipeImport.autoLoaded || recipeImport.status === "loading" || recipeImport.results.length) return;
+  recipeImport.autoLoaded = true;
+  const selected = new Set(state.pantry && state.pantry.selected || []);
+  let term = "kyckling";
+  if ((state.pantry && state.pantry.goal) === "vegetarian" || selected.has("tofu") || selected.has("lentils")) term = "vegetarisk";
+  else if (selected.has("salmon") || selected.has("cod") || selected.has("tuna")) term = "lax";
+  else if (selected.has("ground-beef")) term = "beef";
+  searchExternalRecipes(term, { auto: true });
+}
+
+async function searchExternalRecipes(query, options = {}) {
   const cleanQuery = String(query || "").trim();
   if (!cleanQuery) {
     recipeImport = {
@@ -3635,7 +3648,9 @@ async function searchExternalRecipes(query) {
     ...recipeImport,
     status: "loading",
     query: cleanQuery,
-    message: `Söker riktiga recept för "${cleanQuery}"...`,
+    message: options.auto
+      ? `Laddar bildrecept för "${cleanQuery}" automatiskt...`
+      : `Söker riktiga recept för "${cleanQuery}"...`,
     note: ""
   };
   renderRecipeEngine();
@@ -3654,11 +3669,12 @@ async function searchExternalRecipes(query) {
     if (!response.ok) throw new Error(data.message || "Receptsökningen misslyckades.");
     const results = normalizeExternalRecipeResults(data.recipes || []);
     recipeImport = {
+      ...recipeImport,
       status: results.length ? "ready" : "empty",
       query: cleanQuery,
       results,
       message: results.length
-        ? `${results.length} riktiga recept hittades. Importera ett för score, kockläge och inköpslista.`
+        ? `${results.length} bildrecept hittades. Importera ett för score, kockläge och inköpslista.`
         : "Inga recept hittades. Testa ett bredare sökord.",
       note: String(data.note || "").slice(0, 220)
     };
@@ -3708,6 +3724,7 @@ function clearImportedRecipes() {
     status: "idle",
     query: recipeImport.query,
     results: recipeImport.results,
+    autoLoaded: recipeImport.autoLoaded,
     message: "Importerade recept rensades. Sök igen när du vill fylla biblioteket.",
     note: ""
   };
@@ -4221,15 +4238,15 @@ function renderRecipeImportPanel() {
     <section class="recipe-import-panel ${recipeImport.status}" aria-label="Importera riktiga recept">
       <div class="recipe-import-copy">
         <div>
-          <span>Riktiga recept</span>
-          <strong>Sök, importera och gör om till midjesmart premiumrecept.</strong>
+          <span>Bildrecept från riktiga källor</span>
+          <strong>Recept med matbilder, källa och originalrecept.</strong>
           <p>${escapeHTML(statusText)}</p>
         </div>
         ${state.pantry.importedRecipes.length ? `<button type="button" data-recipe-import-clear="true">Rensa import</button>` : ""}
       </div>
       <form class="recipe-import-form" data-recipe-search-form="true">
         <input name="recipeSearch" type="search" value="${escapeHTML(recipeImport.query)}" placeholder="Sök kyckling, lax, vegetarisk, soup..." autocomplete="off">
-        <button class="primary-button" type="submit" ${recipeImport.status === "loading" ? "disabled" : ""}>Sök recept</button>
+        <button class="primary-button" type="submit" ${recipeImport.status === "loading" ? "disabled" : ""}>Sök bildrecept</button>
       </form>
       <div class="recipe-import-quick" aria-label="Snabbsök recept">
         ${["kyckling", "lax", "vegetarisk", "beef", "soup"].map((term) => `
@@ -4262,11 +4279,11 @@ function renderExternalRecipeResult(result, importedIds) {
         <span>${escapeHTML([result.area, result.category].filter(Boolean).join(" · ") || result.sourceLabel || "Extern källa")}</span>
         <strong>${escapeHTML(result.title)}</strong>
         <p>${escapeHTML(ingredientPreview.length ? ingredientPreview.join(", ") : "Ingredienser hämtade från källan")}</p>
-        <small>${matchIds.length}/${Math.max(1, recipe.totalIngredientCount || recipe.ingredients.length)} matchar din råvarubank · ${result.minutes || recipe.minutes} min · ${escapeHTML(result.sourceLabel || "Källa")}</small>
+        <small>${matchIds.length}/${Math.max(1, recipeTotalIngredientCount(recipe))} matchar din råvarubank · ${result.minutes || recipe.minutes} min · ${escapeHTML(result.sourceLabel || "Källa")}</small>
       </div>
       <div class="recipe-import-actions">
         ${result.sourceUrl ? `<a href="${escapeHTML(result.sourceUrl)}" target="_blank" rel="noopener noreferrer">Källa</a>` : ""}
-        <button type="button" data-recipe-import="${escapeHTML(result.id)}" ${imported ? "disabled" : ""}>${imported ? "Importerad" : "Importera"}</button>
+        <button type="button" data-recipe-import="${escapeHTML(result.id)}" ${imported ? "disabled" : ""}>${imported ? "Importerad" : "Importera med bild"}</button>
       </div>
     </article>
   `;

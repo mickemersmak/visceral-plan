@@ -19,7 +19,7 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 - Rankad livsmedelsguide med metriska portionsförslag för livsmedel, frukt och grönsaker.
 - Kylskåpsbyggare som räknar ut en komplett måltid från valda råvaror hemma.
 - Premium receptstudio med 100 mer professionella recept som rankas efter råvaror hemma, kamerafynd, mål, protein, fiber, tid och saknade ingredienser, inklusive Chefens val, Receptscore 2.0, matchmätare, smakprofil, mise en place, kocktips, kockläge steg-för-steg, smart substitutionsmotor och inköpslista i gram för receptets saknade varor.
-- Receptimport från riktiga externa recept via TheMealDB: sök på råvara eller receptstil, visa riktig matbild, källa, originalreceptlänk, metriska gramestimat och importera receptet till appens egen score-, kockläge- och inköpsmotor.
+- Receptimport från riktiga externa recept via TheMealDB: automatiskt laddade bildrecept, sök på råvara eller receptstil, visa riktig matbild, källa, originalreceptlänk, metriska gramestimat och importera receptet till appens egen score-, kockläge- och inköpsmotor.
 - Svensk livsmedelssökning via `/api/food-search`, byggd mot Livsmedelsverkets Livsmedelsdatabas med API-status, svenska träffar, näringsvärden per 100 g, råvarumatchning och tydlig fallback om datakällan tillfälligt svarar tomt.
 - Mobilkamerascan av kylskåp med flera bilder, OpenAI/Gemini-förslag, bildkvalitet, osäkra fynd, användarfeedback och tolerant råvarumatchning när AI:n ser namn, förpackning eller kategori.
 - Matfoto-AI som uppskattar näringsvärde från en fotad måltid: kcal, gram, protein, kolhydrater, fett, fiber, komponenter, portionssäkerhet och förbättringsförslag.
