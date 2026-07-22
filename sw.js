@@ -1,12 +1,12 @@
-const CACHE_VERSION = "v38";
+const CACHE_VERSION = "v40";
 const CACHE_NAME = `visceral-plan-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline.html";
 const APP_SHELL = [
   "/",
   "/index.html",
   OFFLINE_URL,
-  "/styles.css?v=38",
-  "/app.js?v=38",
+  "/styles.css?v=40",
+  "/app.js?v=40",
   "/manifest.json",
   "/assets/video-thumb.jpg",
   "/assets/icon.svg",

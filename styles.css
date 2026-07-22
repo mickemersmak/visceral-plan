@@ -5827,6 +5827,540 @@ textarea:focus {
   background: #fff0ed;
 }
 
+/* Premium polish layer */
+.workspace > .view {
+  animation: premiumFade 220ms ease both;
+}
+
+@keyframes premiumFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.module {
+  border-color: rgba(18, 63, 53, 0.1);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 253, 247, 0.89) 62%, rgba(232, 197, 117, 0.09)),
+    var(--surface);
+  box-shadow:
+    0 26px 82px rgba(10, 18, 16, 0.11),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+.module::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.48);
+}
+
+.module-heading {
+  position: relative;
+  z-index: 1;
+  padding-bottom: 2px;
+}
+
+.module-heading .eyebrow {
+  width: fit-content;
+  border: 1px solid rgba(18, 63, 53, 0.11);
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: rgba(18, 63, 53, 0.05);
+  color: rgba(18, 63, 53, 0.78);
+  font-size: 0.68rem;
+}
+
+.module-heading h2 {
+  font-size: 1.42rem;
+  line-height: 1.12;
+}
+
+.coach-module .module-heading .eyebrow,
+.member-hero-module .module-heading .eyebrow,
+.apple-health-module .module-heading .eyebrow {
+  border-color: rgba(232, 197, 117, 0.28);
+  background: rgba(232, 197, 117, 0.1);
+  color: var(--gold);
+}
+
+input,
+select,
+textarea {
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: rgba(195, 154, 76, 0.34);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  background: #fffefa;
+  box-shadow:
+    0 0 0 4px rgba(36, 123, 102, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.primary-button,
+.ghost-button,
+.hero-link-button,
+.tab,
+.fridge-chip,
+.recipe-filter-row button,
+.recipe-import-quick button,
+.kitchen-ai-prompts button,
+.week-mode-row button {
+  transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease, background 170ms ease, color 170ms ease;
+}
+
+.primary-button:active,
+.ghost-button:active,
+.hero-link-button:active,
+.tab:active,
+.fridge-chip:active,
+.recipe-filter-row button:active,
+.recipe-import-quick button:active,
+.kitchen-ai-prompts button:active,
+.week-mode-row button:active {
+  transform: translateY(1px);
+}
+
+.profile-module,
+.metrics-module,
+.today-module,
+.sex-module,
+.insight-module,
+.edge-module,
+.sprint-module,
+.smart-food-module,
+.meal-template-module,
+.food-guide-module,
+.meal-scan-module,
+.fridge-module,
+.booking-module,
+.health-module,
+.communication-module,
+.retention-module,
+.admin-hero-module,
+.competitor-module {
+  overflow: hidden;
+}
+
+.metrics-module .metric-grid,
+.health-data-grid,
+.admin-summary-grid,
+.member-value-grid,
+.recipe-engine-stats,
+.weekly-plan-stats,
+.apple-health-metrics {
+  gap: 10px;
+}
+
+.metric-card,
+.health-data-grid article,
+.admin-summary-grid article,
+.member-value-grid article,
+.recipe-engine-stats article,
+.weekly-plan-stats article,
+.apple-health-metrics article,
+.recipe-hero-proof article,
+.recipe-meta-row span,
+.meal-scan-macros article,
+.fridge-macro-grid article,
+.slv-macro-grid article {
+  border-color: rgba(18, 63, 53, 0.1);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 246, 0.9)),
+    #fffefa;
+  box-shadow: 0 14px 38px rgba(10, 18, 16, 0.065);
+}
+
+.metric-card:hover,
+.member-value-grid article:hover,
+.recipe-card:hover,
+.weekly-day-card:hover,
+.workout-card:hover,
+.booking-list article:hover,
+.source-item:hover,
+.admin-user-list article:hover,
+.fridge-chip:hover {
+  transform: translateY(-2px);
+  border-color: rgba(195, 154, 76, 0.34);
+  box-shadow: 0 24px 64px rgba(10, 18, 16, 0.12);
+}
+
+.profile-form,
+.log-form {
+  position: relative;
+  z-index: 1;
+}
+
+.profile-form label,
+.log-form label,
+.auth-form label,
+.admin-user-form label,
+.swap-lab label,
+.timer-select,
+.kitchen-ai-form,
+.slv-food-form,
+.recipe-import-form {
+  border: 1px solid rgba(18, 63, 53, 0.08);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.profile-form .primary-button,
+.log-form .primary-button,
+.member-message-form .primary-button,
+.kitchen-ai-form .primary-button,
+.recipe-import-form .primary-button,
+.slv-food-form .primary-button {
+  box-shadow:
+    0 18px 46px rgba(18, 63, 53, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.coach-module {
+  background:
+    linear-gradient(135deg, rgba(10, 18, 16, 0.98), rgba(18, 63, 53, 0.94) 58%, rgba(43, 100, 135, 0.24)),
+    var(--green);
+}
+
+.coach-score,
+.next-action,
+.score-breakdown article,
+.coach-brief article,
+.coach-report article {
+  background:
+    linear-gradient(145deg, rgba(255, 254, 250, 0.12), rgba(255, 254, 250, 0.055)),
+    rgba(10, 18, 16, 0.2);
+  backdrop-filter: blur(16px);
+}
+
+.next-action {
+  position: relative;
+}
+
+.next-action::after {
+  content: "";
+  position: absolute;
+  inset: auto 18px 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+.today-module .priority-list li {
+  align-items: center;
+}
+
+.priority-list li,
+.target-list article,
+.sex-focus-list article,
+.edge-grid article,
+.sprint-grid article,
+.plan-day,
+.meal-slot,
+.insight-grid article {
+  transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease;
+}
+
+.priority-list li:hover,
+.target-list article:hover,
+.sex-focus-list article:hover,
+.edge-grid article:hover,
+.sprint-grid article:hover,
+.plan-day:hover,
+.meal-slot:hover,
+.insight-grid article:hover {
+  transform: translateY(-2px);
+  border-color: rgba(195, 154, 76, 0.32);
+  box-shadow: 0 20px 52px rgba(10, 18, 16, 0.095);
+}
+
+.sprint-grid article.is-current,
+.recipe-card.complete,
+.weekly-day-card:first-child {
+  background:
+    linear-gradient(145deg, rgba(255, 248, 226, 0.98), rgba(238, 248, 244, 0.86)),
+    #fffefa;
+}
+
+.smart-food-module,
+.fridge-module {
+  border-color: rgba(36, 123, 102, 0.18);
+}
+
+.plate-builder,
+.swap-lab,
+.fridge-scan-panel,
+.kitchen-ai-panel,
+.fridge-meal-result,
+.weekly-meal-planner,
+.recipe-engine-panel,
+.slv-food-panel,
+.food-guide section {
+  border-color: rgba(18, 63, 53, 0.1);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(246, 250, 247, 0.86));
+  box-shadow: 0 18px 54px rgba(10, 18, 16, 0.075);
+}
+
+.fridge-scan-panel,
+.kitchen-ai-panel,
+.recipe-engine-panel,
+.recipe-import-panel,
+.recipe-shopping-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.fridge-scan-panel::before,
+.kitchen-ai-panel::before,
+.recipe-engine-panel::before,
+.recipe-import-panel::before,
+.recipe-shopping-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--green-2), var(--blue));
+}
+
+.fridge-scan-preview,
+.meal-scan-preview,
+.recipe-hero-image,
+.recipe-card-media,
+.weekly-meal-image,
+.workout-visual {
+  border-color: rgba(232, 197, 117, 0.26);
+  box-shadow:
+    0 20px 60px rgba(10, 18, 16, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.meal-scan-preview::after,
+.fridge-scan-preview::after,
+.recipe-hero-image::after,
+.recipe-card-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(10, 18, 16, 0), rgba(10, 18, 16, 0.12));
+}
+
+.fridge-chip {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(247, 250, 246, 0.82));
+}
+
+.fridge-chip.selected {
+  background:
+    linear-gradient(145deg, rgba(18, 63, 53, 0.96), rgba(36, 123, 102, 0.9));
+  color: #fffefa;
+  box-shadow: 0 18px 48px rgba(18, 63, 53, 0.18);
+}
+
+.fridge-chip.selected small {
+  color: rgba(255, 254, 250, 0.7);
+}
+
+.recipe-studio-hero,
+.recipe-cook-mode,
+.apple-health-module,
+.member-hero-module {
+  background:
+    linear-gradient(135deg, rgba(10, 18, 16, 0.98), rgba(18, 63, 53, 0.94) 58%, rgba(43, 100, 135, 0.22)),
+    var(--deep);
+  color: #fffefa;
+  border-color: rgba(232, 197, 117, 0.22);
+  box-shadow: 0 34px 110px rgba(10, 18, 16, 0.22);
+}
+
+.recipe-studio-hero.empty {
+  background:
+    linear-gradient(135deg, rgba(18, 63, 53, 0.12), rgba(232, 197, 117, 0.12)),
+    #fffefa;
+  color: var(--ink);
+}
+
+.recipe-hero-copy h4,
+.recipe-cook-mode header strong,
+.apple-health-hero strong {
+  color: #fffefa;
+}
+
+.recipe-hero-copy p,
+.recipe-cook-mode header small,
+.apple-health-hero p,
+.apple-health-coach p {
+  color: rgba(255, 254, 250, 0.72);
+}
+
+.recipe-card,
+.weekly-day-card,
+.recipe-import-card,
+.slv-food-card,
+.meal-scan-card,
+.scan-quality-card,
+.scan-meal-idea,
+.scan-shopping-card,
+.kitchen-message,
+.booking-list article,
+.message-feed article,
+.retention-grid article,
+.admin-user-list article,
+.admin-empty {
+  border-color: rgba(18, 63, 53, 0.1);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 247, 0.88)),
+    #fffefa;
+  box-shadow: 0 14px 42px rgba(10, 18, 16, 0.07);
+}
+
+.recipe-card {
+  transition: transform 170ms ease, border-color 170ms ease, box-shadow 170ms ease;
+}
+
+.recipe-card.shop {
+  border-color: rgba(185, 143, 66, 0.34);
+}
+
+.recipe-card.complete {
+  border-color: rgba(36, 123, 102, 0.34);
+}
+
+.recipe-score-panel,
+.recipe-pro-note,
+.recipe-substitution-panel,
+.fridge-verdict,
+.meal-scan-verdict,
+.apple-health-coach {
+  border-color: rgba(232, 197, 117, 0.22);
+  background:
+    linear-gradient(145deg, rgba(18, 63, 53, 0.96), rgba(10, 18, 16, 0.92));
+  color: #fffefa;
+  box-shadow: 0 18px 52px rgba(10, 18, 16, 0.16);
+}
+
+.recipe-score-panel span,
+.recipe-score-panel small,
+.recipe-pro-note span,
+.recipe-pro-note small,
+.fridge-verdict p,
+.meal-scan-verdict p,
+.apple-health-coach p {
+  color: rgba(255, 254, 250, 0.7);
+}
+
+.recipe-score-panel strong,
+.recipe-pro-note strong,
+.fridge-verdict strong,
+.meal-scan-verdict strong,
+.apple-health-coach strong {
+  color: var(--gold);
+}
+
+.workout-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.workout-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--green-2), var(--gold));
+}
+
+.timer-module {
+  background:
+    linear-gradient(145deg, rgba(10, 18, 16, 0.98), rgba(18, 63, 53, 0.93)),
+    var(--deep);
+  color: #fffefa;
+  border-color: rgba(232, 197, 117, 0.22);
+}
+
+.timer-module .eyebrow {
+  color: var(--gold);
+}
+
+.timer-face {
+  border-color: rgba(232, 197, 117, 0.24);
+  background:
+    radial-gradient(circle at 50% 24%, rgba(232, 197, 117, 0.14), transparent 36%),
+    rgba(255, 254, 250, 0.08);
+  color: #fffefa;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.timer-face strong {
+  color: var(--gold);
+}
+
+.timer-face span,
+.timer-face small {
+  color: rgba(255, 254, 250, 0.68);
+}
+
+.member-hero-module {
+  margin-bottom: 20px;
+}
+
+.member-value-grid article {
+  background: rgba(255, 254, 250, 0.08);
+  color: #fffefa;
+  border-color: rgba(255, 254, 250, 0.12);
+  box-shadow: none;
+}
+
+.member-value-grid span {
+  color: rgba(255, 254, 250, 0.7);
+}
+
+.booking-list article.is-booked {
+  border-color: rgba(36, 123, 102, 0.34);
+  background:
+    linear-gradient(145deg, rgba(237, 247, 241, 0.98), rgba(255, 253, 247, 0.9));
+}
+
+.message-feed article.coach {
+  border-color: rgba(232, 197, 117, 0.26);
+}
+
+.source-note,
+.competitor-matrix article {
+  border-color: rgba(18, 63, 53, 0.1);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 247, 0.88));
+  box-shadow: 0 16px 46px rgba(10, 18, 16, 0.07);
+}
+
+.status-badge,
+.score-chip {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.guide-intro,
+.source-note p,
+.risk-copy p {
+  font-size: 0.95rem;
+}
+
 @media (max-width: 1120px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -6306,6 +6840,10 @@ textarea:focus {
     font-size: 1.48rem;
   }
 
+  .coach-module {
+    padding-bottom: 18px;
+  }
+
   .dashboard-grid,
   .dashboard-grid.lower,
   .two-column {
@@ -6319,6 +6857,52 @@ textarea:focus {
   .coach-layout,
   .smart-food-grid {
     grid-template-columns: 1fr;
+  }
+
+  .coach-layout {
+    gap: 12px;
+  }
+
+  .coach-score {
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .coach-score strong {
+    font-size: 2.7rem;
+  }
+
+  .score-breakdown,
+  .coach-brief,
+  .coach-report {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 2px 2px 8px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .score-breakdown::-webkit-scrollbar,
+  .coach-brief::-webkit-scrollbar,
+  .coach-report::-webkit-scrollbar {
+    display: none;
+  }
+
+  .score-breakdown article,
+  .coach-brief article,
+  .coach-report article {
+    flex: 0 0 78%;
+    min-height: 132px;
+    scroll-snap-align: start;
+  }
+
+  .next-action {
+    padding: 14px;
+  }
+
+  .next-action strong {
+    font-size: 1.08rem;
   }
 
   .fridge-layout,

@@ -2,7 +2,7 @@ const STORAGE_KEY = "visceral-plan-state-v1";
 const USERS_KEY = "visceral-plan-users-v1";
 const SESSION_KEY = "visceral-plan-session-v1";
 const SERVER_SESSION_KEY = "visceral-plan-server-session-v1";
-const APP_VERSION = "v38";
+const APP_VERSION = "v40";
 const ADMIN_ROLES = ["admin", "super_admin"];
 const GUEST_USER = { id: "guest", name: "Gästläge", guest: true };
 
