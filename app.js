@@ -2,7 +2,7 @@ const STORAGE_KEY = "visceral-plan-state-v1";
 const USERS_KEY = "visceral-plan-users-v1";
 const SESSION_KEY = "visceral-plan-session-v1";
 const SERVER_SESSION_KEY = "visceral-plan-server-session-v1";
-const APP_VERSION = "v32";
+const APP_VERSION = "v38";
 const ADMIN_ROLES = ["admin", "super_admin"];
 const GUEST_USER = { id: "guest", name: "Gästläge", guest: true };
 
@@ -1774,6 +1774,15 @@ function bindTabs() {
       }
     });
   });
+
+  $$("[data-open-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.openTab;
+      if (!tab || !$("#" + tab)) return;
+      activateTab(tab);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
 }
 
 function activateInitialTab() {
@@ -2308,6 +2317,7 @@ function formatSeconds(total) {
 }
 
 function renderAll() {
+  renderHeroExperience();
   renderCoach();
   renderMetrics();
   renderSexProtocol();
@@ -2329,6 +2339,118 @@ function renderAll() {
   renderCompetitors();
   renderPwaPanel();
   loadLogForDate();
+}
+
+function renderHeroExperience() {
+  const analysis = analyzeProgress();
+  const p = state.profile;
+  const whtr = analysis.whtr;
+  const gap = Math.max(0, p.waist - p.targetWaist);
+  const action = getNextBestAction(analysis);
+  const blocker = getPrimaryBlocker(analysis);
+  const dial = $(".metabolic-dial");
+  const score = analysis.score;
+  const projectedCm = gap
+    ? Math.min(gap, score >= 70 ? 2.2 : score >= 50 ? 1.6 : 1.0)
+    : 0;
+  const projectionRatio = clamp(Math.round(((p.waist - p.targetWaist - projectedCm) / Math.max(1, p.waist - p.targetWaist)) * 100), 6, 96);
+
+  if ($("#heroScoreValue")) $("#heroScoreValue").textContent = score;
+  if ($("#heroScoreLabel")) $("#heroScoreLabel").textContent = analysis.tier.label;
+  if (dial) {
+    dial.style.setProperty("--score-angle", `${Math.round((score / 100) * 360)}deg`);
+    dial.dataset.tier = analysis.tier.className;
+  }
+
+  const insight = heroInsightForAnalysis(analysis, action);
+  if ($("#heroInsightTitle")) $("#heroInsightTitle").textContent = insight.title;
+  if ($("#heroInsightText")) $("#heroInsightText").textContent = insight.text;
+
+  if ($("#heroProjectionTitle")) {
+    $("#heroProjectionTitle").textContent = gap
+      ? `Nästa synliga milstolpe: ${projectedCm.toFixed(1).replace(".", ",")} cm`
+      : "Målet är inom räckhåll";
+  }
+  if ($("#heroProjectionText")) {
+    $("#heroProjectionText").textContent = gap
+      ? `Om du följer dagens drag kan första 14-dagarsfasen peka mot ${Math.max(p.targetWaist, p.waist - projectedCm).toFixed(1).replace(".", ",")} cm midja.`
+      : "Fokus flyttas till att hålla midjan stabil med styrka, sömn och måltidskvalitet.";
+  }
+  if ($("#heroProjectionNeedle")) $("#heroProjectionNeedle").style.width = `${100 - projectionRatio}%`;
+  if ($("#heroMiniMilestone")) {
+    $("#heroMiniMilestone").textContent = gap
+      ? `${projectedCm.toFixed(1).replace(".", ",")} cm närmare kontroll`
+      : "Behåll kontrollen";
+  }
+
+  const reveals = [
+    {
+      kicker: "Dolda bromsen",
+      title: blocker.title,
+      text: blocker.text
+    },
+    {
+      kicker: "Nästa drag",
+      title: action.title,
+      text: action.reason
+    },
+    {
+      kicker: "AI-fynd",
+      title: analysis.weakest[0],
+      text: whtr >= 0.5
+        ? "Appen prioriterar midjeminskning före vågens dagliga brus."
+        : "Nu handlar premiumläget om att behålla kontroll utan att tappa muskler."
+    }
+  ];
+
+  const target = $("#heroRevealGrid");
+  if (target) {
+    target.innerHTML = reveals.map((item) => `
+      <article>
+        <span>${escapeHTML(item.kicker)}</span>
+        <strong>${escapeHTML(item.title)}</strong>
+        <p>${escapeHTML(item.text)}</p>
+      </article>
+    `).join("");
+  }
+}
+
+function heroInsightForAnalysis(analysis, action) {
+  const health = analysis.healthSignal || {};
+  if (health.hasData && health.avgSleepMinutes && health.avgSleepMinutes < 390) {
+    return {
+      title: "Kroppen ber om marginal",
+      text: "Watch-signalen gör planen smartare: idag vinner återhämtning, protein och lugn rörelse över ett hårt pass."
+    };
+  }
+  if (analysis.whtr >= 0.6) {
+    return {
+      title: "Buksignalen är dyr just nu",
+      text: "AI:n prioriterar de beslut som sänker midjebelastningen först: rörelse efter mat, gramstyrd middag och två styrkepass."
+    };
+  }
+  if (analysis.minutes < 150) {
+    return {
+      title: "Det finns en enkel vinst",
+      text: `${action.title}. Appen ser att vardagsvolymen kan lyfta hela veckan utan att kräva perfekt träning.`
+    };
+  }
+  if (analysis.strengthDays < 2) {
+    return {
+      title: "Musklerna är din försäkring",
+      text: "Nästa nivå kommer från styrka: inte för att bränna mest idag, utan för att kroppen ska bli dyrare att bära varje dag."
+    };
+  }
+  if (analysis.proteinDays < 5 || analysis.vegDays < 5) {
+    return {
+      title: "Kylskåpet är genvägen",
+      text: "Den smartaste designen är praktisk: bygg en mättande tallrik av det som redan finns hemma och låt AI:n komplettera gram."
+    };
+  }
+  return {
+    title: "Du har momentum",
+    text: "Nu ska appen hålla dig nyfiken: ett tydligt beslut per dag, en synlig midjemilstolpe och mindre brus från vågen."
+  };
 }
 
 function getRecentEntries(days = 7) {

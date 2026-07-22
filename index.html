@@ -16,7 +16,7 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="assets/icon-512.png">
-    <link rel="stylesheet" href="styles.css?v=32">
+    <link rel="stylesheet" href="styles.css?v=38">
   </head>
   <body>
     <div class="app-shell">
@@ -97,20 +97,51 @@
       </aside>
 
       <main class="workspace">
-        <section class="topbar" aria-label="Aktuell status">
+        <section class="topbar premium-hero" aria-label="Aktuell status">
           <div class="hero-copy">
-            <p class="eyebrow">Premiumcoach för midja, kost och träning</p>
-            <h1>Visceral Plan för att minska farligt bukfett med precision</h1>
-            <p class="hero-lede">Kost, styrka, kondition, AI-coach, kylskåpsmåltider och medlemsuppföljning samlas i ett fokuserat system för visceralt fett, med mätbara riskmarkörer och tydliga dagliga beslut.</p>
-            <div class="hero-proof" aria-label="Programprinciper">
-              <span>Midja/längd</span>
-              <span>150 min/vecka</span>
-              <span>2 styrkepass</span>
-              <span>Protein + fiber</span>
-              <span>Kylskåpsmåltider</span>
+            <p class="eyebrow">Privat metabol coach</p>
+            <h1>Vad händer runt din midja just nu?</h1>
+            <p class="hero-lede">Visceral Plan läser av midja, vanor, träning, sömn, kylskåp och måltider och avslöjar vilket drag som ger störst effekt de kommande 24 timmarna.</p>
+            <div class="hero-actions" aria-label="Snabba startval">
+              <button class="primary-button" type="button" data-open-tab="log">Starta analys</button>
+              <button class="hero-link-button" type="button" data-open-tab="nutrition">Skanna kylskåpet</button>
             </div>
+            <div class="hero-proof" aria-label="Programprinciper">
+              <span>AI-coach</span>
+              <span>Midja före vikt</span>
+              <span>Watch-signal</span>
+              <span>Kylskåpsmåltider</span>
+              <span>14-dagars prognos</span>
+            </div>
+            <div id="heroRevealGrid" class="hero-reveal-grid" aria-live="polite"></div>
           </div>
-          <div class="hero-stack">
+          <div class="hero-stack premium-hero-stack">
+            <section class="hero-diagnostic" aria-labelledby="heroDiagnosticTitle">
+              <div class="diagnostic-head">
+                <span>AI-signal</span>
+                <strong id="heroDiagnosticTitle">Metabol läsning</strong>
+              </div>
+              <div class="metabolic-dial" aria-label="Metabolt index">
+                <div class="dial-ring">
+                  <span id="heroScoreValue">0</span>
+                  <small id="heroScoreLabel">Kalibrerar</small>
+                </div>
+              </div>
+              <div class="diagnostic-copy">
+                <strong id="heroInsightTitle">AI:n väntar på din baslinje</strong>
+                <p id="heroInsightText">Logga midja, rörelse och måltidskvalitet så börjar appen hitta din mest lönsamma hävstång.</p>
+              </div>
+            </section>
+            <section class="hero-projection" aria-label="Midjeprognos">
+              <div>
+                <span>14 dagar</span>
+                <strong id="heroProjectionTitle">Prognos byggs</strong>
+              </div>
+              <div class="projection-track" aria-hidden="true">
+                <span id="heroProjectionNeedle"></span>
+              </div>
+              <small id="heroProjectionText">När profilen är uppdaterad visar appen nästa synliga midjemilstolpe.</small>
+            </section>
             <div class="today-pill">
               <span id="todayLabel">Idag</span>
               <strong id="streakCount">0 dagar</strong>
@@ -124,22 +155,22 @@
           </div>
         </section>
 
-        <section class="evidence-strip" aria-label="Evidenssammanfattning">
+        <section class="evidence-strip premium-teaser-strip" aria-label="Evidenssammanfattning">
           <article>
-            <span>Riskmått</span>
-            <strong>Midja före vikt</strong>
+            <span>Dagens fråga</span>
+            <strong>Vad bromsar dig?</strong>
           </article>
           <article>
-            <span>Träning</span>
-            <strong>Kondition + styrka</strong>
+            <span>Smartaste bytet</span>
+            <strong>Mat, rörelse eller sömn</strong>
           </article>
           <article>
-            <span>Kost</span>
-            <strong>Fiber, protein, låg sockerlast</strong>
+            <span>Hemlig fördel</span>
+            <strong>Kylskåpet blir coach</strong>
           </article>
           <article>
-            <span>Tempo</span>
-            <strong>Hållbart underskott</strong>
+            <span>Nästa milstolpe</span>
+            <strong id="heroMiniMilestone">Beräknas nu</strong>
           </article>
         </section>
 
@@ -791,6 +822,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=32"></script>
+    <script src="app.js?v=38"></script>
   </body>
 </html>
