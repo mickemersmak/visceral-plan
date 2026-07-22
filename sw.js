@@ -1,14 +1,18 @@
-const CACHE_VERSION = "v40";
+const CACHE_VERSION = "v43";
 const CACHE_NAME = `visceral-plan-${CACHE_VERSION}`;
 const OFFLINE_URL = "/offline.html";
 const APP_SHELL = [
   "/",
   "/index.html",
   OFFLINE_URL,
-  "/styles.css?v=40",
-  "/app.js?v=40",
+  "/styles.css?v=43",
+  "/app.js?v=43",
   "/manifest.json",
   "/assets/video-thumb.jpg",
+  "/assets/training/brisk-walk.jpg",
+  "/assets/training/interval-run.jpg",
+  "/assets/training/mobility-stretch.jpg",
+  "/assets/training/strength-barbell.jpg",
   "/assets/icon.svg",
   "/assets/icon-192.png",
   "/assets/icon-512.png"

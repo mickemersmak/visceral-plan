@@ -2,7 +2,7 @@ const STORAGE_KEY = "visceral-plan-state-v1";
 const USERS_KEY = "visceral-plan-users-v1";
 const SESSION_KEY = "visceral-plan-session-v1";
 const SERVER_SESSION_KEY = "visceral-plan-server-session-v1";
-const APP_VERSION = "v40";
+const APP_VERSION = "v43";
 const ADMIN_ROLES = ["admin", "super_admin"];
 const GUEST_USER = { id: "guest", name: "Gästläge", guest: true };
 
@@ -1002,60 +1002,96 @@ const workoutLibrary = {
   beginner: [
     {
       name: "Rask gång bas",
+      type: "cardio",
       tag: "30 min",
+      focus: "Zon 2",
+      metric: "5-6 km/h eller prattempo",
       why: "Bygger veckovolym utan hög skaderisk.",
+      cue: "Låt tempot kännas aktivt men hållbart. Du ska kunna prata i korta meningar.",
       steps: ["5 min lugnt", "20 min prattempo men tydligt flås", "5 min lugnt"]
     },
     {
       name: "Styrka A",
+      type: "strength",
       tag: "25 min",
+      focus: "Helkropp",
+      metric: "RPE 6-7",
       why: "Helkropp med låg tröskel.",
+      cue: "Teknik först. Lämna 2-3 repetitioner i tanken och bygg vana före maxning.",
       steps: ["Knäböj mot stol 3x8-12", "Lutande armhävning 3x6-10", "Höftfällning 3x10", "Rodd med band/ryggsäck 3x10", "Sidoplanka 3x20 sek/sida"]
     },
     {
       name: "Intervall start",
+      type: "interval",
       tag: "18 min",
+      focus: "30/90 sek",
+      metric: "RPE 7",
       why: "Kort och kontrollerad intensitet efter uppvärmning.",
+      cue: "Snabbt är bra, panik är fel. Sista rundan ska fortfarande gå att genomföra snyggt.",
       steps: ["5 min uppvärmning", "6 rundor: 30 sek snabb gång/backe + 90 sek lugnt", "3 min nedvarvning"]
     }
   ],
   steady: [
     {
       name: "Zon 2",
+      type: "cardio",
       tag: "35-45 min",
+      focus: "Aerob bas",
+      metric: "Pulszon 2",
       why: "Stabil kaloriförbrukning och kondition.",
+      cue: "Välj tempo du kan upprepa flera gånger per vecka. Det är volymen som gör jobbet.",
       steps: ["5 min lugnt", "25-35 min jämnt tempo", "5 min lugnt"]
     },
     {
       name: "Styrka B",
+      type: "strength",
       tag: "35 min",
+      focus: "Progression",
+      metric: "RPE 7-8",
       why: "Mer muskelmassa och bättre glukoshantering.",
+      cue: "När alla set känns stabila höjer du 1-2 repetitioner eller lite belastning nästa gång.",
       steps: ["Utfall eller step-up 3x8/sida", "Hantelpress eller armhävning 3x8-12", "Rumänska marklyft 3x8-10", "Rodd 3x10-12", "Dead bug 3x8/sida"]
     },
     {
       name: "HIIT kontrollerad",
+      type: "interval",
       tag: "22 min",
+      focus: "30/90 sek",
+      metric: "RPE 8",
       why: "Tidsbesparande pass som kan minska buk- och visceralt fett hos rätt person.",
+      cue: "Låt vilan vara lätt nog för att nästa hårda drag ska bli jämnt, inte slarvigt.",
       steps: ["6 min uppvärmning", "8 rundor: 30 sek hårt + 90 sek lätt", "4 min nedvarvning"]
     }
   ],
   trained: [
     {
       name: "Tröskelintervall",
+      type: "interval",
       tag: "28 min",
+      focus: "60/90 sek",
+      metric: "RPE 8-9",
       why: "Hög konditionseffekt utan att varje pass blir maxning.",
+      cue: "Sök tryck och rytm, inte sprint. Jämn fart över alla sex rundor vinner.",
       steps: ["8 min uppvärmning", "6 rundor: 60 sek hårt + 90 sek lätt", "5 min nedvarvning"]
     },
     {
       name: "Styrka tung teknik",
+      type: "strength",
       tag: "45 min",
+      focus: "Tung teknik",
+      metric: "RPE 7-9",
       why: "Helkropp, progressiv belastning och mättnadsvänlig muskelmassa.",
+      cue: "Tunga set ska se kontrollerade ut. Stoppa serien innan tekniken börjar läcka.",
       steps: ["Knäböj eller benpress 4x5-8", "Press 4x6-8", "Höftfällning 4x6-8", "Drag/rodd 4x8-10", "Bålrotation eller carry 4 set"]
     },
     {
       name: "Lång zon 2",
+      type: "cardio",
       tag: "50-70 min",
+      focus: "Veckovolym",
+      metric: "Pulszon 2",
       why: "Ökar totalvolymen när återhämtningen håller.",
+      cue: "Håll tempot så lugnt att passet bygger dig uppåt, inte äter upp styrkan dagen efter.",
       steps: ["10 min lugnt", "35-55 min jämnt tempo", "5 min lugnt"]
     }
   ]
@@ -1770,7 +1806,7 @@ function bindTabs() {
     button.addEventListener("click", () => {
       activateTab(button.dataset.tab);
       if (window.matchMedia("(max-width: 760px)").matches) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        scrollToTabSurface(button.dataset.tab);
       }
     });
   });
@@ -1780,7 +1816,7 @@ function bindTabs() {
       const tab = button.dataset.openTab;
       if (!tab || !$("#" + tab)) return;
       activateTab(tab);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      scrollToTabSurface(tab);
     });
   });
 }
@@ -1798,6 +1834,18 @@ function activateTab(tab) {
     item.setAttribute("aria-selected", selected ? "true" : "false");
   });
   $$(".view").forEach((view) => view.classList.toggle("is-active", view.id === tab));
+}
+
+function scrollToTabSurface(tab) {
+  if (tab === "dashboard") {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  const view = $("#" + tab);
+  if (!view) return;
+  const offset = window.matchMedia("(max-width: 760px)").matches ? 96 : 18;
+  const top = Math.max(0, window.scrollY + view.getBoundingClientRect().top - offset);
+  window.scrollTo({ top, behavior: "smooth" });
 }
 
 function bindProfile() {
@@ -7167,7 +7215,7 @@ function renderTraining() {
   const workouts = workoutLibrary[state.profile.level];
   $("#workoutList").innerHTML = workouts.map((workout) => `
     <article class="workout-card">
-      ${workoutVisual(workout.name)}
+      ${workoutVisual(workout)}
       <header>
         <div>
           <h3>${workout.name}</h3>
@@ -7175,27 +7223,49 @@ function renderTraining() {
         </div>
         <span class="status-badge low">${workout.tag}</span>
       </header>
+      <div class="workout-meta" aria-label="Passdata">
+        <span>${escapeHTML(workout.focus || "Fokus")}</span>
+        <span>${escapeHTML(workout.metric || workout.tag)}</span>
+      </div>
       <ul>${workout.steps.map((step) => `<li>${step}</li>`).join("")}</ul>
+      <p class="workout-cue"><strong>Coachcue</strong>${escapeHTML(workout.cue || "Håll passet kontrollerat och välj progression du kan upprepa.")}</p>
     </article>
   `).join("");
 }
 
-function workoutVisual(name) {
-  const type = /styrka|tung/i.test(name) ? "strength" : /intervall|tröskel|hiit/i.test(name) ? "interval" : /zon|gång|promenad/i.test(name) ? "cardio" : "mobility";
-  const figures = {
-    strength: `<path d="M62 82h86M64 72v20M146 72v20" stroke="#f1d18a" stroke-width="10" stroke-linecap="round"/><circle cx="106" cy="45" r="14" fill="#fffefa"/><path d="M104 62l-14 38 29 28M105 64l28 24 30-6M91 101l-28 39M119 128l35 23" stroke="#fffefa" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>`,
-    interval: `<path d="M32 138c38-44 72-44 112 0" fill="none" stroke="#2d866e" stroke-width="12" stroke-linecap="round"/><circle cx="96" cy="45" r="13" fill="#fffefa"/><path d="M95 62l-20 35 34 13 23 37M75 97l-34 25M109 110l39-18M88 84l38-22" stroke="#fffefa" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M152 48l20 8-18 11" fill="none" stroke="#f1d18a" stroke-width="8" stroke-linecap="round"/>`,
-    cardio: `<circle cx="92" cy="44" r="14" fill="#fffefa"/><path d="M90 62l-10 42 29 14M80 104l-23 43M109 118l29 32M86 78l-35 18M95 76l32 23" stroke="#fffefa" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M137 55c18 13 29 31 33 54" fill="none" stroke="#f1d18a" stroke-width="8" stroke-linecap="round"/>`,
-    mobility: `<circle cx="102" cy="43" r="14" fill="#fffefa"/><path d="M101 62l2 54M103 83l-42 20M104 88l43-21M103 116l-42 35M104 116l43 35" stroke="#fffefa" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/><path d="M48 52c22-20 78-29 110 2" fill="none" stroke="#f1d18a" stroke-width="8" stroke-linecap="round"/>`
-  };
+function workoutVisual(workout) {
+  const name = workout.name || "";
+  const type = workout.type || (/styrka|tung/i.test(name) ? "strength" : /intervall|tröskel|hiit/i.test(name) ? "interval" : /zon|gång|promenad/i.test(name) ? "cardio" : "mobility");
+  const media = {
+    strength: {
+      src: "assets/training/strength-barbell.jpg",
+      alt: "Person tränar styrka med skivstång i gymmiljö",
+      label: "Styrka"
+    },
+    interval: {
+      src: "assets/training/interval-run.jpg",
+      alt: "Två löpare gör ett snabbt intervallpass utomhus",
+      label: "Intervall"
+    },
+    cardio: {
+      src: "assets/training/brisk-walk.jpg",
+      alt: "Person går raskt på en parkstig som konditionsträning",
+      label: "Zon 2"
+    },
+    mobility: {
+      src: "assets/training/mobility-stretch.jpg",
+      alt: "Person gör ett rörlighetspass utomhus",
+      label: "Rörlighet"
+    }
+  }[type];
   return `
-    <div class="exercise-visual ${type}" aria-hidden="true">
-      <svg viewBox="0 0 200 170" role="img" focusable="false">
-        <rect x="8" y="8" width="184" height="154" rx="22" fill="#0f1916"/>
-        <path d="M18 132c30-20 66-23 108-9 24 8 42 7 58-4v43H18z" fill="#17483c"/>
-        ${figures[type]}
-      </svg>
-    </div>
+    <figure class="exercise-visual ${type}">
+      <img src="${media.src}" alt="${escapeHTML(media.alt)}" loading="lazy" decoding="async">
+      <figcaption>
+        <span>${escapeHTML(media.label)}</span>
+        <small>${escapeHTML(workout.focus || workout.tag || "")}</small>
+      </figcaption>
+    </figure>
   `;
 }
 

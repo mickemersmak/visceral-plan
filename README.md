@@ -41,6 +41,15 @@ En svensk premiuminriktad webbapp för att kombinera kost, styrka, kondition, å
 
 Alla mått i appen är metriska: cm, kg, g, minuter, sekunder och kcal.
 
+## Bildkällor
+
+Träningsdelen använder lokalt sparade fria foton från Unsplash:
+
+- [Promenad/zon 2](https://unsplash.com/photos/woman-walking-on-a-path-in-a-park-PYS1upInr8U): Truong Tuyet Ly.
+- [Intervall/löpning](https://unsplash.com/photos/a-couple-of-people-that-are-running-together-zxPUD4D2wPc): Venti Views.
+- [Styrka](https://unsplash.com/photos/a-shirtless-man-lifting-a-barbell-in-a-gym-h_pnE9k61WI): Marvin Cors.
+- [Rörlighet](https://unsplash.com/photos/woman-in-white-tank-top-and-black-leggings-doing-yoga-during-daytime-mIHbipd5-Qw): Luemen Rutkowski.
+
 ## Det som skiljer appen
 
 Visceral Plan jagar inte bara kalorier. Den styr på bukmått, midja/längd, könsspecifika risk- och träningsvägar, veckovolym, vaneföljsamhet, styrka, återhämtning och konkreta matbyten. Kylskåpsbyggaren gör appen mer praktisk än en vanlig matlogg: användaren kan scanna kylskåpet med mobilkameran, lägga till råvaruförslag och få gram, kcal, protein, kolhydrater, fett, fiber och coachens justeringar direkt. Visceral Score 2.0 visar både totalsignal och svagaste länk, så användaren får ett beslut i stället för ännu en översiktspanel. All data sparas lokalt i PWA:n, så användaren får en privat coach utan konto hos en extern tjänst.
